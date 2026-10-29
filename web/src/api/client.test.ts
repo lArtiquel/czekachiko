@@ -84,6 +84,11 @@ describe('ApiClient error mapping', () => {
     expect(e.message).not.toContain(INIT);
   });
 
+  it('403 (page served from a foreign origin) → forbidden', async () => {
+    const e = await failure(client(json(403, { error: 'forbidden' })).api.cases());
+    expect(e.kind).toBe('forbidden');
+  });
+
   it('404 → not_found', async () => {
     const e = await failure(client(json(404, { error: 'not_found' })).api.caseDetail(9));
     expect(e.kind).toBe('not_found');

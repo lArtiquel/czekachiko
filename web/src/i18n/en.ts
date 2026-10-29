@@ -22,8 +22,12 @@ export const en: Record<Key, string> = {
   err_network: "Can't reach the server. Check your connection and try again.",
   err_server: 'Something went wrong on the server. Please try a bit later.',
   err_rate_limited: 'Too many requests in a row. Wait a few seconds and try again.',
+  err_forbidden: "This copy of the app can't reach the server. Open Czekachiko from the chat with the bot.",
+  err_try_again: "Couldn't save. Please try again.",
   err_not_found: "Couldn't find this case. It may have been deleted.",
   err_invalid: 'Please check this field.',
+  err_required: 'Please fill this in.',
+  err_too_many: 'Too many selected. Remove some and try again.',
   err_required_choice: 'Please choose an option.',
   err_required_date: 'Please set a date.',
   err_future: "That date hasn't happened yet. Pick a past day.",
@@ -130,6 +134,8 @@ export const en: Record<Key, string> = {
   // Settings
   settings_title: '⚙️ Settings',
   lang_title: '🌐 Language',
+  help_title: '❓ How it works',
+  help: 'Add your case and mark milestones. From all cases I compute how long each step usually takes in your voivodeship and show a forecast. More cases, better forecasts. Not official information.',
   privacy_title: '🔒 Privacy',
   privacy:
     'I store only your Telegram ID, voivodeship, purpose, milestone dates and your document checklist (only you see it). Milestones appear anonymously in a public calendar. Only the bot\'s author sees messages sent via Contact us.',

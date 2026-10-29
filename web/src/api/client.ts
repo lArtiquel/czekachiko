@@ -15,6 +15,7 @@ import type {
 
 export type ApiErrorKind =
   | 'unauthorized'
+  | 'forbidden'
   | 'not_found'
   | 'conflict'
   | 'outlier'
@@ -112,6 +113,8 @@ export function errorFromResponse(status: number, body: unknown, retryAfter: str
   const b = isRecord(body) ? body : {};
   const code = typeof b.error === 'string' ? b.error : null;
   if (status === 401) return new ApiError({ kind: 'unauthorized', status, code });
+  // The API only answers pages served from its allowed origin.
+  if (status === 403) return new ApiError({ kind: 'forbidden', status, code });
   if (status === 404) return new ApiError({ kind: 'not_found', status, code });
   if (status === 409) {
     const outlier = code === 'outlier' ? parseOutlier(b) : null;

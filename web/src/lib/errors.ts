@@ -17,6 +17,8 @@ export function errorMessage(t: TFn, err: unknown, params?: Params): string {
       return t('err_rate_limited');
     case 'unauthorized':
       return t('reopen_text');
+    case 'forbidden':
+      return t('err_forbidden');
     case 'not_found':
       return t('err_not_found');
     case 'invalid': {
