@@ -83,3 +83,35 @@ def callback_update(uid: int, data: str) -> Update:
         id=str(next(_ids)), from_user=_user(uid), chat_instance="ci", message=msg, data=data
     )
     return Update(update_id=next(_ids), callback_query=cq)
+
+
+# --- Mini App initData -----------------------------------------------------------------
+
+TOKEN = "42:TEST"
+
+
+def sign_init_data(
+    token: str = TOKEN,
+    *,
+    user: dict | str | None = None,
+    auth_date: int | None = None,
+    extra: dict | None = None,
+) -> str:
+    """initData as Telegram builds it: the fields plus hash = HMAC over the sorted fields."""
+    import hashlib
+    import hmac
+    import json
+    from urllib.parse import urlencode
+
+    if user is None:
+        user = {"id": 548, "first_name": "T", "language_code": "ru"}
+    fields = {
+        "auth_date": str(auth_date if auth_date is not None else int(NOW.timestamp())),
+        "query_id": "AAH-test",
+        "user": user if isinstance(user, str) else json.dumps(user, separators=(",", ":")),
+        **(extra or {}),
+    }
+    check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    return urlencode(fields)
