@@ -1,9 +1,8 @@
-"""Shareable stats cards: voivodeship name matching, compact codes and card text. Pure."""
+"""Inline sharing: voivodeship and purpose name matching, compact card codes. Pure."""
 
 import unicodedata
 
 from czekachiko.domain import Purpose, Voivodeship
-from czekachiko.i18n import label, t, voiv_label
 
 MAX_COMPARE = 6
 V = Voivodeship
@@ -81,14 +80,3 @@ def decode(code: str) -> tuple[str, list[Voivodeship]] | None:
     if not voivs or len(voivs) > MAX_COMPARE:
         return None
     return purpose.value, voivs
-
-
-def card_text(lang: str, purpose: str, chains: dict[Voivodeship, dict]) -> str:
-    from czekachiko.ui.screens import chain_lines
-
-    title = t(lang, "card_title", purpose=label(lang, "PURPOSE_LABELS", Purpose(purpose)))
-    parts = [title]
-    for v, chain in chains.items():
-        parts.append(f"<b>{voiv_label(v)}</b>\n" + "\n".join(chain_lines(lang, chain)))
-    parts.append(f"<i>{t(lang, 'card_footer')}</i>")
-    return "\n\n".join(parts)

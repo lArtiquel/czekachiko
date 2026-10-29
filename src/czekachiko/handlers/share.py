@@ -17,9 +17,10 @@ from aiogram.types import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from czekachiko import share
+from czekachiko import cards, share
 from czekachiko.db import repo
 from czekachiko.domain import Purpose, Voivodeship
+from czekachiko.forecasting import case_forecast
 from czekachiko.i18n import label, t, voiv_label
 from czekachiko.render import show
 from czekachiko.ui.keyboards import (
@@ -52,7 +53,7 @@ def open_bot_kb(lang: str) -> InlineKeyboardMarkup:
 
 async def build_card(s: AsyncSession, lang: str, purpose: str, voivs: list[Voivodeship]) -> str:
     chains = {v: await repo.chain_aggregates(s, v, purpose) for v in voivs}
-    return share.card_text(lang, purpose, chains)
+    return cards.stats_card(lang, purpose, chains)
 
 
 # --- compare picker ------------------------------------------------------------
@@ -160,8 +161,6 @@ def article(lang: str, purpose: str, voivs: list[Voivodeship], text: str):
 
 
 async def case_article(s: AsyncSession, iq: InlineQuery, lang: str, today) -> list:
-    from czekachiko.handlers.cases import case_screen
-
     try:
         case_id = int(iq.query.strip()[2:])
     except ValueError:
@@ -169,8 +168,8 @@ async def case_article(s: AsyncSession, iq: InlineQuery, lang: str, today) -> li
     case = await repo.get_case(s, iq.from_user.id, case_id)  # only the owner can share it
     if case is None:
         return []
-    text, _ = await case_screen(s, lang, case, today)
-    text = f"{t(lang, 'case_card_title')}\n\n{text}\n\n<i>{t(lang, 'card_footer')}</i>"
+    chain = await repo.chain_aggregates(s, case.voivodeship, case.purpose)
+    text = cards.case_card(lang, case, await case_forecast(s, case, today), chain)
     title = f"{t(lang, 'case_card_label')} · {voiv_label(case.voivodeship)} · " + label(
         lang, "PURPOSE_LABELS", Purpose(case.purpose)
     )

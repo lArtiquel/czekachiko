@@ -7,6 +7,7 @@ from urllib.parse import quote, urlencode
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from czekachiko import documents
+from czekachiko.cards import case_title, chain_lines, fmt, forecast_text
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.i18n import label, loc, t, voiv_label
 from czekachiko.stats import Aggregate, Forecast
@@ -29,21 +30,11 @@ BOT_URL = "https://t.me/czekachiko_bot"
 M = Milestone
 
 
-def fmt(d: date) -> str:
-    return d.strftime("%d.%m.%Y")
-
-
 def month_span(lang: str, span: tuple[date, date]) -> str:
     months = loc(lang).MONTHS
     a, b = span
     fa, fb = f"{months[a.month - 1].lower()} {a.year}", f"{months[b.month - 1].lower()} {b.year}"
     return fa if a == b else f"{fa} – {fb}"
-
-
-def case_title(lang: str, case) -> str:
-    return (
-        f"{voiv_label(case.voivodeship)} · {label(lang, 'PURPOSE_LABELS', Purpose(case.purpose))}"
-    )
 
 
 # --- top level -----------------------------------------------------------
@@ -117,60 +108,6 @@ def cases_list(lang: str, cases: list) -> Screen:
     return text.strip(), markup(rows)
 
 
-def chain_lines(
-    lang: str,
-    chain: dict[tuple[Milestone, Milestone], Aggregate | None],
-    dates: dict | None = None,
-) -> list[str]:
-    """Each milestone from filing: the case's own date (if any) and the typical span."""
-    from czekachiko.domain import CHAIN
-
-    lines = []
-    filed = (dates or {}).get(M.filed)
-    for a, b in CHAIN:
-        name = label(lang, "MILESTONE_LABELS", b)
-        if dates is None:
-            head = f"• {name}"
-        elif b in dates:
-            own = t(lang, "chain_own", days=(dates[b] - filed).days) if filed else ""
-            head = f"✅ {name} — {fmt(dates[b])} · {own}"
-        else:
-            head = f"⏳ {name}"
-        agg = chain.get((a, b))
-        typical = (
-            t(lang, "chain_line", mean=round(agg.mean), min=agg.min, max=agg.max, n=agg.n)
-            if agg is not None
-            else t(lang, "chain_none")
-        )
-        lines.append(f"{head}\n    <i>{typical}</i>")
-    return lines
-
-
-def _forecast_text(lang: str, case, f: Forecast | None) -> str:
-    if f is None:
-        return t(lang, "fc_all_done")
-    target = label(lang, "MILESTONE_LABELS", f.target)
-    head = t(lang, "fc_title", target=target)
-    if f.kind == "no_data":
-        return f"{head}\n{t(lang, 'fc_no_data')}"
-    purpose = label(lang, "PURPOSE_LABELS", Purpose(case.purpose))
-    if f.kind == "waited_longer":
-        body = t(lang, "fc_waited_longer", x=f.waited_longer_than, y=f.total)
-    else:
-        scope = t(lang, f"fc_scope_{f.scope}", voiv=voiv_label(case.voivodeship), purpose=purpose)
-        body = t(
-            lang,
-            "fc_window",
-            start=fmt(f.start),
-            end=fmt(f.end),
-            likely=fmt(f.likely),
-            n=f.n,
-            scope=scope,
-        )
-    extra = t(lang, "fc_fastest_slowest", fastest=f.fastest, slowest=f.slowest)
-    return f"{head}\n{body}\n<i>{extra}</i>"
-
-
 def case_view(
     lang: str,
     case,
@@ -189,7 +126,7 @@ def case_view(
     if docs is not None:
         lines.append(t(lang, "docs_progress", done=docs[0], total=docs[1]))
     lines += ["", *chain_lines(lang, chain or {}, dates)]
-    lines += ["", _forecast_text(lang, case, f), "", t(lang, "disclaimer")]
+    lines += ["", forecast_text(lang, case, f), "", t(lang, "disclaimer")]
     rows = [
         [
             btn(t(lang, "btn_mark"), Nav(to="mark", case_id=case.id)),
