@@ -1,11 +1,13 @@
-import { Button, ButtonCell, Cell, Checkbox, Input, List, Section } from '@telegram-apps/telegram-ui';
-import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { isApiError } from '../api/client';
 import { MILESTONES, type CaseDetail, type CaseDocument, type IsoDate, type Milestone, type OutlierInfo } from '../api/types';
 import { useApp } from '../app/context';
-import { FieldError, LoadError, Loading, PageTitle, TapCell } from '../components/common';
+import { DateField } from '../components/DateField';
+import { FieldError, LoadError, Loading, PageTitle } from '../components/common';
+import { Icon } from '../components/icons';
+import { Button, Check, Group, Page, Progress, RowButton, TextField } from '../components/ui';
 import type { Params } from '../i18n';
-import { EARLIEST, daysBetween, formatDate, todayIso, validateMilestones } from '../lib/dates';
+import { EARLIEST, clampDate, daysBetween, formatDate, todayIso, validateMilestones } from '../lib/dates';
 import { DOC_MARGIN_DAYS, cleanDocName, docDateError, earliestDocDate } from '../lib/docs';
 import { codeMessage } from '../lib/errors';
 import { useLoad } from '../lib/useLoad';
@@ -111,9 +113,21 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
       : t('outlier_generic', common);
   };
 
+  const removeMilestone = async (m: Milestone) => {
+    try {
+      applied(await api.clearMilestone(id, m));
+      close();
+    } catch (err) {
+      if (!invalid(err, 'date')) fail(err);
+    }
+  };
+
+  /** Saving a cleared field removes the date; `filed` can't be removed. */
+  const canRemove = (m: Milestone) => m !== 'filed' && !!detail.dates[m];
+
   const saveMilestone = (m: Milestone, date: string) =>
     exclusive(async () => {
-      if (!date) return localError('date', 'required_date');
+      if (!date) return canRemove(m) ? removeMilestone(m) : localError('date', 'required_date');
       const codes = validateMilestones({ ...detail.dates, [m]: date }, today);
       if (codes[0]) return localError('date', codes[0]);
       const put = async (confirmOutlier: boolean): Promise<void> => {
@@ -138,16 +152,6 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
         }
       };
       await put(false);
-    });
-
-  const clearMilestone = (m: Milestone) =>
-    exclusive(async () => {
-      try {
-        applied(await api.clearMilestone(id, m));
-        close();
-      } catch (err) {
-        if (!invalid(err, 'date')) fail(err);
-      }
     });
 
   // --- documents ----------------------------------------------------------
@@ -257,218 +261,354 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
     else if (editing.kind === 'doc') void saveDoc(editing.key, editing.date, editing.name);
     else void addDoc(editing.name, editing.date);
   };
-  useMainButton(tg, editing ? { text: t('btn_save'), onClick: submit, progress: busy } : null);
+  // The main button says what saving will do: a cleared date removes it or unticks the document.
+  let mainText = t('btn_save');
+  if (editing?.kind === 'milestone' && !editing.date && canRemove(editing.m)) mainText = t('btn_remove_date');
+  if (editing?.kind === 'doc' && !editing.date) {
+    const doc = findDoc(editing.key);
+    if (doc?.date && (!doc.custom || editing.name === doc.name)) mainText = t('btn_doc_untick');
+  }
+  useMainButton(tg, editing ? { text: mainText, onClick: submit, progress: busy } : null);
 
   // --- view ---------------------------------------------------------------
 
   const customCount = detail.documents.filter((d) => d.custom).length;
   const docsDone = detail.docs_done ?? detail.documents.filter((d) => d.date).length;
   const docsTotal = detail.docs_total ?? detail.documents.length;
+  const stop = (e: MouseEvent) => e.stopPropagation();
 
   return (
-    <List className="page">
-      <PageTitle sub={`${labels.channel(detail.channel)} · ${t('case_day', { n: Math.max(0, daysBetween(filed, today)) })}`}>
+    <Page>
+      <PageTitle
+        sub={labels.channel(detail.channel)}
+        aside={<span className="pill">{t('case_day', { n: Math.max(0, daysBetween(filed, today)) })}</span>}
+      >
         {labels.voiv(detail.voivodeship)} · {labels.purpose(detail.purpose)}
       </PageTitle>
 
-      <Section header={t('chain_title')} footer={t('timeline_hint')}>
-        {MILESTONES.map((m) => {
-          const date = detail.dates[m];
-          const item = detail.chain.find((c) => c.milestone === m);
-          const isEditing = editing?.kind === 'milestone' && editing.m === m;
-          let subtitle: string;
-          if (m === 'filed') subtitle = date ? formatDate(date) : t('tap_to_set');
-          else if (date) subtitle = t('chain_own', { date: formatDate(date), days: item?.own_days ?? daysBetween(filed, date) });
-          else subtitle = t('tap_to_set');
-          const agg = item?.agg;
-          const description =
-            m === 'filed'
-              ? undefined
-              : agg
-                ? t('chain_line', { mean: Math.round(agg.mean), min: agg.min, max: agg.max, n: agg.n })
-                : t('chain_none');
-          return (
-            <Fragment key={m}>
-              <TapCell
-                multiline
-                aria-expanded={isEditing}
-                before={<span className="mark" aria-hidden="true">{date ? '✅' : '⏳'}</span>}
-                subtitle={subtitle}
-                description={description}
-                onClick={() => (isEditing ? close() : open({ kind: 'milestone', m, date: date ?? '' }))}
-              >
-                {labels.milestone(m)}
-              </TapCell>
-              {isEditing ? (
-                <div className="editor">
-                  <p className="hint">{labels.hint(m)}</p>
-                  <Input
-                    type="date"
-                    aria-label={labels.milestone(m)}
-                    status={errors.date ? 'error' : undefined}
-                    min={m === 'filed' ? EARLIEST : filed}
-                    max={today}
-                    value={editing.date}
-                    onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                  />
-                  <FieldError message={errors.date} />
-                  <div className="editor-actions">
-                    <Button size="s" mode="gray" onClick={close}>
-                      {t('btn_cancel')}
-                    </Button>
-                    {m !== 'filed' && date ? (
-                      <Button size="s" mode="gray" className="danger" disabled={busy} onClick={() => void clearMilestone(m)}>
-                        {t('btn_clear_date')}
-                      </Button>
-                    ) : null}
-                  </div>
+      <ForecastCard detail={detail} today={today} />
+      <p className="note note-attached">
+        <Icon name="info" size={16} />
+        <span>{t('disclaimer')}</span>
+      </p>
+
+      <Group title={t('chain_title')} footer={t('timeline_hint')}>
+        <Timeline
+          detail={detail}
+          today={today}
+          editingMilestone={editing?.kind === 'milestone' ? editing.m : null}
+          onToggle={(m) =>
+            editing?.kind === 'milestone' && editing.m === m
+              ? close()
+              : open({
+                  kind: 'milestone',
+                  m,
+                  date: detail.dates[m] ?? clampDate(today, m === 'filed' ? EARLIEST : filed, today),
+                })
+          }
+          renderEditor={(m) =>
+            editing?.kind === 'milestone' && editing.m === m ? (
+              <div className="editor">
+                <DateField
+                  label={labels.milestone(m)}
+                  labelHidden
+                  hint={labels.hint(m)}
+                  min={m === 'filed' ? EARLIEST : filed}
+                  max={today}
+                  value={editing.date}
+                  error={errors.date}
+                  clearable={m !== 'filed'}
+                  onChange={(date) => setEditing({ ...editing, date })}
+                />
+                <div className="editor-actions">
+                  <Button variant="plain" small onClick={close}>
+                    {t('btn_cancel')}
+                  </Button>
                 </div>
-              ) : null}
-            </Fragment>
-          );
-        })}
-      </Section>
+              </div>
+            ) : null
+          }
+        />
+      </Group>
 
-      <Section header={detail.forecast ? t('fc_title', { target: labels.milestone(detail.forecast.target) }) : undefined}>
-        <ForecastBlock detail={detail} />
-      </Section>
-
-      <Section header={t('docs_title', { done: docsDone, total: docsTotal })} footer={t('docs_note')}>
-        <p className="section-text hint">{t('docs_hint')}</p>
-        {detail.documents.map((doc) => {
-          const key = docKey(doc);
-          const isEditing = editing?.kind === 'doc' && editing.key === key;
-          const stop = (e: MouseEvent) => e.stopPropagation();
-          return (
-            <Fragment key={key}>
-              <Cell
-                multiline
-                onClick={() => (isEditing ? close() : open({ kind: 'doc', key, date: doc.date ?? today, name: doc.name }))}
-                before={
-                  <span onClick={stop}>
-                    <Checkbox checked={!!doc.date} aria-label={doc.name} onChange={() => void toggleDoc(doc)} />
+      <Group
+        title={t('docs_heading')}
+        aside={
+          <span className="docs-count">
+            <span>{t('docs_count', { done: docsDone, total: docsTotal })}</span>
+            <Progress value={docsDone} max={docsTotal} />
+          </span>
+        }
+        footer={
+          <>
+            <p>{t('docs_hint')}</p>
+            <p>{t('docs_note')}</p>
+          </>
+        }
+      >
+        <ul className="checklist">
+          {detail.documents.map((doc) => {
+            const key = docKey(doc);
+            const isEditing = editing?.kind === 'doc' && editing.key === key;
+            const toggleEditor = () =>
+              isEditing ? close() : open({ kind: 'doc', key, date: doc.date ?? today, name: doc.name });
+            return (
+              <li key={key} className={`check-item${doc.date ? ' is-done' : ''}`}>
+                <div className="check-row" onClick={toggleEditor}>
+                  <label className="check-hit" onClick={stop}>
+                    <Check checked={!!doc.date} aria-label={doc.name} onChange={() => void toggleDoc(doc)} />
+                  </label>
+                  <span className="check-text">
+                    <button type="button" className="text-button check-name" aria-expanded={isEditing}>
+                      {doc.name}
+                    </button>
+                    <span className="check-sub">
+                      {doc.date ? t('doc_sent', { date: formatDate(doc.date) }) : t('doc_not_sent')}
+                    </span>
                   </span>
-                }
-                subtitle={doc.date ? t('doc_sent', { date: formatDate(doc.date) }) : t('doc_not_sent')}
-              >
-                <button type="button" className="text-button wrap" aria-expanded={isEditing}>
-                  {doc.name}
-                </button>
-              </Cell>
-              {isEditing ? (
-                <div className="editor">
-                  {doc.custom ? (
-                    <>
-                      <Input
-                        aria-label={t('doc_name')}
-                        status={errors.name ? 'error' : undefined}
-                        maxLength={meta.limits.max_doc_name}
-                        value={editing.name}
-                        onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      />
-                      <FieldError message={errors.name} />
-                    </>
-                  ) : null}
-                  <Input
-                    type="date"
-                    aria-label={t('doc_date')}
-                    status={errors.date ? 'error' : undefined}
-                    min={earliestDocDate(filed)}
-                    max={today}
-                    value={editing.date}
-                    onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                  />
-                  <FieldError message={errors.date} />
-                  <div className="editor-actions">
-                    <Button size="s" mode="gray" onClick={close}>
-                      {t('btn_cancel')}
-                    </Button>
-                    {doc.date ? (
-                      <Button size="s" mode="gray" disabled={busy} onClick={() => void saveDoc(key, '', editing.name)}>
-                        {t('btn_doc_untick')}
-                      </Button>
-                    ) : null}
-                    {doc.custom ? (
-                      <Button size="s" mode="gray" className="danger" disabled={busy} onClick={() => void deleteDoc(doc)}>
-                        {t('btn_doc_delete')}
-                      </Button>
-                    ) : null}
-                  </div>
+                  <Icon name="pencil" size={16} className="row-trailing" />
                 </div>
-              ) : null}
-            </Fragment>
-          );
-        })}
+                {isEditing ? (
+                  <div className="editor editor-doc">
+                    {doc.custom ? (
+                      <div className="field-block">
+                        <label className="field-label" htmlFor={`doc-name-${key}`}>
+                          {t('doc_name')}
+                        </label>
+                        <TextField
+                          id={`doc-name-${key}`}
+                          invalid={!!errors.name}
+                          maxLength={meta.limits.max_doc_name}
+                          value={editing.name}
+                          onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                        />
+                        <FieldError message={errors.name} />
+                      </div>
+                    ) : null}
+                    <DateField
+                      label={t('doc_date')}
+                      min={earliestDocDate(filed)}
+                      max={today}
+                      value={editing.date}
+                      error={errors.date}
+                      onChange={(date) => setEditing({ ...editing, date })}
+                    />
+                    <div className="editor-actions">
+                      <Button variant="plain" small onClick={close}>
+                        {t('btn_cancel')}
+                      </Button>
+                      {doc.custom ? (
+                        <Button variant="danger" small icon="trash" disabled={busy} onClick={() => void deleteDoc(doc)}>
+                          {t('btn_doc_delete')}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
         {editing?.kind === 'newdoc' ? (
-          <div className="editor">
-            <Input
-              aria-label={t('doc_name')}
-              placeholder={t('doc_name_placeholder')}
-              status={errors.name ? 'error' : undefined}
-              maxLength={meta.limits.max_doc_name}
-              value={editing.name}
-              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-            />
-            <FieldError message={errors.name} />
-            <Input
-              type="date"
-              aria-label={t('doc_date')}
-              status={errors.date ? 'error' : undefined}
+          <div className="editor editor-doc editor-new">
+            <div className="field-block">
+              <label className="field-label" htmlFor="doc-name-new">
+                {t('doc_name')}
+              </label>
+              <TextField
+                id="doc-name-new"
+                placeholder={t('doc_name_placeholder')}
+                invalid={!!errors.name}
+                maxLength={meta.limits.max_doc_name}
+                value={editing.name}
+                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+              />
+              <FieldError message={errors.name} />
+            </div>
+            <DateField
+              label={t('doc_date')}
               min={earliestDocDate(filed)}
               max={today}
               value={editing.date}
-              onChange={(e) => setEditing({ ...editing, date: e.target.value })}
+              error={errors.date}
+              onChange={(date) => setEditing({ ...editing, date })}
             />
-            <FieldError message={errors.date} />
             <div className="editor-actions">
-              <Button size="s" mode="gray" onClick={close}>
+              <Button variant="plain" small onClick={close}>
                 {t('btn_cancel')}
               </Button>
             </div>
           </div>
         ) : customCount < meta.limits.max_custom_docs ? (
-          <ButtonCell onClick={() => open({ kind: 'newdoc', name: '', date: '' })}>{t('btn_doc_add')}</ButtonCell>
+          <RowButton icon="plus" tone="accent" trailing={null} onClick={() => open({ kind: 'newdoc', name: '', date: '' })}>
+            {t('btn_doc_add')}
+          </RowButton>
         ) : (
-          <p className="section-text hint">{t('doc_limit', { max: meta.limits.max_custom_docs })}</p>
+          <p className="card-pad hint">{t('doc_limit', { max: meta.limits.max_custom_docs })}</p>
         )}
-      </Section>
+      </Group>
 
-      <Section>
-        <ButtonCell onClick={() => void share()}>{t('btn_send_chat')}</ButtonCell>
-        <ButtonCell mode="destructive" disabled={busy} onClick={() => void remove()}>
+      <Group>
+        <RowButton icon="send" tone="accent" trailing={null} onClick={() => void share()}>
+          {t('btn_send_chat')}
+        </RowButton>
+        <RowButton icon="trash" tone="danger" trailing={null} disabled={busy} onClick={() => void remove()}>
           {t('btn_delete_case')}
-        </ButtonCell>
-      </Section>
-    </List>
+        </RowButton>
+      </Group>
+    </Page>
   );
 }
 
-function ForecastBlock({ detail }: { detail: CaseDetail }) {
+function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate }) {
   const { t, labels } = useApp();
   const f = detail.forecast;
+  if (!f) {
+    return (
+      <section className="forecast is-complete">
+        <span className="forecast-badge" aria-hidden="true">
+          <Icon name="check" size={20} />
+        </span>
+        <p className="forecast-text">{t('fc_all_done')}</p>
+      </section>
+    );
+  }
   const voiv = labels.voiv(detail.voivodeship);
   const purpose = labels.purpose(detail.purpose);
-  let body: string | null = null;
-  let basis: string | null = null;
-  if (!f) body = t('fc_all_done');
-  else if (f.kind === 'no_data') body = t('fc_no_data');
-  else if (f.kind === 'waited_longer') body = t('fc_waited_longer', { x: f.waited_longer_than ?? 0, y: f.total ?? 0 });
-  else if (f.start && f.end && f.likely) {
-    body = t('fc_window', { start: formatDate(f.start), end: formatDate(f.end), likely: formatDate(f.likely) });
-    const scope = t(f.scope === 'national' ? 'fc_scope_national' : f.scope === 'voiv_filed' ? 'fc_scope_voiv_filed' : 'fc_scope_voiv', { voiv, purpose });
-    basis = t('fc_basis', { n: f.n, scope });
-  } else body = t('fc_no_data');
   const extremes =
-    f && f.kind !== 'no_data' && f.fastest !== null && f.slowest !== null
+    f.kind !== 'no_data' && f.fastest !== null && f.slowest !== null
       ? t('fc_fastest_slowest', { fastest: f.fastest, slowest: f.slowest })
       : null;
+  const win = f.kind === 'window' && f.start && f.end && f.likely ? { start: f.start, end: f.end, likely: f.likely } : null;
+
+  let body: ReactNode;
+  if (win) {
+    const scope = t(
+      f.scope === 'national' ? 'fc_scope_national' : f.scope === 'voiv_filed' ? 'fc_scope_voiv_filed' : 'fc_scope_voiv',
+      { voiv, purpose },
+    );
+    const inDays = daysBetween(today, win.likely);
+    body = (
+      <>
+        <p className="forecast-label">{t('fc_likely')}</p>
+        <p className="forecast-date">
+          <span>{formatDate(win.likely)}</span>
+          {inDays > 0 ? <span className="forecast-in">{t('fc_in_days', { n: inDays })}</span> : null}
+        </p>
+        <WindowStrip
+          {...win}
+          label={t('fc_window', { start: formatDate(win.start), end: formatDate(win.end), likely: formatDate(win.likely) })}
+        />
+        <p className="forecast-basis">{t('fc_basis', { n: f.n, scope })}</p>
+      </>
+    );
+  } else if (f.kind === 'waited_longer') {
+    body = <p className="forecast-text">{t('fc_waited_longer', { x: f.waited_longer_than ?? 0, y: f.total ?? 0 })}</p>;
+  } else {
+    body = <p className="forecast-text">{t('fc_no_data')}</p>;
+  }
+
   return (
-    <div className="section-text forecast">
-      <p className="forecast-main">{body}</p>
-      {basis ? <p className="hint">{basis}</p> : null}
-      {extremes ? <p className="hint">{extremes}</p> : null}
-      <p className="disclaimer">{t('disclaimer')}</p>
+    <section className="forecast">
+      <h2 className="forecast-title">
+        <Icon name="clock" size={16} />
+        <span>{t('fc_title', { target: labels.milestone(f.target) })}</span>
+      </h2>
+      {body}
+      {extremes ? <p className="forecast-basis">{extremes}</p> : null}
+    </section>
+  );
+}
+
+/** The forecast window as a bar from its first to its last day, with the likeliest day marked. */
+function WindowStrip({ start, likely, end, label }: { start: IsoDate; likely: IsoDate; end: IsoDate; label: string }) {
+  const span = Math.max(1, daysBetween(start, end));
+  const at = Math.min(100, Math.max(0, (daysBetween(start, likely) / span) * 100));
+  return (
+    <div className="window" role="img" aria-label={label}>
+      <div className="window-track">
+        <span className="window-likely" style={{ left: `${at}%` }} />
+      </div>
+      <div className="window-ends" aria-hidden="true">
+        <span>{formatDate(start)}</span>
+        <span>{formatDate(end)}</span>
+      </div>
     </div>
   );
 }
 
+/**
+ * Milestones as a vertical timeline. Each step's typical range sits on one shared axis of days
+ * since filing, so later steps sit further right and the person's own day count is marked.
+ */
+function Timeline({
+  detail,
+  today,
+  editingMilestone,
+  onToggle,
+  renderEditor,
+}: {
+  detail: CaseDetail;
+  today: IsoDate;
+  editingMilestone: Milestone | null;
+  onToggle: (m: Milestone) => void;
+  renderEditor: (m: Milestone) => ReactNode;
+}) {
+  const { t, labels } = useApp();
+  const filed = detail.dates.filed ?? today;
+  const lastDone = MILESTONES.reduce((last, m, i) => (detail.dates[m] ? i : last), -1);
+  const next = MILESTONES.findIndex((m, i) => i > lastDone && !detail.dates[m]);
+  const axis = Math.max(
+    1,
+    ...detail.chain.flatMap((c) => [c.agg?.max ?? 0, c.own_days ?? 0]),
+  );
+  const pct = (days: number) => `${Math.min(100, Math.max(0, (days / axis) * 100))}%`;
+
+  return (
+    <ol className="timeline">
+      {MILESTONES.map((m, i) => {
+        const date = detail.dates[m];
+        const item = detail.chain.find((c) => c.milestone === m);
+        const own = date && m !== 'filed' ? (item?.own_days ?? daysBetween(filed, date)) : null;
+        const agg = item?.agg;
+        const state = date ? 'done' : i === next ? 'next' : 'todo';
+        const upto = i <= lastDone;
+        const reached = i < lastDone;
+        let when: string;
+        if (m === 'filed') when = date ? formatDate(date) : t('tap_to_set');
+        else if (date) when = t('chain_own', { date: formatDate(date), days: own ?? 0 });
+        else when = t('tap_to_set');
+        return (
+          <li
+            key={m}
+            className={`tl-item is-${state}${upto ? ' is-upto' : ''}${reached ? ' is-reached' : ''}`}
+            style={{ '--i': i } as CSSProperties}
+          >
+            <span className="tl-dot" aria-hidden="true">
+              {date ? <Icon name="check" size={14} /> : null}
+            </span>
+            <button type="button" className="tl-row" aria-expanded={editingMilestone === m} onClick={() => onToggle(m)}>
+              <span className="tl-title cap">{labels.milestone(m)}</span>
+              <span className={date ? 'tl-when' : 'tl-when is-empty'}>{when}</span>
+              {m !== 'filed' && agg ? (
+                <span className="range" aria-hidden="true">
+                  <span className="range-span" style={{ left: pct(agg.min), width: `calc(${pct(agg.max)} - ${pct(agg.min)})` }} />
+                  <span className="range-mean" style={{ left: pct(agg.mean) }} />
+                  {own !== null ? <span className="range-own" style={{ left: pct(own) }} /> : null}
+                </span>
+              ) : null}
+              {m !== 'filed' ? (
+                <span className="tl-typical">
+                  {agg
+                    ? t('chain_line', { mean: Math.round(agg.mean), min: agg.min, max: agg.max, n: agg.n })
+                    : t('chain_none')}
+                </span>
+              ) : null}
+            </button>
+            {renderEditor(m)}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

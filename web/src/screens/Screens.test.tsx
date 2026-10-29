@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
@@ -19,12 +19,12 @@ describe('Home', () => {
   it('shows the case card with its forecast line and links out through Telegram', async () => {
     const { tg, user } = open('#/');
     expect(await screen.findByText(/decyzja: чаще всего около 15\.01\.2026/)).toBeInTheDocument();
-    expect(screen.getByText(/📋 Документы: 2\/4/)).toBeInTheDocument();
+    expect(screen.getByText(/Документы: 2\/4/)).toBeInTheDocument();
     expect(tg.webApp.BackButton.show).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: '✉️ Написать нам' }));
+    await user.click(screen.getByRole('button', { name: 'Написать нам' }));
     expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith('https://t.me/czekachiko_bot?start=feedback');
     expect(tg.webApp.close).toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: '📣 Поделиться ботом' }));
+    await user.click(screen.getByRole('button', { name: 'Поделиться ботом' }));
     expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith(
       'https://t.me/share/url?url=https%3A%2F%2Ft.me%2Fczekachiko_bot',
     );
@@ -39,7 +39,7 @@ describe('Settings', () => {
       'PATCH /api/me': { body: { tg_id: 42, lang: 'en', reminders: false } },
     });
     await user.click(await screen.findByLabelText('English'));
-    expect(await screen.findByText('⚙️ Settings')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(api.callsTo('PATCH', '/api/me')[0]!.body).toEqual({ lang: 'en' });
     expect(api.calls.some((c) => c.url.endsWith('/api/meta?lang=en'))).toBe(true);
     expect(tg.webApp.HapticFeedback.notificationOccurred).toHaveBeenCalledWith('success');
@@ -53,7 +53,7 @@ describe('Settings', () => {
 
   it('deletes all data after confirmation', async () => {
     const { api, tg, user } = open('#/settings', { 'DELETE /api/me': { status: 204 } });
-    await user.click(await screen.findByRole('button', { name: '🗑 Удалить все мои данные' }));
+    await user.click(await screen.findByRole('button', { name: 'Удалить все мои данные' }));
     await waitFor(() => expect(api.callsTo('DELETE', '/api/me')).toHaveLength(1));
     expect(tg.webApp.showConfirm).toHaveBeenCalledWith(
       'Удалить все твои дела и настройки? Это нельзя отменить.',
@@ -65,7 +65,7 @@ describe('Settings', () => {
   it('does nothing when the deletion is not confirmed', async () => {
     const { api, tg, user } = open('#/settings');
     tg.state.confirm = false;
-    await user.click(await screen.findByRole('button', { name: '🗑 Удалить все мои данные' }));
+    await user.click(await screen.findByRole('button', { name: 'Удалить все мои данные' }));
     expect(api.callsTo('DELETE', '/api/me')).toHaveLength(0);
   });
 });
@@ -80,16 +80,21 @@ describe('Stats', () => {
     await user.click(screen.getByLabelText('Małopolskie'));
     await user.click(screen.getByRole('button', { name: 'Готово' }));
 
-    expect(await screen.findByText('Mazowieckie · работа')).toBeInTheDocument();
-    expect(screen.getByText('Małopolskie · работа')).toBeInTheDocument();
-    expect(screen.getAllByText('🖐 Сейчас на отпечатки вызывают подавшихся ≈ март 2025 – апрель 2025.')).toHaveLength(2);
+    // One group per milestone, one row per voivodeship in it.
+    const group = (await screen.findByRole('heading', { name: 'номер дела' })).closest('section')!;
+    expect(within(group).getByText('Mazowieckie')).toBeInTheDocument();
+    expect(within(group).getByText('Małopolskie')).toBeInTheDocument();
+    expect(within(group).getAllByText('61 дн.')).toHaveLength(2);
+    expect(within(group).getAllByText('разброс 12–140 дн., дел: 23')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Кого вызывают сейчас' })).toBeInTheDocument();
+    expect(screen.getAllByText('На отпечатки сейчас вызывают подавшихся ≈ март 2025 – апрель 2025.')).toHaveLength(2);
     expect(screen.getAllByText('данных пока нет (дел: 0)')).toHaveLength(2);
     expect(api.callsTo('GET', '/api/stats').map((c) => new URL(c.url).searchParams.get('voivodeship'))).toEqual([
       'mazowieckie',
       'malopolskie',
     ]);
 
-    await user.click(screen.getByRole('button', { name: '📤 Отправить в чат' }));
+    await user.click(screen.getByRole('button', { name: 'Отправить в чат' }));
     await waitFor(() =>
       expect(tg.webApp.switchInlineQuery).toHaveBeenCalledWith('s:praca:6,5', ['users', 'groups', 'channels']),
     );
@@ -118,7 +123,7 @@ describe('Stats opened from inline mode', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByLabelText('Mazowieckie'));
     await user.click(screen.getByRole('button', { name: 'Готово' }));
-    await user.click(await screen.findByRole('button', { name: '📤 Отправить в чат' }));
+    await user.click(await screen.findByRole('button', { name: 'Отправить в чат' }));
     await waitFor(() => expect(tg.webApp.switchInlineQuery).toHaveBeenCalled());
     return { api, tg, entry };
   }

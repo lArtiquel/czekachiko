@@ -1,6 +1,6 @@
-import { List, Section } from '@telegram-apps/telegram-ui';
 import { useApp } from '../app/context';
-import { LoadError, Loading, PageTitle, TapCell } from '../components/common';
+import { LoadError, Loading, PageTitle } from '../components/common';
+import { Group, Page, RowButton } from '../components/ui';
 import { useLoad } from '../lib/useLoad';
 import { openExternal } from '../telegram/webapp';
 
@@ -9,20 +9,20 @@ export function Calendars() {
   const cals = useLoad(() => api.calendars(), [api]);
 
   return (
-    <List className="page">
+    <Page>
       <PageTitle sub={t('calendar_text')}>{t('calendars_title')}</PageTitle>
       {cals.loading ? <Loading /> : null}
       {cals.error ? <LoadError error={cals.error} onRetry={cals.reload} /> : null}
-      {cals.data && cals.data.length === 0 ? <p className="section-text">{t('calendar_soon')}</p> : null}
+      {cals.data && cals.data.length === 0 ? <p className="card card-pad">{t('calendar_soon')}</p> : null}
       {cals.data && cals.data.length > 0 ? (
-        <Section>
+        <Group>
           {cals.data.map((c) => (
-            <TapCell key={c.voivodeship} after={<span aria-hidden="true">↗</span>} onClick={() => openExternal(tg, c.url)}>
+            <RowButton key={c.voivodeship} icon="calendar" trailing="external" onClick={() => openExternal(tg, c.url)}>
               {c.label}
-            </TapCell>
+            </RowButton>
           ))}
-        </Section>
+        </Group>
       ) : null}
-    </List>
+    </Page>
   );
 }

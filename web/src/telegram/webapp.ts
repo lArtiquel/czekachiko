@@ -23,6 +23,16 @@ export function boot(tg: WebApp): void {
   tg.ready();
   tg.expand();
   if (supports(tg, '7.7')) tg.disableVerticalSwipes();
+  // Telegram's header and bottom bar take the page colour instead of framing it in a band.
+  try {
+    if (supports(tg, '6.1')) {
+      tg.setHeaderColor?.('secondary_bg_color');
+      tg.setBackgroundColor?.('secondary_bg_color');
+    }
+    if (supports(tg, '7.10')) tg.setBottomBarColor?.('secondary_bg_color');
+  } catch {
+    // Cosmetic only.
+  }
 }
 
 export function haptic(tg: WebApp, type: 'success' | 'error' | 'warning'): void {

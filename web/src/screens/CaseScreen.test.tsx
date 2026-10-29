@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import type { CaseDetail } from '../api/types';
-import { todayIso } from '../lib/dates';
+import { daysBetween, todayIso } from '../lib/dates';
 import { mockApi } from '../test/api';
 import { caseDetail } from '../test/fixtures';
 import { installTelegram } from '../test/telegram';
@@ -28,18 +28,27 @@ describe('Case screen', () => {
     await openCase();
     expect(screen.getByText('Mazowieckie · работа')).toBeInTheDocument();
     expect(screen.getByText('01.03.2025 · 50 дн.')).toBeInTheDocument();
-    expect(screen.getByText('обычно: в среднем 61 дн. (мин 12, макс 140) (дел: 23)')).toBeInTheDocument();
-    expect(screen.getByText('обычно: в среднем 301 дн. (мин 180, макс 420) (дел: 6)')).toBeInTheDocument();
+    expect(screen.getByText('обычно 61 дн., разброс 12–140, дел: 23')).toBeInTheDocument();
+    expect(screen.getByText('обычно 301 дн., разброс 180–420, дел: 6')).toBeInTheDocument();
     expect(screen.getByText('данных пока нет (дел: 0)')).toBeInTheDocument();
+    expect(screen.getByText('день ' + daysBetween('2025-01-10', todayIso()))).toBeInTheDocument();
+    // Done steps and the furthest one reached are marked on the timeline.
+    const steps = document.querySelectorAll('.tl-item');
+    expect([...steps].map((li) => li.classList.contains('is-done'))).toEqual([true, true, false, true, false, false]);
+    expect(steps[4]).toHaveClass('is-next');
   });
 
   it('renders the forecast with its disclaimer', async () => {
     await openCase();
     expect(screen.getByText('Прогноз: decyzja')).toBeInTheDocument();
-    expect(screen.getByText('обычно между 02.11.2025 и 30.04.2026, чаще всего около 15.01.2026')).toBeInTheDocument();
+    expect(screen.getByText('Чаще всего около')).toBeInTheDocument();
+    expect(screen.getByText('15.01.2026')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'обычно между 02.11.2025 и 30.04.2026, чаще всего около 15.01.2026' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('по 11 завершённым делам (Mazowieckie, работа), которые ждали не меньше тебя')).toBeInTheDocument();
     expect(screen.getByText('быстрее всех: 120 дн. · дольше всех: 410 дн.')).toBeInTheDocument();
-    expect(screen.getByText(/^ℹ️ Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
+    expect(screen.getByText(/^Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
   });
 
   it.each([
@@ -57,15 +66,16 @@ describe('Case screen', () => {
   ])('renders the %s forecast with the disclaimer', async (_kind, forecast, text) => {
     await openCase({ 'GET /api/cases/7': { body: { ...caseDetail, forecast } } });
     expect(screen.getByText(text)).toBeInTheDocument();
-    expect(screen.getByText(/^ℹ️ Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
+    expect(screen.getByText(/^Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
     if (!forecast) expect(screen.queryByText(/^Прогноз:/)).not.toBeInTheDocument();
   });
 
   it('renders documents, with the owner’s names as plain text', async () => {
     await openCase();
-    expect(screen.getByText('📋 Документы · отправлено 2 из 4')).toBeInTheDocument();
-    expect(screen.getByText('✅ Отправлен 10.01.2025')).toBeInTheDocument();
-    expect(screen.getAllByText('⬜ Ещё не отмечен')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Документы' })).toBeInTheDocument();
+    expect(screen.getByText('2 из 4')).toBeInTheDocument();
+    expect(screen.getByText('Отправлен 10.01.2025')).toBeInTheDocument();
+    expect(screen.getAllByText('Ещё не отмечен')).toHaveLength(2);
     expect(screen.getByText('<img src=x onerror=alert(1)> Zaświadczenie')).toBeInTheDocument();
     expect(document.querySelector('img')).toBeNull();
     expect(screen.getByRole('checkbox', { name: 'Wniosek' })).toBeChecked();
@@ -125,12 +135,45 @@ describe('Case screen', () => {
     expect(api.callsTo('PUT', '/api/cases/7/milestones/decision')).toHaveLength(0);
   });
 
-  it('clears a milestone date', async () => {
+  it('opens an unset milestone at today, and an empty save there asks for a date', async () => {
+    const { api, tg, user } = await openCase();
+    await user.click(screen.getByRole('button', { name: /^decyzja/ }));
+    expect(screen.getByLabelText('decyzja')).toHaveValue(todayIso());
+    await user.click(screen.getByRole('button', { name: 'Очистить дату' }));
+    expect(screen.getByLabelText('decyzja')).toHaveValue('');
+    expect(tg.webApp.MainButton.setParams).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Сохранить' }));
+    await tg.clickMain();
+    expect(screen.getByText('Укажи дату.')).toBeInTheDocument();
+    expect(api.calls.filter((c) => c.path.includes('/milestones/'))).toHaveLength(0);
+  });
+
+  it('the filing date has no clear button: it cannot be removed', async () => {
+    const { user } = await openCase();
+    await user.click(screen.getByRole('button', { name: /^подача/ }));
+    expect(screen.getByLabelText('подача')).toHaveValue('2025-01-10');
+    expect(screen.queryByRole('button', { name: 'Очистить дату' })).not.toBeInTheDocument();
+  });
+
+  it('clears a milestone date: the main button turns into "remove date"', async () => {
     const cleared = { ...caseDetail, dates: { filed: '2025-01-10', fingerprints: '2025-05-20' } };
-    const { api, user } = await openCase({ 'DELETE /api/cases/7/milestones/case_number': { body: cleared } });
+    const { api, tg, user } = await openCase({ 'DELETE /api/cases/7/milestones/case_number': { body: cleared } });
     await user.click(screen.getByRole('button', { name: /^номер дела/ }));
-    await user.click(screen.getByRole('button', { name: '🗑 Убрать дату' }));
+    expect(screen.getByLabelText('номер дела')).toHaveValue('2025-03-01');
+    await user.click(screen.getByRole('button', { name: 'Очистить дату' }));
+    expect(tg.webApp.MainButton.setParams).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Убрать дату' }));
+    await tg.clickMain();
     await waitFor(() => expect(api.callsTo('DELETE', '/api/cases/7/milestones/case_number')).toHaveLength(1));
+    await waitFor(() => expect(tg.mainButtonVisible()).toBe(false));
+  });
+
+  it('unticks a document by clearing its date and saving', async () => {
+    const { api, tg, user } = await openCase({ 'PUT /api/cases/7/documents/std/wniosek': { body: caseDetail } });
+    await user.click(screen.getByRole('button', { name: 'Wniosek' }));
+    await user.click(screen.getByRole('button', { name: 'Очистить дату' }));
+    expect(tg.webApp.MainButton.setParams).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Снять отметку' }));
+    await tg.clickMain();
+    await waitFor(() => expect(api.callsTo('PUT', '/api/cases/7/documents/std/wniosek')).toHaveLength(1));
+    expect(api.callsTo('PUT', '/api/cases/7/documents/std/wniosek')[0]!.body).toEqual({ date: null });
   });
 
   it('ticks a standard document with today’s date', async () => {
@@ -147,7 +190,7 @@ describe('Case screen', () => {
       'DELETE /api/cases/7/documents/205': { body: caseDetail },
     });
 
-    await user.click(screen.getByRole('button', { name: '➕ Добавить документ' }));
+    await user.click(screen.getByRole('button', { name: 'Добавить документ' }));
     await user.type(screen.getByLabelText('Название документа'), '   ');
     await tg.clickMain();
     expect(screen.getByText('Название пустое. Напиши, как называется документ.')).toBeInTheDocument();
@@ -168,7 +211,7 @@ describe('Case screen', () => {
     });
 
     await user.click(screen.getByRole('button', { name: '<img src=x onerror=alert(1)> Zaświadczenie' }));
-    await user.click(screen.getByRole('button', { name: '🗑 Удалить' }));
+    await user.click(screen.getByRole('button', { name: 'Удалить' }));
     expect(tg.webApp.showConfirm).toHaveBeenCalledWith(
       'Удалить «<img src=x onerror=alert(1)> Zaświadczenie» из списка?',
       expect.any(Function),
@@ -178,7 +221,7 @@ describe('Case screen', () => {
 
   it('sends the case to a chat via inline mode', async () => {
     const { tg, user } = await openCase({ 'GET /api/share/case/7': { body: { query: 'c:7' } } });
-    await user.click(screen.getByRole('button', { name: '📤 Отправить в чат' }));
+    await user.click(screen.getByRole('button', { name: 'Отправить в чат' }));
     await waitFor(() =>
       expect(tg.webApp.switchInlineQuery).toHaveBeenCalledWith('c:7', ['users', 'groups', 'channels']),
     );
@@ -186,7 +229,7 @@ describe('Case screen', () => {
 
   it('deletes the case after confirmation and goes home', async () => {
     const { api, tg, user } = await openCase({ 'DELETE /api/cases/7': { status: 204 } });
-    await user.click(screen.getByRole('button', { name: '🗑 Удалить дело' }));
+    await user.click(screen.getByRole('button', { name: 'Удалить дело' }));
     expect(tg.webApp.showConfirm).toHaveBeenCalledWith(
       'Удалить это дело? Его данные исчезнут из статистики и календаря.',
       expect.any(Function),

@@ -1,24 +1,82 @@
-/* Telegram sets --tg-theme-* and safe-area variables; telegram-ui maps its palette onto them. */
+/*
+ * Czekachiko. Telegram sets --tg-theme-* (and safe-area insets) on the root; every colour here
+ * derives from them. The fallbacks are Telegram's own iOS defaults, for the outside-Telegram page.
+ */
+
 :root {
-  --page-bg: var(--tg-theme-secondary-bg-color, var(--tgui--secondary_bg_color, #efeff4));
-  --text: var(--tg-theme-text-color, var(--tgui--text_color, #000));
-  --hint: var(--tg-theme-hint-color, var(--tgui--hint_color, #8e8e93));
-  --link: var(--tg-theme-link-color, var(--tgui--link_color, #2481cc));
-  --danger: var(--tg-theme-destructive-text-color, var(--tgui--destructive_text_color, #e53935));
+  --fb-page: #efeff4;
+  --fb-surface: #ffffff;
+  --fb-text: #000000;
+  --fb-hint: #8e8e93;
+  --fb-accent: #007aff;
+  --fb-on-accent: #ffffff;
+  --fb-danger: #ff3b30;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fb-page: #000000;
+    --fb-surface: #1c1c1d;
+    --fb-text: #ffffff;
+    --fb-hint: #8d8e93;
+    --fb-accent: #3e88f7;
+    --fb-danger: #ff453a;
+  }
+}
+
+:root {
+  --page: var(--tg-theme-secondary-bg-color, var(--fb-page));
+  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--fb-surface)));
+  --text: var(--tg-theme-text-color, var(--fb-text));
+  --hint: var(--tg-theme-hint-color, var(--fb-hint));
+  --link: var(--tg-theme-link-color, var(--fb-accent));
+  --accent: var(--tg-theme-accent-text-color, var(--link));
+  --button: var(--tg-theme-button-color, var(--fb-accent));
+  --on-button: var(--tg-theme-button-text-color, var(--fb-on-accent));
+  --danger: var(--tg-theme-destructive-text-color, var(--fb-danger));
+  --section-title: var(--tg-theme-section-header-text-color, var(--hint));
+  --sep: var(--tg-theme-section-separator-color, rgba(128, 128, 128, 0.22));
+
+  /* Tints for engines without color-mix(); replaced below where it exists. */
+  --line: rgba(128, 128, 128, 0.32);
+  --fill: rgba(128, 128, 128, 0.13);
+  --accent-soft: rgba(64, 140, 240, 0.14);
+  --accent-mid: rgba(64, 140, 240, 0.34);
+  --danger-soft: rgba(255, 69, 58, 0.12);
+  --wash: var(--surface);
+
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', system-ui, sans-serif;
+  --r-card: 16px;
+  --r-field: 12px;
   --inset-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
   --inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
   --inset-left: max(env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
   --inset-right: max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px));
 }
 
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --line: color-mix(in srgb, var(--hint) 36%, transparent);
+    --fill: color-mix(in srgb, var(--hint) 15%, transparent);
+    --accent-soft: color-mix(in srgb, var(--button) 15%, transparent);
+    --accent-mid: color-mix(in srgb, var(--button) 36%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 13%, transparent);
+    --wash: color-mix(in srgb, var(--button) 9%, var(--surface));
+  }
+}
+
+/* --- base ------------------------------------------------------------------ */
+
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--page-bg);
+  background: var(--page);
   color: var(--text);
-  font-family: var(--tgui--font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif);
+  font: 16px/1.4 var(--font);
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -26,53 +84,53 @@ body {
   overflow-x: hidden;
 }
 
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .app {
   min-height: 100vh;
   min-height: var(--tg-viewport-stable-height, 100vh);
-  background: var(--page-bg);
+  background: var(--page);
   box-sizing: border-box;
   padding: calc(var(--inset-top) + var(--tg-content-safe-area-inset-top, 0px)) var(--inset-right)
-    calc(24px + var(--inset-bottom) + var(--tg-content-safe-area-inset-bottom, 0px)) var(--inset-left);
+    calc(28px + var(--inset-bottom) + var(--tg-content-safe-area-inset-bottom, 0px)) var(--inset-left);
+}
+
+/* Native controls (the date picker above all) follow Telegram's scheme, not the OS's. */
+.app[data-scheme='dark'] {
+  color-scheme: dark;
+}
+
+.app[data-scheme='light'] {
+  color-scheme: light;
 }
 
 .page {
-  max-width: 640px;
+  max-width: 560px;
   margin: 0 auto;
-}
-
-.page-title {
-  padding: 16px 20px 4px;
-}
-
-.page-title p {
-  margin: 6px 0 0;
+  padding: 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .hint {
   color: var(--hint);
-}
-
-.section-text {
-  margin: 0;
-  padding: 12px 20px;
-  line-height: 1.4;
-}
-
-p.section-text + p.section-text {
-  padding-top: 0;
-}
-
-.wrap,
-.section-text,
-.page-title {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.center {
-  display: flex;
-  justify-content: center;
-  padding: 32px 0;
 }
 
 .visually-hidden {
@@ -84,94 +142,1388 @@ p.section-text + p.section-text {
   white-space: nowrap;
 }
 
-.mark {
-  font-size: 20px;
+.cap {
+  display: inline-block;
+}
+
+.cap::first-letter {
+  text-transform: uppercase;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 28px 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.icon {
+  flex: none;
+  display: block;
+}
+
+/* --- titles ---------------------------------------------------------------- */
+
+.page-title {
+  padding: 12px 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.page-title h1 {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.page-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+  color: var(--hint);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 4px 0;
+}
+
+.brand-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  font-size: 30px;
   line-height: 1;
 }
+
+.brand-mark-large {
+  width: 88px;
+  height: 88px;
+  border-radius: 28px;
+  font-size: 50px;
+}
+
+.brand-name {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.brand-sub {
+  margin-top: 4px;
+  color: var(--hint);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* --- groups and cards ------------------------------------------------------ */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.group-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--section-title);
+}
+
+.group-aside {
+  color: var(--hint);
+  font-size: 13px;
+}
+
+.group-foot {
+  padding: 0 4px;
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.group-foot p + p {
+  margin-top: 4px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.card-pad {
+  padding: 14px 16px;
+}
+
+.prose {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.empty-note {
+  color: var(--hint);
+  line-height: 1.45;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 4px;
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.note .icon {
+  margin-top: 1px;
+}
+
+.note-attached {
+  margin-top: -14px;
+}
+
+/* --- rows ------------------------------------------------------------------ */
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+
+.row + .row::before,
+.check-item + .check-item::before,
+.cmp-row + .cmp-row::before,
+.who-row + .who-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 1px;
+  background: var(--sep);
+  transform: scaleY(0.5);
+  transform-origin: top;
+}
+
+.row.has-tile + .row::before,
+.row + .row.has-tile::before {
+  left: 58px;
+}
+
+.choice + .choice::before {
+  left: 50px;
+}
+
+.row-button:active,
+.choice:active {
+  background: var(--fill);
+}
+
+.row:focus-visible {
+  outline-offset: -2px;
+}
+
+.row-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-title {
+  font-size: 16px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.row-detail {
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.row-after {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.row-trailing {
+  color: var(--hint);
+  opacity: 0.7;
+}
+
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tone-accent .row-title {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tone-danger .row-title {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.tone-danger .tile {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* --- buttons --------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 13px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--button);
+  color: var(--on-button);
+}
+
+.btn-tinted {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn-plain {
+  background: transparent;
+  color: var(--accent);
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.btn-wide {
+  width: 100%;
+}
+
+.btn-small {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.btn-small.btn-plain {
+  padding: 0 10px;
+  margin-left: -10px;
+}
+
+.icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-field);
+  background: var(--fill);
+  color: var(--text);
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-btn[aria-disabled='true'] {
+  color: var(--hint);
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+.text-button {
+  all: unset;
+  cursor: pointer;
+}
+
+.text-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- fields ---------------------------------------------------------------- */
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: var(--r-field);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow 0.15s;
+}
+
+.card .field {
+  background: var(--fill);
+}
+
+.field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.field.is-invalid {
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+
+.field-icon {
+  color: var(--hint);
+}
+
+.field-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px; /* 16px keeps iOS from zooming in on focus */
+  line-height: 1.3;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.field-input::placeholder {
+  color: var(--hint);
+  opacity: 1;
+}
+
+.field-select .field-input {
+  padding-right: 26px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+.field-chevron {
+  position: absolute;
+  right: 14px;
+  color: var(--hint);
+  pointer-events: none;
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  padding: 0 2px;
+  color: var(--hint);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-hint {
+  padding: 0 2px;
+  color: var(--hint);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.field-error {
+  padding: 0 4px;
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* --- date field ------------------------------------------------------------ */
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-box {
+  flex: 1;
+}
+
+.date-input {
+  min-height: 22px;
+  color: var(--text);
+  background: transparent;
+  color-scheme: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* iOS centres the value and collapses an empty field. */
+.date-input::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+
+/* Desktop Chrome opens its picker from a tiny icon; let the whole field open it. */
+.date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.date-box.is-empty .date-input,
+.date-box.is-empty .date-input::-webkit-datetime-edit {
+  color: transparent;
+}
+
+.date-placeholder {
+  position: absolute;
+  left: 42px;
+  right: 14px;
+  overflow: hidden;
+  color: var(--hint);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* --- choices --------------------------------------------------------------- */
+
+.choice-input,
+.check-input,
+.chip-input,
+.segment-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.choice-input:disabled,
+.chip-input:disabled,
+.segment-input:disabled {
+  cursor: default;
+}
+
+.radio-mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--line);
+  transition: box-shadow 0.15s;
+}
+
+.choice-input:checked + .radio-mark {
+  box-shadow: inset 0 0 0 7px var(--button);
+}
+
+.choice-input:checked ~ .row-main .row-title {
+  font-weight: 500;
+}
+
+.choice-input:focus-visible + .radio-mark,
+.check-input:focus-visible + .check-mark,
+.chip-input:focus-visible + .chip-face,
+.segment-input:focus-visible + .segment-face {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.check {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+
+.check-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px var(--line);
+  color: transparent;
+  pointer-events: none;
+  transition: background-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+
+.check-input:checked + .check-mark {
+  background: var(--button);
+  box-shadow: none;
+  color: var(--on-button);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.chip-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 15px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.chip-check {
+  display: none;
+  margin-left: -4px;
+}
+
+.chip-input:checked + .chip-face {
+  background: var(--button);
+  color: var(--on-button);
+}
+
+.chip-input:checked + .chip-face .chip-check {
+  display: block;
+}
+
+.chip.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+.segment {
+  position: relative;
+  display: flex;
+}
+
+.segment-face {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.segment-input:checked + .segment-face {
+  background: var(--button);
+  color: var(--on-button);
+}
+
+.segment-input:disabled + .segment-face {
+  opacity: 0.6;
+}
+
+/* --- progress and ranges ---------------------------------------------------- */
+
+.progress {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--fill);
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--button);
+}
+
+.range {
+  position: relative;
+  display: block;
+  height: 6px;
+  margin: 7px 0 3px;
+  border-radius: 3px;
+  background: var(--fill);
+}
+
+.range-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 3px;
+  background: var(--accent-mid);
+}
+
+.range-mean {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.range-own {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--button);
+  box-shadow: 0 0 0 2.5px var(--surface);
+}
+
+/* --- home ------------------------------------------------------------------ */
+
+.case-card {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.case-card:active {
+  transform: scale(0.985);
+}
+
+.case-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.case-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.case-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.case-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+  margin-top: -6px;
+  color: var(--hint);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mini-track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  left: 5px;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--line);
+}
+
+.mini-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.mini-dot.is-done {
+  background: var(--button);
+  box-shadow: none;
+}
+
+.case-card-line,
+.case-card-docs {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+.case-card-line {
+  font-size: 15px;
+}
+
+.case-card-line .icon {
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.case-card-docs {
+  align-items: center;
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.case-card-docs .progress {
+  flex: 0 0 64px;
+  margin-left: auto;
+}
+
+/* --- case: forecast -------------------------------------------------------- */
+
+.forecast {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 18px 16px;
+  border-radius: 22px;
+  background: var(--wash);
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
+}
+
+.forecast-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.forecast-title span::first-letter {
+  text-transform: uppercase;
+}
+
+.forecast-label {
+  margin-top: 6px;
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.forecast-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.forecast-in {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.window {
+  margin: 14px 0 6px;
+}
+
+.window-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--accent-mid);
+}
+
+.window-likely {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: var(--button);
+  box-shadow: 0 0 0 3px var(--wash);
+  animation: settle 0.5s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+.window-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--hint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.forecast-basis {
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.forecast-text {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.forecast.is-complete {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.forecast-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--button);
+  color: var(--on-button);
+}
+
+/* --- case: timeline -------------------------------------------------------- */
+
+.timeline {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.tl-item {
+  position: relative;
+  padding-left: 52px;
+}
+
+/* Two half-lines per step: up to its dot, and from its dot down to the next. */
+.tl-item::before,
+.tl-item::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  width: 2px;
+  background: var(--line);
+  transform-origin: top;
+}
+
+.tl-item::before {
+  top: 0;
+  height: 26px;
+}
+
+.tl-item::after {
+  top: 26px;
+  bottom: 0;
+}
+
+.tl-item:first-child::before,
+.tl-item:last-child::after {
+  display: none;
+}
+
+.tl-item.is-upto::before,
+.tl-item.is-reached::after {
+  background: var(--button);
+  animation: grow 0.35s calc(var(--i, 0) * 70ms) ease-out both;
+}
+
+.tl-dot {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+
+.tl-item.is-done .tl-dot {
+  background: var(--button);
+  color: var(--on-button);
+  box-shadow: none;
+}
+
+.tl-item.is-next .tl-dot {
+  box-shadow: inset 0 0 0 2px var(--button), 0 0 0 4px var(--accent-soft);
+}
+
+.tl-row {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 14px 16px 14px 0;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.tl-row:active {
+  opacity: 0.6;
+}
+
+.tl-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+
+.tl-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tl-when {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-when.is-empty {
+  color: var(--accent);
+}
+
+.tl-item.is-todo .tl-when.is-empty {
+  color: var(--hint);
+}
+
+.tl-typical {
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- editors (timeline step, document) ------------------------------------- */
 
 .editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px 0 12px;
+  gap: 12px;
+  padding: 0 16px 16px 0;
+  animation: rise 0.18s ease-out both;
 }
 
-.editor > .hint {
-  margin: 0;
-  padding: 0 20px;
+.editor-doc {
+  padding: 2px 16px 16px;
+}
+
+.editor-new {
+  border-top: 1px solid var(--sep);
+  padding-top: 14px;
 }
 
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 0 20px;
 }
 
-.editor-actions.padded {
-  padding: 12px 20px;
+/* --- case: documents ------------------------------------------------------- */
+
+.docs-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
-.danger {
-  color: var(--danger) !important;
+.docs-count .progress {
+  width: 56px;
 }
 
-.field-error {
-  color: var(--danger);
-  padding: 0 20px;
-  font-size: 14px;
+.checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-item {
+  position: relative;
+}
+
+.check-item + .check-item::before {
+  left: 54px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.check-hit {
+  display: grid;
+  place-items: center;
+  margin: -9px;
+  padding: 9px;
+}
+
+.check-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-name {
+  font-size: 16px;
   line-height: 1.3;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.field-error:empty {
-  display: none;
+.check-sub {
+  color: var(--hint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-.forecast p {
-  margin: 0 0 8px;
+.check-item.is-done .check-sub {
+  color: var(--accent);
 }
 
-.forecast-main {
+/* --- stats ----------------------------------------------------------------- */
+
+.cmp-row,
+.who-row {
+  position: relative;
+  padding: 12px 16px;
+}
+
+.cmp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cmp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cmp-name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.cmp-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp-sub {
+  color: var(--hint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.who-name {
+  font-size: 15px;
   font-weight: 600;
 }
 
-.disclaimer {
-  color: var(--hint);
+.who-row p {
+  margin-top: 4px;
   font-size: 14px;
+  line-height: 1.4;
 }
 
-.text-button {
-  all: unset;
-  display: inline;
-  cursor: pointer;
-  text-align: left;
+.retry-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.text-button:focus-visible,
-[role='button']:focus-visible {
-  outline: 2px solid var(--link);
-  outline-offset: -2px;
+/* --- placeholders ---------------------------------------------------------- */
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: center;
 }
 
-.hero {
-  font-size: 64px;
+.placeholder-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: var(--accent-soft);
+  font-size: 40px;
   line-height: 1;
 }
 
-.link-button {
-  display: inline-block;
-  padding: 12px 20px;
-  border-radius: 12px;
-  background: var(--tg-theme-button-color, #2481cc);
-  color: var(--tg-theme-button-text-color, #fff);
-  text-decoration: none;
-  font-weight: 600;
+.placeholder-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
-input[type='date'] {
-  min-height: 24px;
-  /* Follow Telegram's theme; without this the empty field renders dark-on-dark. */
-  color: var(--tg-theme-text-color, inherit);
-  background: transparent;
-  color-scheme: inherit;
+.placeholder-text {
+  color: var(--hint);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.placeholder-text p + p {
+  margin-top: 6px;
+}
+
+.placeholder-action {
+  margin-top: 8px;
+}
+
+.outside {
+  justify-content: center;
+  min-height: 80vh;
+  box-sizing: border-box;
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border: 2.5px solid var(--accent-soft);
+  border-top-color: var(--button);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* --- motion ---------------------------------------------------------------- */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* Narrow phones: give the date field its width back. */
+@media (max-width: 359px) {
+  .page {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .date-box .field-icon {
+    display: none;
+  }
+
+  .date-placeholder {
+    left: 14px;
+  }
 }

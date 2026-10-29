@@ -1,8 +1,9 @@
-import { Cell, Input, List, Radio, Section } from '@telegram-apps/telegram-ui';
 import { useMemo, useRef, useState } from 'react';
 import { isApiError } from '../api/client';
 import { useApp } from '../app/context';
-import { FieldError, PageTitle, TapCell } from '../components/common';
+import { DateField } from '../components/DateField';
+import { FieldError, PageTitle } from '../components/common';
+import { Group, Page, RadioRow, RowButton, Segmented, TextField } from '../components/ui';
 import { EARLIEST, todayIso } from '../lib/dates';
 import { codeMessage } from '../lib/errors';
 import { newClientToken, validateNewCase } from '../lib/validation';
@@ -98,13 +99,14 @@ export function AddCase() {
   useMainButton(tg, { text: t('btn_save'), onClick: () => void save(), progress: saving });
 
   return (
-    <List className="page">
+    <Page>
       <PageTitle>{t('add_title')}</PageTitle>
 
-      <Section header={t('field_voiv')} footer={<FieldError message={errors.voivodeship} />}>
+      <Group title={t('field_voiv')} plain>
         {voivOpen || !voivodeship ? (
-          <>
-            <Input
+          <div className="stack-tight">
+            <TextField
+              icon="search"
               type="search"
               aria-label={t('voiv_search')}
               placeholder={t('voiv_search')}
@@ -113,99 +115,77 @@ export function AddCase() {
               autoComplete="off"
               enterKeyHint="search"
             />
-            {voivs.length === 0 ? <p className="section-text hint">{t('voiv_search_empty')}</p> : null}
-            <div role="radiogroup" aria-label={t('field_voiv')}>
+            <div className="card" role="radiogroup" aria-label={t('field_voiv')}>
+              {voivs.length === 0 ? <p className="card-pad hint">{t('voiv_search_empty')}</p> : null}
               {voivs.map((v) => (
-                <Cell
+                <RadioRow
                   key={v.code}
-                  Component="label"
-                  before={
-                    <Radio
-                      name="voivodeship"
-                      value={v.code}
-                      checked={voivodeship === v.code}
-                      onChange={() => pickVoivodeship(v.code)}
-                    />
-                  }
-                >
-                  {v.label}
-                </Cell>
+                  name="voivodeship"
+                  value={v.code}
+                  checked={voivodeship === v.code}
+                  onChange={() => pickVoivodeship(v.code)}
+                  label={v.label}
+                />
               ))}
             </div>
-          </>
+          </div>
         ) : (
-          <TapCell after={<span className="hint">{t('change')}</span>} onClick={() => setVoivOpen(true)}>
-            {labels.voiv(voivodeship)}
-          </TapCell>
+          <div className="card">
+            <RowButton trailing={null} after={t('change')} onClick={() => setVoivOpen(true)}>
+              {labels.voiv(voivodeship)}
+            </RowButton>
+          </div>
         )}
-      </Section>
+        <FieldError message={errors.voivodeship} />
+      </Group>
 
-      <Section header={t('field_purpose')} footer={<FieldError message={errors.purpose} />}>
-        <div role="radiogroup" aria-label={t('field_purpose')}>
+      <Group title={t('field_purpose')} plain>
+        <div className="card" role="radiogroup" aria-label={t('field_purpose')}>
           {meta.purposes.map((p) => (
-            <Cell
+            <RadioRow
               key={p.code}
-              Component="label"
-              multiline
-              before={
-                <Radio
-                  name="purpose"
-                  value={p.code}
-                  checked={purpose === p.code}
-                  onChange={() => {
-                    setPurpose(p.code);
-                    clearError('purpose');
-                  }}
-                />
-              }
-            >
-              {p.button}
-            </Cell>
+              name="purpose"
+              value={p.code}
+              checked={purpose === p.code}
+              onChange={() => {
+                setPurpose(p.code);
+                clearError('purpose');
+              }}
+              label={p.button}
+            />
           ))}
         </div>
-      </Section>
+        <FieldError message={errors.purpose} />
+      </Group>
 
-      <Section header={t('field_channel')} footer={<FieldError message={errors.channel} />}>
-        <div role="radiogroup" aria-label={t('field_channel')}>
-          {meta.channels.map((c) => (
-            <Cell
-              key={c.code}
-              Component="label"
-              multiline
-              before={
-                <Radio
-                  name="channel"
-                  value={c.code}
-                  checked={channel === c.code}
-                  onChange={() => {
-                    setChannel(c.code);
-                    clearError('channel');
-                  }}
-                />
-              }
-            >
-              {c.label}
-            </Cell>
-          ))}
-        </div>
-      </Section>
+      <Group title={t('field_channel')} plain>
+        <Segmented
+          name="channel"
+          label={t('field_channel')}
+          options={meta.channels.map((c) => ({ value: c.code, label: c.label }))}
+          value={channel}
+          onChange={(code) => {
+            setChannel(code);
+            clearError('channel');
+          }}
+        />
+        <FieldError message={errors.channel} />
+      </Group>
 
-      <Section header={t('field_filed')} footer={<FieldError message={errors.filed} id="filed-error" />}>
-        <Input
-          type="date"
-          aria-label={t('field_filed')}
-          aria-invalid={errors.filed ? true : undefined}
-          aria-describedby={errors.filed ? 'filed-error' : undefined}
-          status={errors.filed ? 'error' : undefined}
+      <Group title={t('field_filed')} plain>
+        <DateField
+          label={t('field_filed')}
+          labelHidden
           min={EARLIEST}
           max={today}
           value={filed}
-          onChange={(e) => {
-            setFiled(e.target.value);
+          error={errors.filed}
+          onChange={(value) => {
+            setFiled(value);
             clearError('filed');
           }}
         />
-      </Section>
-    </List>
+      </Group>
+    </Page>
   );
 }

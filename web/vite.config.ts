@@ -8,7 +8,7 @@ function contentSecurityPolicy(apiOrigin: string): Plugin {
   const policy = [
     "default-src 'none'",
     "script-src 'self' https://telegram.org",
-    // Telegram's script and the UI kit set styles at runtime.
+    // Telegram's script sets styles at runtime; bars and markers use style attributes.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",

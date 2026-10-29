@@ -1,32 +1,27 @@
-import { AppRoot, Placeholder } from '@telegram-apps/telegram-ui';
 import { translate } from '../i18n';
 import { BOT_URL } from '../telegram/webapp';
 
 /** Shown in a normal browser. Makes no API calls: there is no Telegram identity to send. */
 export function OutsideTelegram() {
   return (
-    <AppRoot className="app">
-      <Placeholder
-        header={translate('ru', 'outside_title')}
-        description={
-          <>
-            {translate('ru', 'outside_text')}
-            <br />
-            <span lang="en" className="hint">
-              {translate('en', 'outside_title')}
-            </span>
-          </>
-        }
-        action={
-          <a className="link-button" href={BOT_URL} rel="noopener noreferrer">
-            {translate('ru', 'outside_link')}
-          </a>
-        }
-      >
-        <div className="hero" aria-hidden="true">
+    <div className="app">
+      <div className="placeholder outside">
+        <div className="brand-mark brand-mark-large" aria-hidden="true">
           🐕
         </div>
-      </Placeholder>
-    </AppRoot>
+        <h1 className="placeholder-title">{translate('ru', 'outside_title')}</h1>
+        <div className="placeholder-text">
+          <p>{translate('ru', 'outside_text')}</p>
+          <p lang="en" className="hint">
+            {translate('en', 'outside_title')}
+          </p>
+        </div>
+        <div className="placeholder-action">
+          <a className="btn btn-primary" href={BOT_URL} rel="noopener noreferrer">
+            <span>{translate('ru', 'outside_link')}</span>
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -12,6 +12,13 @@ export function todayIso(now: Date = new Date()): IsoDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/** Pull a date into [min, max]; either bound may be missing. */
+export function clampDate(iso: IsoDate, min?: IsoDate, max?: IsoDate): IsoDate {
+  if (max && iso > max) return max;
+  if (min && iso < min) return min;
+  return iso;
+}
+
 export function isIsoDate(s: string): boolean {
   const m = ISO.exec(s);
   if (!m) return false;

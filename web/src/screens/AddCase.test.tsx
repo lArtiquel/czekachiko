@@ -43,6 +43,17 @@ describe('Add case', () => {
     expect(input).toHaveAttribute('max', todayIso());
   });
 
+  it('tapping the empty filing date starts it at today; the clear button sits beside it', async () => {
+    const { user } = await openForm();
+    const input = screen.getByLabelText('Дата подачи wniosku');
+    fireEvent.focus(input);
+    expect(input).toHaveValue(todayIso());
+    const clear = screen.getByRole('button', { name: 'Очистить дату' });
+    expect(clear.closest('.date-row')).toBe(input.closest('.date-row'));
+    await user.click(clear);
+    expect(input).toHaveValue('');
+  });
+
   it('shows inline errors for missing fields and sends nothing', async () => {
     const { api, tg } = await openForm();
     await tg.clickMain();

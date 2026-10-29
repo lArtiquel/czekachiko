@@ -1,13 +1,13 @@
-import { Button, Cell, Placeholder, Spinner, Title } from '@telegram-apps/telegram-ui';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useT } from '../i18n';
 import { errorMessage } from '../lib/errors';
+import { Button, Placeholder, Spinner } from './ui';
 
 export function Loading() {
   const t = useT();
   return (
     <div className="center" role="status" aria-live="polite">
-      <Spinner size="l" />
+      <Spinner />
       <span className="visually-hidden">{t('loading')}</span>
     </div>
   );
@@ -17,10 +17,10 @@ export function LoadError({ error, onRetry }: { error: unknown; onRetry: () => v
   const t = useT();
   return (
     <Placeholder
-      header="🐕"
-      description={errorMessage(t, error)}
+      mark="🐕"
+      text={<p role="alert">{errorMessage(t, error)}</p>}
       action={
-        <Button size="m" mode="bezeled" onClick={onRetry}>
+        <Button icon="refresh" onClick={onRetry}>
           {t('btn_retry')}
         </Button>
       }
@@ -28,13 +28,16 @@ export function LoadError({ error, onRetry }: { error: unknown; onRetry: () => v
   );
 }
 
-export function PageTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
+export function PageTitle({ children, sub, aside }: { children: ReactNode; sub?: ReactNode; aside?: ReactNode }) {
   return (
     <header className="page-title">
-      <Title level="2" weight="1">
-        {children}
-      </Title>
-      {sub ? <p className="hint">{sub}</p> : null}
+      <h1>{children}</h1>
+      {sub || aside ? (
+        <div className="page-sub">
+          {sub ? <p>{sub}</p> : null}
+          {aside}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -46,18 +49,4 @@ export function FieldError({ message, id }: { message: string | undefined; id?: 
       {message}
     </div>
   );
-}
-
-type CellProps = Parameters<typeof Cell>[0];
-
-/** A tappable cell that is also reachable and usable from a keyboard. */
-export function TapCell({ onClick, ...rest }: Omit<CellProps, 'onClick'> & { onClick: () => void }) {
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick();
-    }
-  };
-  return <Cell role="button" tabIndex={0} onClick={onClick} onKeyDown={onKeyDown} {...rest} />;
 }

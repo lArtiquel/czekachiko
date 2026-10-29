@@ -1,11 +1,13 @@
-import { Button, ButtonCell, Cell, Checkbox, List, Section, Select } from '@telegram-apps/telegram-ui';
 import { useEffect, useRef, useState } from 'react';
-import type { StatsResponse } from '../api/types';
+import { MILESTONES, type Agg, type StatsResponse } from '../api/types';
 import { useApp } from '../app/context';
-import { FieldError, PageTitle, TapCell } from '../components/common';
+import { FieldError, Loading, PageTitle } from '../components/common';
+import { Button, Chip, Group, Page, RowButton, SelectField } from '../components/ui';
 import { monthSpan } from '../lib/dates';
 import { errorMessage } from '../lib/errors';
 import { alertDialog, selectionHaptic, shareInline } from '../telegram/webapp';
+
+const STEPS = MILESTONES.filter((m) => m !== 'filed');
 
 export const MAX_COMPARE = 6;
 
@@ -69,115 +71,140 @@ export function Stats() {
 
   const atMax = voivs.length >= MAX_COMPARE;
   const summary = voivs.length ? voivs.map((v) => labels.voiv(v)).join(', ') : t('stats_voivs_none');
+  const keyOf = (v: string) => `${purpose}|${v}`;
+  const ready = voivs.flatMap((v) => {
+    const r = results[keyOf(v)];
+    return r && 'data' in r ? [{ voiv: v, data: r.data }] : [];
+  });
+  const failed = voivs.flatMap((v) => {
+    const r = results[keyOf(v)];
+    return r && 'error' in r ? [{ voiv: v, error: r.error }] : [];
+  });
+  const pending = voivs.some((v) => !results[keyOf(v)]);
+  const who = ready.filter((r) => r.data.who_now.fingerprints || r.data.who_now.decision);
 
   return (
-    <List className="page">
+    <Page>
       <PageTitle>{t('stats_title')}</PageTitle>
 
-      <Section header={t('stats_purpose')}>
-        <Select aria-label={t('stats_purpose')} value={purpose} onChange={(e) => setPurpose(e.target.value)}>
+      <Group title={t('stats_purpose')} plain>
+        <SelectField aria-label={t('stats_purpose')} value={purpose} onChange={(e) => setPurpose(e.target.value)}>
           {meta.purposes.map((p) => (
             <option key={p.code} value={p.code}>
               {p.button}
             </option>
           ))}
-        </Select>
-      </Section>
+        </SelectField>
+      </Group>
 
-      <Section
-        header={t('stats_voivs', { max: MAX_COMPARE })}
-        footer={picking ? <FieldError message={atMax ? t('cmp_limit', { max: MAX_COMPARE }) : undefined} /> : undefined}
-      >
+      <Group title={t('stats_voivs', { max: MAX_COMPARE })} plain>
         {picking ? (
-          <>
-            {meta.voivodeships.map((v) => {
-              const checked = voivs.includes(v.code);
-              return (
-                <Cell
-                  key={v.code}
-                  Component="label"
-                  before={
-                    <Checkbox
-                      name="voivodeships"
-                      value={v.code}
-                      checked={checked}
-                      disabled={!checked && atMax}
-                      onChange={() => toggle(v.code)}
-                    />
-                  }
-                >
-                  {v.label}
-                </Cell>
-              );
-            })}
-            <div className="editor-actions padded">
-              <Button size="m" mode="bezeled" stretched disabled={!voivs.length} onClick={() => setPicking(false)}>
-                {t('btn_done')}
-              </Button>
+          <div className="stack-tight">
+            <div className="chips" role="group" aria-label={t('stats_voivs', { max: MAX_COMPARE })}>
+              {meta.voivodeships.map((v) => {
+                const checked = voivs.includes(v.code);
+                return (
+                  <Chip
+                    key={v.code}
+                    name="voivodeships"
+                    value={v.code}
+                    label={v.label}
+                    checked={checked}
+                    disabled={!checked && atMax}
+                    onChange={() => toggle(v.code)}
+                  />
+                );
+              })}
             </div>
-          </>
+            <FieldError message={atMax ? t('cmp_limit', { max: MAX_COMPARE }) : undefined} />
+            <Button wide disabled={!voivs.length} onClick={() => setPicking(false)}>
+              {t('btn_done')}
+            </Button>
+          </div>
         ) : (
-          <TapCell multiline after={<span className="hint">{t('change')}</span>} onClick={() => setPicking(true)}>
-            {summary}
-          </TapCell>
+          <div className="card">
+            <RowButton trailing={null} after={t('change')} onClick={() => setPicking(true)}>
+              {summary}
+            </RowButton>
+          </div>
         )}
-      </Section>
+      </Group>
 
-      {voivs.length === 0 ? <p className="section-text hint">{t('cmp_none')}</p> : null}
+      {voivs.length === 0 ? <p className="note">{t('cmp_none')}</p> : null}
 
-      {voivs.map((v) => {
-        const key = `${purpose}|${v}`;
-        const result = results[key];
-        return (
-          <Section key={key} header={t('stats_group', { voiv: labels.voiv(v), purpose: labels.purpose(purpose) })}>
-            {!result ? <p className="section-text hint">{t('loading')}</p> : null}
-            {result && 'error' in result ? (
-              <div className="section-text">
-                <p className="field-error" role="alert">
-                  {errorMessage(t, result.error)}
-                </p>
-                <Button size="s" mode="bezeled" onClick={() => retry(key)}>
-                  {t('btn_retry')}
-                </Button>
-              </div>
-            ) : null}
-            {result && 'data' in result ? (
-              <>
-                {result.data.chain.map((item) => (
-                  <Cell
-                    key={item.milestone}
-                    multiline
-                    description={
-                      item.agg
-                        ? t('chain_line', {
-                            mean: Math.round(item.agg.mean),
-                            min: item.agg.min,
-                            max: item.agg.max,
-                            n: item.agg.n,
-                          })
-                        : t('chain_none')
-                    }
-                  >
-                    {labels.milestone(item.milestone)}
-                  </Cell>
+      {failed.map(({ voiv, error }) => (
+        <div key={voiv} className="card card-pad retry-card">
+          <p className="field-error" role="alert">
+            {labels.voiv(voiv)}: {errorMessage(t, error)}
+          </p>
+          <Button small icon="refresh" onClick={() => retry(keyOf(voiv))}>
+            {t('btn_retry')}
+          </Button>
+        </div>
+      ))}
+
+      {ready.length ? <p className="note">{t('cmp_legend')}</p> : null}
+
+      {ready.length
+        ? STEPS.map((m) => {
+            const rows = ready.map(({ voiv, data }) => ({ voiv, agg: data.chain.find((c) => c.milestone === m)?.agg ?? null }));
+            const axis = Math.max(1, ...rows.map((r) => r.agg?.max ?? 0));
+            return (
+              <Group key={m} title={<span className="cap">{labels.milestone(m)}</span>}>
+                {rows.map(({ voiv, agg }) => (
+                  <CompareRow key={voiv} name={labels.voiv(voiv)} agg={agg} axis={axis} />
                 ))}
-                {result.data.who_now.fingerprints ? (
-                  <p className="section-text">{t('who_fp', { span: monthSpan(lang, result.data.who_now.fingerprints) })}</p>
-                ) : null}
-                {result.data.who_now.decision ? (
-                  <p className="section-text">{t('who_dec', { span: monthSpan(lang, result.data.who_now.decision) })}</p>
-                ) : null}
-              </>
-            ) : null}
-          </Section>
-        );
-      })}
+              </Group>
+            );
+          })
+        : null}
+
+      {pending ? <Loading /> : null}
+
+      {who.length ? (
+        <Group title={t('who_title')}>
+          {who.map(({ voiv, data }) => (
+            <div key={voiv} className="who-row">
+              <span className="who-name">{labels.voiv(voiv)}</span>
+              {data.who_now.fingerprints ? <p>{t('who_fp', { span: monthSpan(lang, data.who_now.fingerprints) })}</p> : null}
+              {data.who_now.decision ? <p>{t('who_dec', { span: monthSpan(lang, data.who_now.decision) })}</p> : null}
+            </div>
+          ))}
+        </Group>
+      ) : null}
 
       {voivs.length ? (
-        <Section footer={t('disclaimer')}>
-          <ButtonCell onClick={() => void share()}>{t('btn_send_chat')}</ButtonCell>
-        </Section>
+        <Group footer={t('disclaimer')}>
+          <RowButton icon="send" tone="accent" trailing={null} onClick={() => void share()}>
+            {t('btn_send_chat')}
+          </RowButton>
+        </Group>
       ) : null}
-    </List>
+    </Page>
+  );
+}
+
+/** One voivodeship's average for a step, with the fastest-to-slowest range on a shared axis. */
+function CompareRow({ name, agg, axis }: { name: string; agg: Agg | null; axis: number }) {
+  const { t } = useApp();
+  const pct = (days: number) => `${Math.min(100, Math.max(0, (days / axis) * 100))}%`;
+  return (
+    <div className="cmp-row">
+      <div className="cmp-head">
+        <span className="cmp-name">{name}</span>
+        {agg ? <span className="cmp-value">{t('days_n', { n: Math.round(agg.mean) })}</span> : null}
+      </div>
+      {agg ? (
+        <>
+          <span className="range" aria-hidden="true">
+            <span className="range-span" style={{ left: pct(agg.min), width: `calc(${pct(agg.max)} - ${pct(agg.min)})` }} />
+            <span className="range-mean" style={{ left: pct(agg.mean) }} />
+          </span>
+          <span className="cmp-sub">{t('range_line', { min: agg.min, max: agg.max, n: agg.n })}</span>
+        </>
+      ) : (
+        <span className="cmp-sub">{t('chain_none')}</span>
+      )}
+    </div>
   );
 }

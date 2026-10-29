@@ -47,8 +47,7 @@ describe('Telegram-only gate', () => {
     mockApi({ 'GET /api/me': { body: { tg_id: 42, lang: 'en', reminders: false } } });
     installTelegram({ languageCode: 'ru' });
     render(<App />);
-    // Section headers re-create their <h1> on each render, so check a stable button instead.
-    expect(await screen.findByText('📊 Timelines by voivodeship')).toBeInTheDocument();
-    expect(screen.getByText('📂 My cases')).toBeInTheDocument();
+    expect(await screen.findByText('Timelines by voivodeship')).toBeInTheDocument();
+    expect(screen.getByText('My cases')).toBeInTheDocument();
   });
 });

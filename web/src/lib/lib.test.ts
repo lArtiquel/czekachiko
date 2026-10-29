@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isKey } from '../i18n';
 import { meta } from '../test/fixtures';
 import { launchPath, parseHash } from '../router';
-import { addDays, daysBetween, formatDate, monthSpan, validateMilestones } from './dates';
+import { addDays, clampDate, daysBetween, formatDate, monthSpan, validateMilestones } from './dates';
 import { cleanDocName, docDateError } from './docs';
 import { newClientToken, validateNewCase } from './validation';
 import { filterVoivodeships } from './voivSearch';
@@ -58,6 +58,11 @@ describe('dates and search', () => {
     expect(formatDate('2025-03-01')).toBe('01.03.2025');
     expect(daysBetween('2025-01-10', '2025-03-01')).toBe(50);
     expect(addDays('2025-01-10', -30)).toBe('2024-12-11');
+  });
+  it('clamps a date into an optional range', () => {
+    expect(clampDate('2026-10-30', '2015-01-01', '2026-10-30')).toBe('2026-10-30');
+    expect(clampDate('2026-10-30', undefined, '2026-01-31')).toBe('2026-01-31');
+    expect(clampDate('2026-10-30', '2027-02-01')).toBe('2027-02-01');
   });
   it('writes month spans like the bot', () => {
     expect(monthSpan('ru', ['2025-03-01', '2025-04-01'])).toBe('март 2025 – апрель 2025');

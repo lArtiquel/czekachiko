@@ -1,10 +1,10 @@
-import { AppRoot, Button, Placeholder } from '@telegram-apps/telegram-ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiBase } from './api/base';
 import { ApiClient, isApiError } from './api/client';
 import type { Lang, Meta } from './api/types';
 import { AppContext, CaseCache, makeLabels, useApp, type AppServices } from './app/context';
 import { Loading, LoadError } from './components/common';
+import { Button, Placeholder } from './components/ui';
 import { LangContext, guessLang, translate, type Params } from './i18n';
 import { errorMessage } from './lib/errors';
 import { navigate, parseHash, routeKey, useRoute } from './router';
@@ -119,9 +119,9 @@ function TelegramApp({ tg, entry }: { tg: WebApp; entry: string }) {
 
   return (
     <LangContext.Provider value={lang}>
-      <AppRoot appearance={scheme} className="app">
+      <div className="app" data-scheme={scheme}>
         {body}
-      </AppRoot>
+      </div>
     </LangContext.Provider>
   );
 }
@@ -159,13 +159,10 @@ function Reopen({ tg }: { tg: WebApp }) {
     <LangContext.Consumer>
       {(lang) => (
         <Placeholder
-          header={translate(lang, 'reopen_title')}
-          description={translate(lang, 'reopen_text')}
-          action={
-            <Button size="m" mode="bezeled" onClick={() => tg.close()}>
-              {translate(lang, 'btn_close')}
-            </Button>
-          }
+          mark="🐕"
+          title={translate(lang, 'reopen_title')}
+          text={<p>{translate(lang, 'reopen_text')}</p>}
+          action={<Button onClick={() => tg.close()}>{translate(lang, 'btn_close')}</Button>}
         />
       )}
     </LangContext.Consumer>

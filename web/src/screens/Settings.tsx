@@ -1,8 +1,8 @@
-import { ButtonCell, Cell, List, Radio, Section } from '@telegram-apps/telegram-ui';
 import { useState } from 'react';
 import type { Lang } from '../api/types';
 import { useApp } from '../app/context';
 import { PageTitle } from '../components/common';
+import { Group, Page, RowButton, Segmented } from '../components/ui';
 import { LANG_NAMES } from '../i18n';
 import { navigate } from '../router';
 import { alertDialog, confirmDialog, haptic } from '../telegram/webapp';
@@ -45,44 +45,33 @@ export function Settings() {
   };
 
   return (
-    <List className="page">
+    <Page>
       <PageTitle>{t('settings_title')}</PageTitle>
 
-      <Section header={t('lang_title')}>
-        <div role="radiogroup" aria-label={t('lang_title')}>
-          {LANGS.map((l) => (
-            <Cell
-              key={l}
-              Component="label"
-              before={
-                <Radio
-                  name="lang"
-                  value={l}
-                  checked={shown === l}
-                  disabled={pending !== null}
-                  onChange={() => void pickLang(l)}
-                />
-              }
-            >
-              <span lang={l}>{LANG_NAMES[l]}</span>
-            </Cell>
-          ))}
-        </div>
-      </Section>
+      <Group title={t('lang_title')} plain>
+        <Segmented
+          name="lang"
+          label={t('lang_title')}
+          options={LANGS.map((l) => ({ value: l, label: LANG_NAMES[l], lang: l }))}
+          value={shown}
+          disabled={pending !== null}
+          onChange={(l) => void pickLang(l as Lang)}
+        />
+      </Group>
 
-      <Section header={t('help_title')}>
-        <p className="section-text">{t('help')}</p>
-      </Section>
+      <Group title={t('help_title')}>
+        <p className="card-pad prose">{t('help')}</p>
+      </Group>
 
-      <Section header={t('privacy_title')}>
-        <p className="section-text">{t('privacy')}</p>
-      </Section>
+      <Group title={t('privacy_title')}>
+        <p className="card-pad prose">{t('privacy')}</p>
+      </Group>
 
-      <Section>
-        <ButtonCell mode="destructive" disabled={deleting} onClick={() => void deleteAll()}>
+      <Group>
+        <RowButton icon="trash" tone="danger" trailing={null} disabled={deleting} onClick={() => void deleteAll()}>
           {t('btn_delete_all')}
-        </ButtonCell>
-      </Section>
-    </List>
+        </RowButton>
+      </Group>
+    </Page>
   );
 }

@@ -8,7 +8,7 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
-// jsdom lacks these browser APIs that telegram-ui and the router touch.
+// jsdom lacks these browser APIs.
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
