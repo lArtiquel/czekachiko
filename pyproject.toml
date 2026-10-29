@@ -35,3 +35,6 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/czekachiko/locales/*" = ["E501"]

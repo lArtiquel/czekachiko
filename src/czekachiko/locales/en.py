@@ -1,0 +1,177 @@
+"""English copy."""
+
+from czekachiko.domain import Channel, Milestone, Purpose
+
+P, M = Purpose, Milestone
+
+PURPOSE_LABELS = {
+    P.praca: "art. 114",
+    P.jdg: "art. 142",
+    P.studia: "study",
+    P.rodzina: "family",
+    P.inne: "other",
+}
+PURPOSE_BUTTONS = {
+    P.praca: "Work (art. 114)",
+    P.jdg: "Business, JDG (art. 142)",
+    P.studia: "Study",
+    P.rodzina: "Family",
+    P.inne: "Other",
+}
+MILESTONE_LABELS = {
+    M.filed: "filed",
+    M.case_number: "case number",
+    M.braki: "formal-defects letter",
+    M.fingerprints: "fingerprints",
+    M.decision: "decision",
+    M.card: "card",
+}
+MILESTONE_HINTS = {
+    M.filed: "when you filed the application",
+    M.case_number: "when you got the case number (sygnatura)",
+    M.braki: "when the letter about formal defects arrived",
+    M.fingerprints: "when you gave fingerprints",
+    M.decision: "when the decision was issued",
+    M.card: "when you collected the card",
+}
+CHANNEL_LABELS = {Channel.mos: "MOS (online)", Channel.paper: "In person / by post"}
+MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]
+WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+
+MESSAGES = {
+    "menu_title": (
+        "🐕 <b>Czekachiko</b> estimates when to expect your fingerprint appointment, "
+        "decision and residence card.\n\nForecasts come from other people's anonymous cases "
+        "in your voivodeship. Add yours to make them better for everyone."
+    ),
+    "btn_add": "➕ Add a case",
+    "btn_cases": "📂 My cases",
+    "btn_stats": "📊 Timelines by voivodeship",
+    "btn_calendar": "📅 Calendar",
+    "btn_settings": "⚙️ Settings",
+    "btn_help": "❓ How it works",
+    "btn_back": "⬅️ Back",
+    "btn_menu": "🏠 Menu",
+    "btn_cancel": "✖️ Cancel",
+    "privacy": (
+        "🔒 <b>What I store</b>\n"
+        "Only your Telegram ID, voivodeship, purpose of stay, filing channel and milestone dates. "
+        "I never accept names, case numbers or any free text.\n\n"
+        "Milestones of all cases appear anonymously in a public calendar: voivodeship, purpose, "
+        "milestone and filing month, with nothing about you.\n\n"
+        "Delete everything: ⚙️ Settings → 🗑 Delete all my data."
+    ),
+    "help": (
+        "❓ <b>How it works</b>\n\n"
+        "1. Add your case: voivodeship, purpose, filing date and the milestones you've passed.\n"
+        "2. Mark new milestones as they happen.\n"
+        "3. From all cases I compute how long each step usually takes in your voivodeship "
+        "and show a from–to window for your next step.\n\n"
+        "The more people add cases, the better the forecast. This is not official "
+        "information from the office.\n\n"
+        "Commands: /start /cases /add /stats /calendar /settings /cancel"
+    ),
+    "cases_title": "📂 <b>My cases</b>",
+    "cases_empty": "No cases yet. Adding your first takes a minute.",
+    "case_limit": "You can track up to 5 cases. Delete an old one to add a new one.",
+    "ask_voiv": "Step 1/4. Which voivodeship is the case in?",
+    "ask_purpose": "Step 2/4. Purpose of stay?",
+    "ask_channel": "Step 3/4. How did you file?",
+    "ask_filed": "Step 4/4. Filing date: pick a day in the calendar or type it (DD.MM.YYYY).",
+    "ask_more": "Case saved ✅\n\nWhat has happened already? Mark the milestones you've passed, or tap Done.",
+    "btn_done": "✅ Done",
+    "ask_milestone_date": "📅 {milestone}: {hint}. Pick a day or type the date (DD.MM.YYYY).",
+    "btn_today": "Today",
+    "btn_yesterday": "Yesterday",
+    "btn_clear_date": "🗑 Remove date",
+    "err_future": "That date hasn't happened yet. Pick a past day.",
+    "err_before_2015": "The filing date can't be before 2015.",
+    "err_before_filed": "A milestone can't be before the filing date.",
+    "err_order": "Milestones are out of order: fingerprints → decision → card.",
+    "err_filed_missing": "A filing date is needed first.",
+    "err_not_date": "That doesn't look like a date. Pick a day in the calendar or type DD.MM.YYYY.",
+    "err_use_buttons": "Please choose with the buttons 👇",
+    "milestones_title": "Milestones",
+    "fc_title": "Forecast: <b>{target}</b>",
+    "fc_window": (
+        "usually between <b>{start}</b> and <b>{end}</b>, most often around <b>{likely}</b>\n"
+        "<i>from {n} completed cases ({scope}) that waited at least as long as you</i>"
+    ),
+    "fc_scope_voiv": "{voiv}, {purpose}",
+    "fc_scope_voiv_filed": "{voiv}, {purpose}, from the filing date",
+    "fc_scope_national": "all of Poland, {purpose}: too little data for your voivodeship yet",
+    "fc_waited_longer": (
+        "you've already waited longer than {x} of {y} completed cases in this group. "
+        "There's nothing left to compute a window from. Hang in there 🐾"
+    ),
+    "fc_no_data": "Not enough data for a forecast yet. Ask friends to add their cases 🙏",
+    "fc_all_done": "All milestones done. Congratulations! 🎉",
+    "fc_fastest_slowest": "fastest: {fastest} d · slowest: {slowest} d",
+    "disclaimer": (
+        "ℹ️ The date in the office's letter is not a forecast. This is an estimate from "
+        "people's data, not official."
+    ),
+    "btn_mark": "✏️ Mark a milestone",
+    "btn_delete_case": "🗑 Delete case",
+    "pick_milestone": "Which milestone do you want to mark or fix?",
+    "confirm_delete_case": "Delete this case? Its data will disappear from statistics and the calendar.",
+    "btn_yes_delete": "🗑 Yes, delete",
+    "btn_no": "No",
+    "deleted": "Deleted.",
+    "stats_pick_voiv": "📊 Pick a voivodeship:",
+    "stats_pick_purpose": "Purpose of stay:",
+    "stats_title": "📊 <b>{voiv} · {purpose}</b>",
+    "stats_row": "{from_} → {to}: {p10}–{p90} d, median {median} <i>({n} cases)</i>",
+    "stats_row_thin": "{from_} → {to}: too little data <i>({n} cases)</i>",
+    "stats_no_rows": "No data for this group yet. Add your case and be the first 🐕",
+    "who_fp": "🖐 Fingerprints are currently going to people who filed ≈ {span}.",
+    "who_dec": "📨 Decisions are currently going to people who filed ≈ {span}.",
+    "btn_other_voiv": "Another voivodeship",
+    "btn_other_purpose": "Another purpose",
+    "settings_title": "⚙️ <b>Settings</b>",
+    "btn_lang": "🌐 Language: English → Русский",
+    "btn_reminders": "🔔 Reminders: {state}",
+    "state_on": "on",
+    "state_off": "off",
+    "reminders_note": "Reminders aren't sent yet: the bot only replies to what you do.",
+    "btn_delete_all": "🗑 Delete all my data",
+    "confirm_delete_all": "Delete all your cases and settings? This can't be undone.",
+    "all_deleted": "All your data is deleted. If you want to come back: /start.",
+    "calendar_text": (
+        "📅 A public calendar of all anonymous events: filings, fingerprint calls, decisions.\n"
+        "Events contain only the voivodeship, purpose, milestone and filing month."
+    ),
+    "calendar_soon": "📅 The public calendar is coming soon.",
+    "btn_open_calendar": "🔗 Open Google Calendar",
+    "outlier": (
+        "🤔 In {voiv} it usually takes {p10}–{p90} days from “{from_}” to “{to}”, "
+        "but yours comes out at {value}.\n\nPlease check the dates: the forecast for everyone "
+        "depends on it."
+    ),
+    "btn_outlier_ok": "✅ It's correct",
+    "btn_outlier_fix": "✏️ Fix it",
+    "saved": "Saved ✅",
+    "admin_title": "🛠 <b>Admin</b>",
+    "admin_recomputed": "Recomputed.",
+    "cmd_start": "Main menu",
+    "cmd_cases": "My cases",
+    "cmd_add": "Add a case",
+    "cmd_stats": "Timelines by voivodeship",
+    "cmd_calendar": "Public calendar",
+    "cmd_settings": "Settings",
+    "cmd_help": "How it works",
+    "cmd_cancel": "Cancel the current step",
+}
