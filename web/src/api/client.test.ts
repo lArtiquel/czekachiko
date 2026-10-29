@@ -6,7 +6,7 @@ import { ApiClient, ApiError } from './client';
 const INIT = 'query_id=X&user=%7B%22id%22%3A1%7D&auth_date=1&hash=h';
 
 function client(reply: Response | (() => Promise<Response>), onUnauthorized = vi.fn()) {
-  const fetchImpl = vi.fn(typeof reply === 'function' ? reply : async () => reply.clone());
+  const fetchImpl = vi.fn<typeof fetch>(typeof reply === 'function' ? reply : async () => reply.clone());
   const api = new ApiClient({ baseUrl: 'https://api.example/', initData: INIT, fetchImpl, onUnauthorized });
   return { api, fetchImpl, onUnauthorized };
 }
