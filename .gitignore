@@ -1,0 +1,22 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+deploy.env
+!deploy.env.example
+*.json.key
+*service-account*.json
+secrets/
+backups/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Tooling
+.superpowers/
+.DS_Store
