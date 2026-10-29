@@ -1,6 +1,7 @@
 """Pure screen renderers: data in, (text, keyboard) out."""
 
 from datetime import date
+from urllib.parse import urlencode
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -10,6 +11,7 @@ from czekachiko.stats import MIN_WINDOW_N, Aggregate, Forecast
 from czekachiko.ui.keyboards import Act, Nav, Pick, btn, enum_picker, markup, nav_row
 
 Screen = tuple[str, InlineKeyboardMarkup]
+BOT_URL = "https://t.me/czekachiko_bot"
 M = Milestone
 
 
@@ -44,8 +46,14 @@ def main_menu(lang: str) -> Screen:
             btn(t(lang, "btn_settings"), Nav(to="settings")),
             btn(t(lang, "btn_help"), Nav(to="help")),
         ],
+        [InlineKeyboardButton(text=t(lang, "btn_share"), url=share_url(lang))],
     ]
     return t(lang, "menu_title"), markup(rows)
+
+
+def share_url(lang: str) -> str:
+    """Telegram's native "forward to a chat" picker, pre-filled with the bot link."""
+    return "https://t.me/share/url?" + urlencode({"url": BOT_URL, "text": t(lang, "share_text")})
 
 
 def privacy(lang: str) -> Screen:

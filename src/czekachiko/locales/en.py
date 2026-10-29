@@ -62,6 +62,8 @@ MESSAGES = {
     "btn_stats": "📊 Timelines by voivodeship",
     "btn_calendar": "📅 Calendar",
     "btn_settings": "⚙️ Settings",
+    "btn_share": "📣 Share the bot",
+    "share_text": "When will my karta pobytu arrive? 🐕 Czekachiko forecasts timelines by voivodeship from people's anonymous data. Add your case to make it better for everyone.",
     "btn_help": "❓ How it works",
     "btn_back": "⬅️ Back",
     "btn_menu": "🏠 Menu",

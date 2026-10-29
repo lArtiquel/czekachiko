@@ -108,3 +108,14 @@ def test_outlier_prompt_mentions_range():
 
 def test_main_menu_has_dog():
     assert "🐕" in screens.main_menu("ru")[0]
+
+
+def test_main_menu_has_share_button():
+    from urllib.parse import parse_qs, urlparse
+
+    _, kb = screens.main_menu("ru")
+    share = [b for b in buttons(kb) if b.url and b.url.startswith("https://t.me/share/url")]
+    assert len(share) == 1
+    q = parse_qs(urlparse(share[0].url).query)
+    assert q["url"] == ["https://t.me/czekachiko_bot"]
+    assert "karta pobytu" in q["text"][0]
