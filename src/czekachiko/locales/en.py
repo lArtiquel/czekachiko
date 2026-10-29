@@ -6,7 +6,7 @@ P, M = Purpose, Milestone
 
 PURPOSE_LABELS = {
     P.praca: "work",
-    P.jdg: "own business (JDG)",
+    P.jdg: "business (JDG)",
     P.studia: "study",
     P.rodzina: "family",
     P.inne: "other",

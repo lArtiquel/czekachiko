@@ -25,7 +25,7 @@ VOIV_LABELS = {
 
 PURPOSE_LABELS = {
     P.praca: "работа",
-    P.jdg: "своё дело (JDG)",
+    P.jdg: "бизнес (JDG)",
     P.studia: "учёба",
     P.rodzina: "семья",
     P.inne: "другое",

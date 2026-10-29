@@ -158,15 +158,22 @@ async def clear_milestone(s: AsyncSession, case: Case, milestone: Milestone) -> 
 
 
 def calendar_payload(case: Case, milestone: str, d: date) -> dict:
-    filed = case.dates()[Milestone.filed]
-    title = " · ".join(
-        [
-            VOIV_LABELS[Voivodeship(case.voivodeship)],
-            PURPOSE_LABELS[Purpose(case.purpose)],
-            MILESTONE_LABELS[Milestone(milestone)],
-        ]
-    )
-    return {"title": title, "date": d.isoformat(), "description": f"подано {filed:%m.%Y}"}
+    """One event per milestone; every event carries the case's full anonymous timeline."""
+    dates = {Milestone(k): v for k, v in case.dates().items()}
+    filed = dates[Milestone.filed]
+    voiv = VOIV_LABELS[Voivodeship(case.voivodeship)]
+    purpose = PURPOSE_LABELS[Purpose(case.purpose)]
+    title = " · ".join([voiv, purpose, MILESTONE_LABELS[Milestone(milestone)]])
+    lines = [f"{voiv} · {purpose}"]
+    for m in Milestone:
+        if m not in dates:
+            continue
+        line = f"{MILESTONE_LABELS[m]} — {dates[m]:%d.%m.%Y}"
+        if m != Milestone.filed:
+            line += f" (+{(dates[m] - filed).days} дн.)"
+        lines.append(line)
+    lines += ["", "Анонимные данные из @czekachiko_bot"]
+    return {"title": title, "date": d.isoformat(), "description": "\n".join(lines)}
 
 
 async def _enqueue_case_upserts(s: AsyncSession, case: Case) -> None:

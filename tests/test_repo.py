@@ -91,7 +91,7 @@ async def test_delete_user_cascades(session):
 
 
 async def test_outbox_payload_is_anonymous(session):
-    c = await make_case(session, 548, "tok")
+    c = await make_case(session, 987654321, "tok")
     await repo.set_milestone(session, c, M.fingerprints, date(2026, 10, 29))
     await session.commit()
     row = (
@@ -99,10 +99,10 @@ async def test_outbox_payload_is_anonymous(session):
             select(OutboxRow).where(OutboxRow.milestone == "fingerprints", OutboxRow.op == "upsert")
         )
     ).first()
-    assert row.payload["title"] == "Mazowieckie · своё дело (JDG) · отпечатки сданы"
+    assert row.payload["title"] == "Mazowieckie · бизнес (JDG) · отпечатки сданы"
     assert row.payload["date"] == "2026-10-29"
-    assert "03.2026" in row.payload["description"]
-    assert "548" not in str(row.payload) and str(c.id) not in row.payload["description"]
+    assert "06.03.2026" in row.payload["description"]
+    assert "987654321" not in str(row.payload) and f"#{c.id}" not in str(row.payload)
 
 
 async def test_recent_events(session):
@@ -164,3 +164,18 @@ async def test_chain_aggregates_include_mean(session):
     agg = chain[(M.filed, M.case_number)]
     assert (agg.n, agg.min, agg.max, agg.mean) == (2, 90, 120, 105)
     assert chain[(M.filed, M.card)] is None
+
+
+async def test_calendar_description_is_full_anonymous_timeline(session):
+    c = await make_case(session, 548, "tl")
+    await repo.set_milestone(session, c, M.case_number, date(2026, 9, 17))
+    await repo.set_milestone(session, c, M.fingerprints, date(2026, 10, 29))
+    await session.commit()
+    rows = (await session.scalars(select(OutboxRow).where(OutboxRow.op == "upsert"))).all()
+    assert len(rows) == 3  # every event of the case carries the same, complete timeline
+    for row in rows:
+        d = row.payload["description"]
+        assert "подача — 06.03.2026" in d
+        assert "номер дела — 17.09.2026 (+195 дн.)" in d
+        assert "отпечатки сданы — 29.10.2026 (+237 дн.)" in d
+        assert "548" not in d and f"#{c.id}" not in d
