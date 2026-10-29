@@ -19,7 +19,7 @@ fallback = Router(name="fallback")
 @router.message(CommandStart())
 async def cmd_start(msg: Message, state: FSMContext, lang: str):
     await state.clear()
-    await msg.answer(screens.start_text(lang), reply_markup=reply_menu(lang))
+    await show(msg, (screens.start_text(lang), reply_menu(lang)))
 
 
 @router.message(Command("help"))
@@ -91,8 +91,12 @@ async def stale_callback(cq: CallbackQuery, state: FSMContext, lang: str):
     await show(cq, screens.main_menu(lang))
 
 
+WIZARD_STEPS = {"AddCase:voiv": "voiv", "AddCase:purpose": "purpose", "AddCase:channel": "channel"}
+
+
 @fallback.message()
-async def stray_message(msg: Message, lang: str):
-    """No free text anywhere: point back to the buttons."""
-    await msg.answer(t(lang, "err_use_buttons"))
-    await show(msg, screens.main_menu(lang))
+async def stray_message(msg: Message, state: FSMContext, lang: str):
+    """No free text anywhere: point back to the buttons, staying on the current step."""
+    step = WIZARD_STEPS.get(await state.get_state() or "")
+    text, kb = screens.wizard_prompt(lang, step) if step else screens.main_menu(lang)
+    await show(msg, (f"{t(lang, 'err_use_buttons')}\n\n{text}", kb))

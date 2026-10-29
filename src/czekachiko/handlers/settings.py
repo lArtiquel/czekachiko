@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db import repo
 from czekachiko.i18n import t
-from czekachiko.render import show
+from czekachiko.render import refresh_reply_keyboard, show
 from czekachiko.ui import screens
 from czekachiko.ui.keyboards import Act, Nav, reply_menu
 
@@ -27,12 +27,15 @@ async def settings(cq: CallbackQuery, session: AsyncSession, state: FSMContext):
 @router.callback_query(Act.filter(F.action == "lang"))
 async def switch_lang(cq: CallbackQuery, callback_data: Act, session: AsyncSession):
     if callback_data.value in ("ru", "en"):
-        await repo.set_lang(session, cq.from_user.id, callback_data.value)
-        await cq.bot.send_message(
-            cq.from_user.id,
-            t(callback_data.value, "lang_changed"),
-            reply_markup=reply_menu(callback_data.value),
+        new_lang = callback_data.value
+        await repo.set_lang(session, cq.from_user.id, new_lang)
+        await cq.answer(t(new_lang, "lang_changed"))  # disappearing toast
+        await refresh_reply_keyboard(
+            cq.bot, cq.from_user.id, t(new_lang, "lang_changed"), reply_menu(new_lang)
         )
+        user = await repo.ensure_user(session, cq.from_user.id)
+        await show(cq, screens.settings_view(user.lang, user.lang, user.reminders), answer=False)
+        return
     await _settings(cq, session, cq.from_user.id)
 
 

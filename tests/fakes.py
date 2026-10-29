@@ -17,6 +17,7 @@ class FakeSession(BaseSession):
         super().__init__()
         self.calls: list[TelegramMethod] = []
         self.fail_answer = False
+        self.sent_ids: dict[int, int] = {}  # call index -> message_id of sent messages
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
@@ -26,8 +27,11 @@ class FakeSession(BaseSession):
             raise TelegramBadRequest(method=method, message="query is too old")
         if isinstance(method, SendMessage | EditMessageText):
             chat_id = getattr(method, "chat_id", None) or 1
+            mid = next(_ids) if isinstance(method, SendMessage) else (method.message_id or 0)
+            if isinstance(method, SendMessage):
+                self.sent_ids[len(self.calls) - 1] = mid
             return Message(
-                message_id=next(_ids),
+                message_id=mid,
                 date=NOW,
                 chat=Chat(id=chat_id, type="private"),
                 text=method.text,
@@ -39,6 +43,9 @@ class FakeSession(BaseSession):
 
     async def close(self):
         pass
+
+    def last_sent_id(self) -> int:
+        return self.sent_ids[max(self.sent_ids)]
 
     def texts(self) -> list[str]:
         return [c.text for c in self.calls if isinstance(c, SendMessage | EditMessageText)]

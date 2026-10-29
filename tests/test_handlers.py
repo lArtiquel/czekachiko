@@ -66,7 +66,8 @@ async def test_add_wizard_creates_case(env):
 async def test_text_on_button_step_is_rejected(env):
     await feed(env, callback_update(UID, Nav(to="add").pack()))
     await feed(env, text_update(UID, "Mazowieckie"))
-    assert ru.MESSAGES["err_use_buttons"] in env[2].texts()[-2]
+    assert ru.MESSAGES["err_use_buttons"] in env[2].last().text
+    assert ru.MESSAGES["ask_voiv"] in env[2].last().text  # stays on the same wizard step
     async with env[3]() as s:
         assert await repo.count_cases(s, UID) == 0
 
@@ -326,3 +327,49 @@ async def test_reply_menu_share_button(env):
     assert env[2].last().text == ru.MESSAGES["share_prompt"]
     kb = env[2].last().reply_markup
     assert any(b.url and "t.me/share/url" in b.url for row in kb.inline_keyboard for b in row)
+
+
+def _deleted(tg):
+    from aiogram.methods import DeleteMessage
+
+    return [c.message_id for c in tg.calls if isinstance(c, DeleteMessage)]
+
+
+async def test_menu_button_cleans_up_chat(env):
+    from aiogram.methods import SendMessage
+
+    await feed(env, text_update(UID, "/start"))
+    first_screen_id = env[2].last_sent_id()
+    upd = text_update(UID, ru.MESSAGES["btn_cases"])
+    await feed(env, upd)
+    deleted = _deleted(env[2])
+    assert upd.message.message_id in deleted  # the user's own "📂 Мои дела" message
+    assert first_screen_id in deleted  # the previous bot screen
+    assert ru.MESSAGES["cases_title"] in env[2].last().text
+    assert any(isinstance(c, SendMessage) for c in env[2].calls)
+
+
+async def test_language_switch_shows_toast_and_leaves_no_message(env):
+    from aiogram.methods import AnswerCallbackQuery, SendMessage
+    from aiogram.types import ReplyKeyboardMarkup
+
+    from czekachiko.locales import en
+
+    await feed(env, callback_update(UID, Act(action="lang", value="en").pack()))
+    toasts = [c.text for c in env[2].calls if isinstance(c, AnswerCallbackQuery) and c.text]
+    assert toasts == [en.MESSAGES["lang_changed"]]
+    sent = [
+        c
+        for c in env[2].calls
+        if isinstance(c, SendMessage) and isinstance(c.reply_markup, ReplyKeyboardMarkup)
+    ]
+    assert sent  # keyboard refreshed in the new language...
+    assert env[2].sent_ids[env[2].calls.index(sent[-1])] in _deleted(env[2])  # ...and removed
+
+
+async def test_stray_text_is_one_screen(env):
+    await feed(env, text_update(UID, "/start"))
+    before = len(env[2].texts())
+    await feed(env, text_update(UID, "привет"))
+    assert len(env[2].texts()) == before + 1
+    assert ru.MESSAGES["err_use_buttons"] in env[2].last().text
