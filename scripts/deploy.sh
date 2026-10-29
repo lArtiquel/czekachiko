@@ -47,9 +47,9 @@ if [[ ! -f db.env ]]; then
   chmod 600 db.env
 fi
 {
-  echo "ADMIN_TG_ID=$2"
-  echo "CALENDAR_ID=$3"
-  echo "CALENDAR_PUBLIC_URL=$4"
+  echo "ADMIN_TG_ID=${2:-}"
+  echo "CALENDAR_ID=${3:-}"
+  echo "CALENDAR_PUBLIC_URL=${4:-}"
   if [[ -f secrets/google-sa.json ]]; then
     echo "GOOGLE_SERVICE_ACCOUNT_JSON=/run/secrets/google-sa.json"
   fi
