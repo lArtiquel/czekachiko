@@ -12,7 +12,10 @@ from czekachiko.db.session import run_migrations
 TEST_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://test:test@127.0.0.1:55432/test"
 )
-TABLES = "users, cases, milestones, aggregates, fsm, calendar_events, calendar_outbox"
+TABLES = (
+    "users, cases, milestones, aggregates, fsm, calendar_events, calendar_outbox, feedback, "
+    "feedback_rate"
+)
 
 
 @pytest.fixture(scope="session")

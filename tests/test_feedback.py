@@ -105,3 +105,14 @@ async def test_feedback_too_long_rejected(env):
     await send_feedback(env, "a" * 1001)
     assert sends_to(env[2], ADMIN) == []
     assert ru.MESSAGES["feedback_too_long"] in env[2].last().text
+
+
+async def test_deleting_data_does_not_reset_feedback_limit(env):
+    from czekachiko.ui.keyboards import Act
+
+    for i in range(5):
+        await send_feedback(env, f"сообщение {i}")
+    await feed(env, callback_update(UID, Act(action="del_all_yes").pack()))
+    await send_feedback(env, "ещё одно после удаления")
+    assert len(sends_to(env[2], ADMIN)) == 5
+    assert ru.MESSAGES["feedback_limit"] in env[2].last().text

@@ -12,6 +12,7 @@ from czekachiko.db.models import (
     CalendarEvent,
     Case,
     Feedback,
+    FeedbackRate,
     MilestoneRow,
     OutboxRow,
     User,
@@ -354,11 +355,21 @@ async def add_feedback(s: AsyncSession, tg_id: int, direction: str, text_: str) 
 
 
 async def count_feedback_since(s: AsyncSession, tg_id: int, since) -> int:
+    """Counts from the content-free log, so deleting data never resets the limit."""
     return await s.scalar(
         select(func.count())
-        .select_from(Feedback)
-        .where(Feedback.tg_id == tg_id, Feedback.direction == "in", Feedback.created_at >= since)
+        .select_from(FeedbackRate)
+        .where(FeedbackRate.tg_id == tg_id, FeedbackRate.created_at >= since)
     )
+
+
+async def log_feedback_send(s: AsyncSession, tg_id: int) -> None:
+    s.add(FeedbackRate(tg_id=tg_id))
+    # Keep the log small: older entries no longer affect any limit.
+    await s.execute(
+        delete(FeedbackRate).where(FeedbackRate.created_at < func.now() - text("interval '1 day'"))
+    )
+    await s.flush()
 
 
 async def feedback_by_admin_msg(s: AsyncSession, admin_msg_id: int) -> Feedback | None:

@@ -58,6 +58,7 @@ async def feedback_text(
         await show(msg, (f"⏳ {t(lang, 'feedback_limit')}\n\n{menu_text}", kb))
         return
     row = await repo.add_feedback(session, msg.from_user.id, "in", text)
+    await repo.log_feedback_send(session, msg.from_user.id)
     if admin_tg_id is not None:
         header = t("ru", "feedback_admin_header", id=row.id, tg=msg.from_user.id, ulang=lang)
         sent = await msg.bot.send_message(admin_tg_id, f"{header}\n\n{text}", parse_mode=None)

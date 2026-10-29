@@ -91,6 +91,15 @@ class Feedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class FeedbackRate(Base):
+    """Content-free send log for the feedback limit; deliberately survives "delete my data"."""
+
+    __tablename__ = "feedback_rate"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tg_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class FsmRow(Base):
     __tablename__ = "fsm"
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
