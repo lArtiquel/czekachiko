@@ -13,6 +13,7 @@ from aiogram.types import (
     InlineQueryResultsButton,
     InputTextMessageContent,
     Message,
+    WebAppInfo,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -191,7 +192,7 @@ async def inline_case(iq: InlineQuery, session: AsyncSession, lang: str, clock):
 
 
 @router.inline_query()
-async def inline(iq: InlineQuery, session: AsyncSession, lang: str):
+async def inline(iq: InlineQuery, session: AsyncSession, lang: str, webapp_url: str):
     query = iq.query.strip()
     combos: list[tuple[str, list[Voivodeship]]] = []
     if (decoded := share.decode(query)) is not None:
@@ -214,9 +215,8 @@ async def inline(iq: InlineQuery, session: AsyncSession, lang: str):
         results.append(
             article(lang, purpose, voivs, await build_card(session, lang, purpose, voivs))
         )
-    await iq.answer(
-        results,
-        cache_time=30,
-        is_personal=False,
-        button=InlineQueryResultsButton(text=t(lang, "inline_pick"), start_parameter="pick"),
+    # Above the results: opens the app's stats, which can return here via switchInlineQuery.
+    button = InlineQueryResultsButton(
+        text=t(lang, "inline_open_app"), web_app=WebAppInfo(url=webapp_url + "#/stats")
     )
+    await iq.answer(results, cache_time=30, is_personal=False, button=button)

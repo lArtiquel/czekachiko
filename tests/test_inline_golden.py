@@ -1,7 +1,8 @@
 """Golden output of inline mode, pinned byte for byte.
 
 The Mini App's «📤 Отправить в чат» posts these cards, so their text, buttons and caching
-must not drift. The golden file was captured from the bot before its old UI was removed.
+must not drift. The golden file was captured from the bot before its old UI was removed;
+the only change since is the button above the results, which now opens the Mini App.
 """
 
 import json
@@ -53,7 +54,6 @@ async def env(session_factory):
         session_factory,
         clock=lambda: date(2026, 10, 29),
         admin_tg_id=None,
-        calendar_url=None,
         throttle=False,
         ephemeral_delay=0,
     )
@@ -83,7 +83,12 @@ def snapshot(answer: AnswerInlineQuery) -> dict:
     return {
         "cache_time": answer.cache_time,
         "is_personal": answer.is_personal,
-        "button": button and {"text": button.text, "start_parameter": button.start_parameter},
+        "button": button
+        and {
+            "text": button.text,
+            "start_parameter": button.start_parameter,
+            "web_app": button.web_app and button.web_app.url,
+        },
         "results": [
             {
                 "id": r.id,

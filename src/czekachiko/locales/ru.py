@@ -114,7 +114,7 @@ MESSAGES = {
     "card_footer": "Сроки по анонимным данным людей, не официальные · @czekachiko_bot",
     "card_description": "Сроки по этапам: в среднем, мин, макс",
     "btn_open_bot": "🐕 Открыть Czekachiko",
-    "inline_pick": "🔘 Выбрать кнопками",
+    "inline_open_app": "📱 Выбрать в приложении",
     "case_card_title": "🐕 <b>Моё дело в Czekachiko</b>",
     "case_card_label": "Моё дело",
     "btn_help": "❓ Как это работает",

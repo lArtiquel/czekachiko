@@ -4,8 +4,9 @@
     "cache_time": 30,
     "is_personal": false,
     "button": {
-      "text": "🔘 Выбрать кнопками",
-      "start_parameter": "pick"
+      "text": "📱 Выбрать в приложении",
+      "start_parameter": null,
+      "web_app": "https://lartiquel.github.io/czekachiko/#/stats"
     },
     "results": [
       {
@@ -75,8 +76,9 @@
     "cache_time": 30,
     "is_personal": false,
     "button": {
-      "text": "🔘 Выбрать кнопками",
-      "start_parameter": "pick"
+      "text": "📱 Выбрать в приложении",
+      "start_parameter": null,
+      "web_app": "https://lartiquel.github.io/czekachiko/#/stats"
     },
     "results": [
       {
@@ -116,8 +118,9 @@
     "cache_time": 30,
     "is_personal": false,
     "button": {
-      "text": "🔘 Выбрать кнопками",
-      "start_parameter": "pick"
+      "text": "📱 Выбрать в приложении",
+      "start_parameter": null,
+      "web_app": "https://lartiquel.github.io/czekachiko/#/stats"
     },
     "results": [
       {
@@ -142,8 +145,9 @@
     "cache_time": 30,
     "is_personal": false,
     "button": {
-      "text": "🔘 Выбрать кнопками",
-      "start_parameter": "pick"
+      "text": "📱 Выбрать в приложении",
+      "start_parameter": null,
+      "web_app": "https://lartiquel.github.io/czekachiko/#/stats"
     },
     "results": [
       {
@@ -228,8 +232,9 @@
     "cache_time": 30,
     "is_personal": false,
     "button": {
-      "text": "🔘 Pick with buttons",
-      "start_parameter": "pick"
+      "text": "📱 Choose in the app",
+      "start_parameter": null,
+      "web_app": "https://lartiquel.github.io/czekachiko/#/stats"
     },
     "results": [
       {

@@ -6,9 +6,10 @@ from aiogram.types import InlineQuery, Update
 
 from czekachiko import share
 from czekachiko.app import build_dispatcher
+from czekachiko.config import DEFAULT_WEBAPP_URL
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
-from czekachiko.locales import ru
+from czekachiko.locales import en, ru
 from czekachiko.ui.keyboards import Act, Nav, Pick
 from tests.fakes import _ids, _user, callback_update, make_bot, text_update
 
@@ -99,10 +100,27 @@ async def test_inline_code_returns_card(env):
     assert a.results[0].reply_markup.inline_keyboard[0][0].url == "https://t.me/czekachiko_bot"
 
 
-async def test_inline_empty_query_lists_cards_and_picker_button(env):
+async def test_inline_empty_query_lists_cards_and_an_app_button(env):
     await feed(env, inline_update(""))
     (a,) = answers(env[2])
-    assert a.results and a.button.start_parameter == "pick"
+    assert a.results
+    assert a.button.text == ru.MESSAGES["inline_open_app"] == "📱 Выбрать в приложении"
+    assert a.button.web_app.url == DEFAULT_WEBAPP_URL + "#/stats"
+    assert a.button.start_parameter is None
+    assert en.MESSAGES["inline_open_app"] == "📱 Choose in the app"
+
+
+async def test_inline_app_button_uses_the_configured_url(session_factory):
+    bot, tg = make_bot()
+    dp = build_dispatcher(
+        session_factory,
+        clock=lambda: date(2026, 10, 29),
+        throttle=False,
+        webapp_url="https://example.org/a/",
+    )
+    await dp.feed_update(bot, inline_update("варшава"))
+    (a,) = answers(tg)
+    assert a.button.web_app.url == "https://example.org/a/#/stats"
 
 
 async def test_inline_alias_query(env):

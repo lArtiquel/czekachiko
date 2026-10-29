@@ -90,7 +90,7 @@ MESSAGES = {
     "card_footer": "Timelines from people's anonymous data, not official · @czekachiko_bot",
     "card_description": "Timelines per milestone: average, min, max",
     "btn_open_bot": "🐕 Open Czekachiko",
-    "inline_pick": "🔘 Pick with buttons",
+    "inline_open_app": "📱 Choose in the app",
     "case_card_title": "🐕 <b>My case on Czekachiko</b>",
     "case_card_label": "My case",
     "btn_help": "❓ How it works",
