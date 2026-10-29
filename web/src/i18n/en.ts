@@ -1,0 +1,138 @@
+import type { Key } from './ru';
+
+/** English copy. Wording follows the bot: src/czekachiko/locales/en.py. */
+export const en: Record<Key, string> = {
+  // Outside Telegram and expired sessions
+  outside_title: 'Open Czekachiko in Telegram',
+  outside_text: 'This mini app only works inside Telegram: that is how it knows your account without passwords.',
+  outside_link: '🐕 Open @czekachiko_bot',
+  reopen_title: 'Session expired',
+  reopen_text: 'Close Czekachiko and open it again from the chat with the bot.',
+  btn_close: 'Close',
+
+  // Common
+  loading: 'Loading…',
+  btn_retry: '🔄 Try again',
+  btn_save: 'Save',
+  btn_cancel: 'Cancel',
+  btn_done: 'Done',
+  change: 'change',
+
+  // Errors
+  err_network: "Can't reach the server. Check your connection and try again.",
+  err_server: 'Something went wrong on the server. Please try a bit later.',
+  err_rate_limited: 'Too many requests in a row. Wait a few seconds and try again.',
+  err_not_found: "Couldn't find this case. It may have been deleted.",
+  err_invalid: 'Please check this field.',
+  err_required_choice: 'Please choose an option.',
+  err_required_date: 'Please set a date.',
+  err_future: "That date hasn't happened yet. Pick a past day.",
+  err_before_2015: "The filing date can't be before 2015.",
+  err_before_filed: "A milestone can't be before the filing date.",
+  err_order: 'Milestones are out of order: fingerprints → decision → card.',
+  err_filed_missing: 'A filing date is needed first.',
+  err_doc_name_empty: 'The name is empty. Type what the document is called.',
+  err_doc_name_long: 'Too long: {max} characters maximum.',
+  err_doc_too_early: 'Too early: the earliest date is {date} ({days} days before filing).',
+  err_share: "Couldn't open the chat picker. Update Telegram and try again.",
+  case_limit: 'You can track up to {max} cases. Delete an old one to add a new one.',
+  doc_limit: 'You can add up to {max} documents of your own.',
+
+  // Home
+  menu_title:
+    "I estimate when to expect fingerprints, the decision and your residence card, from people's anonymous cases in your voivodeship.",
+  cases_title: '📂 My cases',
+  cases_empty: 'No cases yet. Adding your first takes a minute.',
+  btn_add: '➕ Add a case',
+  btn_stats: '📊 Timelines by voivodeship',
+  btn_calendars: '📅 Calendars',
+  btn_settings: '⚙️ Settings',
+  btn_feedback: '✉️ Contact us',
+  btn_share: '📣 Share the bot',
+  filed_line: '📨 {label}: {date}',
+  docs_progress: '📋 Documents: {done}/{total}',
+  fc_short_window: '⏳ {target}: most often around {likely}',
+  fc_short_waited: "⏳ {target}: you've waited longer than most",
+  fc_short_no_data: '⏳ {target}: not enough data yet',
+  fc_all_done: 'All milestones done. Congratulations! 🎉',
+
+  // Add case
+  add_title: '➕ New case',
+  field_voiv: 'Which voivodeship is the case in?',
+  field_purpose: 'Purpose of stay',
+  field_channel: 'How did you file?',
+  field_filed: 'Filing date',
+  voiv_search: 'Search voivodeships',
+  voiv_search_empty: 'Nothing found. Try spelling it differently.',
+
+  // Case
+  case_day: 'day {n}',
+  chain_title: 'From filing to each milestone',
+  timeline_hint: 'Tap a milestone to set, change or remove its date.',
+  chain_own: '{date} · {days} d',
+  chain_line: 'typically: on average {mean} d (min {min}, max {max}) (cases: {n})',
+  chain_none: 'no data yet (cases: 0)',
+  tap_to_set: 'tap to set the date',
+  btn_clear_date: '🗑 Remove date',
+  fc_title: 'Forecast: {target}',
+  fc_window: 'usually between {start} and {end}, most often around {likely}',
+  fc_basis: 'from {n} completed cases ({scope}) that waited at least as long as you',
+  fc_scope_voiv: '{voiv}, {purpose}',
+  fc_scope_voiv_filed: '{voiv}, {purpose}, from the filing date',
+  fc_scope_national: 'all of Poland, {purpose}: too little data for your voivodeship yet',
+  fc_waited_longer:
+    "you've already waited longer than {x} of {y} completed cases in this group. There's nothing left to compute a window from. Hang in there 🐾",
+  fc_no_data: 'Not enough data for a forecast yet. Ask friends to add their cases 🙏',
+  fc_fastest_slowest: 'fastest: {fastest} d · slowest: {slowest} d',
+  disclaimer:
+    "ℹ️ The date in the office's letter is not a forecast. This is an estimate from people's data, not official.",
+  docs_title: '📋 Documents · {done} of {total} sent',
+  docs_note: 'This is a typical list. Check with your urząd what your case needs.',
+  docs_hint: "The tick sets today's date. Tap a document to pick another one.",
+  doc_sent: '✅ Sent {date}',
+  doc_not_sent: '⬜ Not ticked yet',
+  btn_doc_add: '➕ Add document',
+  doc_name: 'Document name',
+  doc_name_placeholder: 'For example: Zaświadczenie o niekaralności',
+  doc_date: 'Date sent',
+  btn_doc_untick: 'Untick',
+  btn_doc_delete: '🗑 Delete',
+  confirm_delete_doc: 'Remove “{name}” from the list?',
+  btn_send_chat: '📤 Send to a chat',
+  btn_delete_case: '🗑 Delete case',
+  confirm_delete_case: 'Delete this case? Its data will disappear from statistics and the calendar.',
+  outlier_title: 'Check the dates',
+  outlier_pair:
+    '🤔 In {voiv} it usually takes {p10}–{p90} days from “{from}” to “{to}”, but yours comes out at {value}. Please check the dates: the forecast for everyone depends on it.',
+  outlier_generic:
+    '🤔 In {voiv} this step usually takes {p10}–{p90} days, but yours comes out at {value}. Please check the dates: the forecast for everyone depends on it.',
+  btn_outlier_ok: "✅ It's correct",
+  btn_outlier_fix: '✏️ Fix it',
+
+  // Stats
+  stats_title: '📊 Timelines by voivodeship',
+  stats_purpose: 'Purpose of stay',
+  stats_voivs: 'Voivodeships, up to {max}',
+  stats_voivs_none: 'none selected',
+  cmp_limit: 'You can pick up to {max}',
+  cmp_none: 'Tick at least one voivodeship',
+  stats_group: '{voiv} · {purpose}',
+  who_fp: '🖐 Fingerprints are currently going to people who filed ≈ {span}.',
+  who_dec: '📨 Decisions are currently going to people who filed ≈ {span}.',
+
+  // Calendars
+  calendars_title: '📅 Calendars',
+  calendar_text:
+    "Public calendars per voivodeship: every anonymous milestone — filings, fingerprint letters, decisions. Each event carries the case's full timeline with no personal data.",
+  calendar_soon: '📅 The public calendar is coming soon.',
+
+  // Settings
+  settings_title: '⚙️ Settings',
+  lang_title: '🌐 Language',
+  privacy_title: '🔒 Privacy',
+  privacy:
+    'I store only your Telegram ID, voivodeship, purpose, milestone dates and your document checklist (only you see it). Milestones appear anonymously in a public calendar. Only the bot\'s author sees messages sent via Contact us.',
+  btn_delete_all: '🗑 Delete all my data',
+  confirm_delete_all: "Delete all your cases and settings? This can't be undone.",
+  all_deleted: 'All your data is deleted.',
+};

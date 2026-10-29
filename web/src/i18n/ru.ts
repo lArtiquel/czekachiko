@@ -1,0 +1,137 @@
+/** Russian copy (default). Wording follows the bot: src/czekachiko/locales/ru.py. */
+export const ru = {
+  // Outside Telegram and expired sessions
+  outside_title: 'Откройте Czekachiko в Telegram',
+  outside_text: 'Это мини-приложение работает только внутри Telegram: так оно узнаёт твой аккаунт без паролей.',
+  outside_link: '🐕 Открыть @czekachiko_bot',
+  reopen_title: 'Сессия устарела',
+  reopen_text: 'Закрой Czekachiko и открой заново из чата с ботом.',
+  btn_close: 'Закрыть',
+
+  // Common
+  loading: 'Загружаю…',
+  btn_retry: '🔄 Повторить',
+  btn_save: 'Сохранить',
+  btn_cancel: 'Отмена',
+  btn_done: 'Готово',
+  change: 'изменить',
+
+  // Errors
+  err_network: 'Нет связи с сервером. Проверь интернет и попробуй ещё раз.',
+  err_server: 'На сервере что-то пошло не так. Попробуй чуть позже.',
+  err_rate_limited: 'Слишком много запросов подряд. Подожди несколько секунд и попробуй снова.',
+  err_not_found: 'Не нашёл это дело. Возможно, оно уже удалено.',
+  err_invalid: 'Проверь это поле.',
+  err_required_choice: 'Выбери вариант.',
+  err_required_date: 'Укажи дату.',
+  err_future: 'Эта дата ещё не наступила. Выбери прошедший день.',
+  err_before_2015: 'Дата подачи не может быть раньше 2015 года.',
+  err_before_filed: 'Этап не может быть раньше даты подачи.',
+  err_order: 'Порядок этапов нарушен: отпечатки сданы → decyzja → карта.',
+  err_filed_missing: 'Сначала нужна дата подачи.',
+  err_doc_name_empty: 'Название пустое. Напиши, как называется документ.',
+  err_doc_name_long: 'Слишком длинно: максимум {max} символов.',
+  err_doc_too_early: 'Слишком рано: самая ранняя дата — {date} (за {days} дней до подачи).',
+  err_share: 'Не получилось открыть выбор чата. Обнови Telegram и попробуй ещё раз.',
+  case_limit: 'Можно вести не больше {max} дел. Удали одно из старых, чтобы добавить новое.',
+  doc_limit: 'Можно добавить не больше {max} своих документов.',
+
+  // Home
+  menu_title:
+    'Подскажу, когда ждать отпечатков, decyzji и карты побыту. Считаю по анонимным делам людей в твоём воеводстве.',
+  cases_title: '📂 Мои дела',
+  cases_empty: 'У тебя пока нет дел. Добавь первое — это займёт минуту.',
+  btn_add: '➕ Добавить дело',
+  btn_stats: '📊 Сроки по воеводствам',
+  btn_calendars: '📅 Календари',
+  btn_settings: '⚙️ Настройки',
+  btn_feedback: '✉️ Написать нам',
+  btn_share: '📣 Поделиться ботом',
+  filed_line: '📨 {label} — {date}',
+  docs_progress: '📋 Документы: {done}/{total}',
+  fc_short_window: '⏳ {target}: чаще всего около {likely}',
+  fc_short_waited: '⏳ {target}: ждёшь дольше большинства',
+  fc_short_no_data: '⏳ {target}: пока мало данных',
+  fc_all_done: 'Все этапы пройдены — поздравляю! 🎉',
+
+  // Add case
+  add_title: '➕ Новое дело',
+  field_voiv: 'В каком воеводстве подано дело?',
+  field_purpose: 'Цель пребывания',
+  field_channel: 'Как подавал?',
+  field_filed: 'Дата подачи wniosku',
+  voiv_search: 'Поиск воеводства',
+  voiv_search_empty: 'Ничего не нашёл. Попробуй написать иначе.',
+
+  // Case
+  case_day: 'день {n}',
+  chain_title: 'От подачи до каждого этапа',
+  timeline_hint: 'Нажми на этап, чтобы указать, изменить или убрать дату.',
+  chain_own: '{date} · {days} дн.',
+  chain_line: 'обычно: в среднем {mean} дн. (мин {min}, макс {max}) (дел: {n})',
+  chain_none: 'данных пока нет (дел: 0)',
+  tap_to_set: 'нажми, чтобы указать дату',
+  btn_clear_date: '🗑 Убрать дату',
+  fc_title: 'Прогноз: {target}',
+  fc_window: 'обычно между {start} и {end}, чаще всего около {likely}',
+  fc_basis: 'по {n} завершённым делам ({scope}), которые ждали не меньше тебя',
+  fc_scope_voiv: '{voiv}, {purpose}',
+  fc_scope_voiv_filed: '{voiv}, {purpose}, от даты подачи',
+  fc_scope_national: 'вся Польша, {purpose} — по твоему воеводству пока мало данных',
+  fc_waited_longer:
+    'ты уже ждёшь дольше, чем {x} из {y} завершённых дел в этой группе. Окно посчитать не из чего — держись 🐾',
+  fc_no_data: 'Пока мало данных для прогноза. Позови знакомых добавить свои дела 🙏',
+  fc_fastest_slowest: 'быстрее всех: {fastest} дн. · дольше всех: {slowest} дн.',
+  disclaimer: 'ℹ️ Дата в письме urzędu — не прогноз. Здесь оценка по данным людей, не официальная.',
+  docs_title: '📋 Документы · отправлено {done} из {total}',
+  docs_note: 'Это типичный список. Что нужно именно тебе, уточни в своём urzędzie.',
+  docs_hint: 'Галочка ставит сегодняшнюю дату. Нажми на документ, чтобы выбрать другую.',
+  doc_sent: '✅ Отправлен {date}',
+  doc_not_sent: '⬜ Ещё не отмечен',
+  btn_doc_add: '➕ Добавить документ',
+  doc_name: 'Название документа',
+  doc_name_placeholder: 'Например: Zaświadczenie o niekaralności',
+  doc_date: 'Дата отправки',
+  btn_doc_untick: 'Снять отметку',
+  btn_doc_delete: '🗑 Удалить',
+  confirm_delete_doc: 'Удалить «{name}» из списка?',
+  btn_send_chat: '📤 Отправить в чат',
+  btn_delete_case: '🗑 Удалить дело',
+  confirm_delete_case: 'Удалить это дело? Его данные исчезнут из статистики и календаря.',
+  outlier_title: 'Проверь даты',
+  outlier_pair:
+    '🤔 Обычно в {voiv} от этапа «{from}» до «{to}» проходит {p10}–{p90} дней, а у тебя выходит {value}. Проверь, пожалуйста, даты: от этого зависит точность прогноза для всех.',
+  outlier_generic:
+    '🤔 Обычно в {voiv} на этот шаг уходит {p10}–{p90} дней, а у тебя выходит {value}. Проверь, пожалуйста, даты: от этого зависит точность прогноза для всех.',
+  btn_outlier_ok: '✅ Всё верно',
+  btn_outlier_fix: '✏️ Исправить',
+
+  // Stats
+  stats_title: '📊 Сроки по воеводствам',
+  stats_purpose: 'Цель пребывания',
+  stats_voivs: 'Воеводства, до {max}',
+  stats_voivs_none: 'не выбрано',
+  cmp_limit: 'Можно выбрать не больше {max}',
+  cmp_none: 'Отметь хотя бы одно воеводство',
+  stats_group: '{voiv} · {purpose}',
+  who_fp: '🖐 Сейчас на отпечатки вызывают подавшихся ≈ {span}.',
+  who_dec: '📨 Decyzje сейчас получают подавшиеся ≈ {span}.',
+
+  // Calendars
+  calendars_title: '📅 Календари',
+  calendar_text:
+    'Публичные календари по воеводствам: все анонимные этапы — подачи, вызовы, decyzje. В каждом событии полный таймлайн дела без личных данных.',
+  calendar_soon: '📅 Публичный календарь скоро появится.',
+
+  // Settings
+  settings_title: '⚙️ Настройки',
+  lang_title: '🌐 Язык',
+  privacy_title: '🔒 Приватность',
+  privacy:
+    'Храню только Telegram ID, воеводство, цель, даты этапов и твой список документов (его видишь только ты). В публичный календарь этапы попадают анонимно. Сообщения в «Написать нам» видит только автор бота.',
+  btn_delete_all: '🗑 Удалить все мои данные',
+  confirm_delete_all: 'Удалить все твои дела и настройки? Это нельзя отменить.',
+  all_deleted: 'Все твои данные удалены.',
+};
+
+export type Key = keyof typeof ru;
