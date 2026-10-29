@@ -30,6 +30,7 @@ export const en: Record<Key, string> = {
   err_before_2015: "The filing date can't be before 2015.",
   err_before_filed: "A milestone can't be before the filing date.",
   err_order: 'Milestones are out of order: fingerprints → decision → card.',
+  err_not_date: "That doesn't look like a date. Pick a day in the calendar.",
   err_filed_missing: 'A filing date is needed first.',
   err_doc_name_empty: 'The name is empty. Type what the document is called.',
   err_doc_name_long: 'Too long: {max} characters maximum.',
