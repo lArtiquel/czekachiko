@@ -6,7 +6,17 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.fsm_storage import PgStorage
-from czekachiko.handlers import admin, cases, common, feedback, menu, settings, share, stats
+from czekachiko.handlers import (
+    admin,
+    cases,
+    common,
+    documents,
+    feedback,
+    menu,
+    settings,
+    share,
+    stats,
+)
 from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
 
 
@@ -41,6 +51,7 @@ def build_dispatcher(
         menu.router,
         feedback.router,
         cases.router,
+        documents.router,
         stats.router,
         settings.router,
         common.fallback,
