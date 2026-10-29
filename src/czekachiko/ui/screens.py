@@ -443,18 +443,15 @@ def calendar_url(calendar_id: str) -> str:
 
 
 def calendar_view(lang: str, links: dict[str, str] | None) -> Screen:
-    """Whole Poland first, then one link per voivodeship."""
-    if not links or "all" not in links:
-        return t(lang, "calendar_soon"), markup([nav_row(lang)])
-    rows = [
-        [InlineKeyboardButton(text=t(lang, "btn_calendar_all"), url=calendar_url(links["all"]))]
-    ]
+    """One public calendar per voivodeship."""
     voivs = [
         InlineKeyboardButton(text=voiv_label(v), url=calendar_url(links[v.value]))
         for v in Voivodeship
-        if v.value in links
+        if links and v.value in links
     ]
-    rows += [voivs[i : i + 2] for i in range(0, len(voivs), 2)]
+    if not voivs:
+        return t(lang, "calendar_soon"), markup([nav_row(lang)])
+    rows = [voivs[i : i + 2] for i in range(0, len(voivs), 2)]
     rows.append(nav_row(lang))
     return t(lang, "calendar_text"), markup(rows)
 

@@ -155,7 +155,7 @@ async def _process(
         return  # case or milestone gone; a delete row handles any existing event
     p = row.payload
     day = date.fromisoformat(p["date"])
-    for scope in ("all", voiv):  # whole Poland + the case's voivodeship
+    for scope in (voiv,):  # each case goes only to its voivodeship's calendar
         target = await _calendar_for(factory, scope, calendar_id)
         if target is None:
             continue
@@ -177,13 +177,11 @@ async def _process(
 
 
 async def ensure_calendars(factory: async_sessionmaker, client, all_calendar_id: str) -> None:
-    """Record the whole-Poland calendar and create any missing per-voivodeship calendar."""
+    """Create any missing per-voivodeship calendar (there is no whole-Poland calendar)."""
     from czekachiko.domain import Voivodeship
     from czekachiko.locales.ru import VOIV_LABELS
 
     async with factory() as s:
-        await repo.set_calendar(s, "all", all_calendar_id)
-        await s.commit()
         existing = await repo.calendar_links(s)
     for v in Voivodeship:
         if v.value in existing:

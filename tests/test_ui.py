@@ -156,7 +156,7 @@ def test_calendar_view_links_every_voivodeship():
     }
     _, kb = screens.calendar_view("ru", links)
     urls = [b.url for b in buttons(kb) if b.url]
-    assert len(urls) == 17 and all("calendar.google.com" in u for u in urls)
+    assert len(urls) == 16 and all("calendar.google.com" in u for u in urls)
 
 
 def test_calendar_view_soon_without_links():

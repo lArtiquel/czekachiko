@@ -37,6 +37,7 @@ class FakeCalendar:
 
 
 async def new_case(s, uid=1, token="t"):
+    await repo.set_calendar(s, "mazowieckie", CAL)  # the case's voivodeship calendar
     await repo.ensure_user(s, uid)
     c = await repo.create_case(
         s, uid, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), token
@@ -51,7 +52,7 @@ async def test_drain_inserts_and_records_event_id(session_factory):
     cal = FakeCalendar()
     assert await drain_outbox(session_factory, cal, CAL, NOW) == 1
     async with session_factory() as s:
-        ev = await s.get(CalendarEvent, (c.id, "filed", "all"))
+        ev = await s.get(CalendarEvent, (c.id, "filed", "mazowieckie"))
         assert ev.event_id == "e1"
         assert (await s.scalars(select(OutboxRow))).all() == []
     assert cal.events["e1"]["title"] == "Mazowieckie · бизнес (JDG) · подача"
@@ -90,7 +91,7 @@ async def test_delete_after_insert_removes_event(session_factory):
     await drain_outbox(session_factory, cal, CAL, NOW)
     assert cal.events == {}
     async with session_factory() as s:
-        assert await s.get(CalendarEvent, (c.id, "filed", "all")) is None
+        assert await s.get(CalendarEvent, (c.id, "filed", "mazowieckie")) is None
 
 
 async def test_upsert_for_deleted_case_is_dropped(session_factory):
@@ -167,19 +168,23 @@ async def test_ensure_calendars_creates_each_voivodeship_once(session_factory):
     assert len(cal.created) == 16
     async with session_factory() as s:
         links = await r.calendar_links(s)
-    assert links["all"] == CAL and len(links) == 17
+    assert "all" not in links and len(links) == 16
 
 
-async def test_milestone_goes_to_poland_and_voivodeship_calendars(session_factory):
+async def test_milestone_goes_only_to_its_voivodeship_calendar(session_factory):
     from czekachiko.calendar_sync import ensure_calendars
 
     cal = MultiCalendar()
     await ensure_calendars(session_factory, cal, CAL)
     async with session_factory() as s:
-        c = await new_case(s)
+        await repo.ensure_user(s, 1)
+        c = await repo.create_case(
+            s, 1, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "t"
+        )
+        await s.commit()
         voiv_cal = (await repo.calendar_links(s))["mazowieckie"]
     await drain_outbox(session_factory, cal, CAL, NOW)
-    assert sorted(cal.where.values()) == sorted([CAL, voiv_cal])
+    assert list(cal.where.values()) == [voiv_cal]
     async with session_factory() as s:
         await repo.delete_case(s, await repo.get_case(s, 1, c.id))
         await s.commit()

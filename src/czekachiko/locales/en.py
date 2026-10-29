@@ -90,7 +90,6 @@ MESSAGES = {
     "inline_pick": "🔘 Pick with buttons",
     "case_card_title": "🐕 <b>My case on Czekachiko</b>",
     "case_card_label": "My case",
-    "btn_calendar_all": "🇵🇱 All of Poland",
     "btn_help": "❓ How it works",
     "btn_back": "⬅️ Back",
     "btn_menu": "🏠 Menu",
@@ -183,7 +182,7 @@ MESSAGES = {
     "btn_delete_all": "🗑 Delete all my data",
     "confirm_delete_all": "Delete all your cases and settings? This can't be undone.",
     "all_deleted": "All your data is deleted. If you want to come back: /start.",
-    "calendar_text": "📅 Public calendars: every anonymous milestone — filings, fingerprint letters, decisions. Each event carries the case's full timeline with no personal data. Pick all of Poland or your voivodeship:",
+    "calendar_text": "📅 Public calendars per voivodeship: every anonymous milestone — filings, fingerprint letters, decisions. Each event carries the case's full timeline with no personal data. Pick a voivodeship:",
     "calendar_soon": "📅 The public calendar is coming soon.",
     "btn_open_calendar": "🔗 Open Google Calendar",
     "outlier": (
