@@ -19,7 +19,7 @@ Workflows from forked PRs run only after the maintainer approves them.
 - **Never commit secrets.** No bot tokens, passwords, API keys or service-account JSON. Real values live in `.env`, which is gitignored. Add new settings to `.env.example` with a placeholder value. A `gitleaks` check runs on every push and PR, and a PR that trips it will not be merged.
 - **No real personal data**, anywhere: code, tests, fixtures, screenshots or issues. That means no names, PESEL, case numbers or real case dates. Use invented examples.
 - **No infrastructure details.** Leave out IP addresses, hostnames and server paths. Docs refer to "the host".
-- **Keep the privacy model.** The bot must never accept free-text input from users and must never message anyone first. Changes that weaken either will not be accepted.
+- **Keep the privacy model.** Case data (voivodeship, purpose, dates) comes only from buttons and dates, never from free text. The only free text is the owner's own checklist document names and the feedback form. It must never reach statistics, the public calendar or share cards, and it is always HTML-escaped. The bot never messages anyone first. Changes that weaken any of this will not be accepted.
 - Forecasts must stay honest. When there is too little data, the bot says so instead of guessing.
 
 ## Development setup
