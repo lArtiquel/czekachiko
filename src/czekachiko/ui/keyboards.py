@@ -8,6 +8,7 @@ from aiogram.types import (
     KeyboardButton,
     ReplyKeyboardMarkup,
     SwitchInlineQueryChosenChat,
+    WebAppInfo,
 )
 
 from czekachiko.dates import EARLIEST
@@ -138,7 +139,9 @@ def date_picker(
     return markup(rows)
 
 
-REPLY_MENU = [
+# The keyboard before the Mini App. Users keep it until their next /start, so its buttons
+# still arrive as text and are still routed.
+LEGACY_REPLY_MENU = [
     ["btn_add", "btn_cases"],
     ["btn_stats", "btn_calendar"],
     ["btn_settings", "btn_help"],
@@ -146,10 +149,20 @@ REPLY_MENU = [
 ]
 
 
-def reply_menu(lang: str) -> ReplyKeyboardMarkup:
-    """Always-visible menu under the input field."""
-    rows = [[KeyboardButton(text=t(lang, key)) for key in row] for row in REPLY_MENU]
-    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, is_persistent=True)
+def reply_menu(lang: str, webapp_url: str) -> ReplyKeyboardMarkup:
+    """Always-visible menu under the input field: the Mini App and feedback."""
+    row = [
+        KeyboardButton(text=t(lang, "btn_open_app"), web_app=WebAppInfo(url=webapp_url)),
+        KeyboardButton(text=t(lang, "btn_feedback")),
+    ]
+    return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=True, is_persistent=True)
+
+
+def open_app(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
+    button = InlineKeyboardButton(
+        text=t(lang, "btn_open_webapp"), web_app=WebAppInfo(url=webapp_url)
+    )
+    return markup([[button]])
 
 
 def send_to_chat(lang: str, query: str) -> InlineKeyboardButton:

@@ -20,6 +20,7 @@ from czekachiko.ui.keyboards import (
     enum_picker,
     markup,
     nav_row,
+    open_app,
     send_to_chat,
 )
 
@@ -90,6 +91,11 @@ def share_view(lang: str) -> Screen:
 
 def start_text(lang: str) -> str:
     return t(lang, "menu_title")
+
+
+def start_view(lang: str, webapp_url: str) -> Screen:
+    """/start: one message whose only button opens the Mini App."""
+    return start_text(lang), open_app(lang, webapp_url)
 
 
 def help_view(lang: str) -> Screen:

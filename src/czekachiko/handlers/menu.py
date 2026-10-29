@@ -1,4 +1,5 @@
-"""The persistent reply keyboard: its buttons arrive as text and navigate from anywhere."""
+"""Reply-keyboard buttons that arrive as text: feedback, and every button of the legacy
+keyboard that some users still have. They navigate from anywhere."""
 
 from collections.abc import Callable
 from datetime import date
@@ -14,10 +15,11 @@ from czekachiko.handlers.feedback import start_feedback
 from czekachiko.i18n import LOCALES
 from czekachiko.render import show
 from czekachiko.ui import screens
-from czekachiko.ui.keyboards import REPLY_MENU
+from czekachiko.ui.keyboards import LEGACY_REPLY_MENU
 
 router = Router(name="menu")
-ROUTES = {loc.MESSAGES[key]: key for loc in LOCALES.values() for row in REPLY_MENU for key in row}
+KEYS = [key for row in LEGACY_REPLY_MENU for key in row] + ["btn_open_app"]
+ROUTES = {loc.MESSAGES[key]: key for loc in LOCALES.values() for key in KEYS}
 
 
 @router.message(F.text.in_(ROUTES))
@@ -28,6 +30,7 @@ async def reply_menu_button(
     lang: str,
     calendar_url: str | None,
     clock: Callable[[], date],
+    webapp_url: str,
 ):
     key = ROUTES[msg.text]
     if key == "btn_add":
@@ -48,6 +51,8 @@ async def reply_menu_button(
         screen = screens.settings_view(lang, user.lang, user.reminders)
     elif key == "btn_share":
         screen = screens.share_view(lang)
+    elif key == "btn_open_app":  # sent as text by clients without Mini App support
+        screen = screens.start_view(lang, webapp_url)
     else:
         screen = screens.help_view(lang)
     await show(msg, screen)

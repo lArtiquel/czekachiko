@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from czekachiko.app import build_dispatcher
+from czekachiko.config import DEFAULT_WEBAPP_URL
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.locales import ru
@@ -264,8 +265,63 @@ async def test_start_sends_persistent_reply_menu(env):
     kbs = [c.reply_markup for c in env[2].calls if isinstance(c, SendMessage)]
     reply = [k for k in kbs if isinstance(k, ReplyKeyboardMarkup)]
     assert reply and reply[0].is_persistent and reply[0].resize_keyboard
-    labels = {b.text for row in reply[0].keyboard for b in row}
-    assert ru.MESSAGES["btn_cases"] in labels and ru.MESSAGES["btn_add"] in labels
+    (app, write), *rest = reply[0].keyboard
+    assert rest == []
+    assert app.text == ru.MESSAGES["btn_open_app"] == "🚀 Открыть приложение"
+    assert app.web_app.url == DEFAULT_WEBAPP_URL
+    assert write.text == ru.MESSAGES["btn_feedback"] == "✉️ Написать нам"
+    assert write.web_app is None
+
+
+async def test_start_shows_one_message_with_the_mini_app_button(env):
+    await feed(env, text_update(UID, "/start"))
+    tg = env[2]
+    visible = [
+        c for i, c in enumerate(tg.calls) if i in tg.sent_ids and tg.sent_ids[i] not in _deleted(tg)
+    ]
+    assert len(visible) == 1
+    (button,), *rest = visible[0].reply_markup.inline_keyboard
+    assert rest == []
+    assert button.text == "🚀 Открыть Czekachiko"
+    assert button.web_app.url == DEFAULT_WEBAPP_URL
+
+
+async def test_start_uses_the_configured_mini_app_url(session_factory):
+    bot, tg = make_bot()
+    dp = build_dispatcher(
+        session_factory, clock=lambda: TODAY, throttle=False, webapp_url="https://example.org/a/"
+    )
+    await dp.feed_update(bot, text_update(UID, "/start"))
+    markups = [c.reply_markup for c in tg.calls if getattr(c, "reply_markup", None)]
+    urls = {
+        b.web_app.url
+        for m in markups
+        for row in getattr(m, "inline_keyboard", None) or m.keyboard
+        for b in row
+        if b.web_app
+    }
+    assert urls == {"https://example.org/a/"}
+
+
+async def test_start_in_english(env):
+    from czekachiko.locales import en
+
+    await feed(env, callback_update(UID, Act(action="lang", value="en").pack()))
+    await feed(env, text_update(UID, "/start"))
+    (button,), *_ = env[2].last().reply_markup.inline_keyboard
+    assert button.text == en.MESSAGES["btn_open_webapp"] == "🚀 Open Czekachiko"
+
+
+async def test_feedback_button_on_new_keyboard(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_feedback"]))
+    assert env[2].last().text == ru.MESSAGES["feedback_prompt"]
+
+
+async def test_open_app_text_falls_back_to_the_start_button(env):
+    """Clients without Mini App support send the button label as text."""
+    await feed(env, text_update(UID, ru.MESSAGES["btn_open_app"]))
+    (button,), *_ = env[2].last().reply_markup.inline_keyboard
+    assert button.web_app.url == DEFAULT_WEBAPP_URL
 
 
 async def test_reply_menu_button_opens_cases(env):
@@ -303,7 +359,8 @@ async def test_language_switch_resends_reply_menu(env):
         for c in env[2].calls
         if isinstance(c, SendMessage) and isinstance(c.reply_markup, ReplyKeyboardMarkup)
     ]
-    assert reply and en.MESSAGES["btn_cases"] in {b.text for row in reply[-1].keyboard for b in row}
+    labels = {b.text for row in reply[-1].keyboard for b in row}
+    assert labels == {en.MESSAGES["btn_open_app"], en.MESSAGES["btn_feedback"]}
 
 
 def test_command_descriptions_have_emoji():
@@ -316,10 +373,9 @@ def test_command_descriptions_have_emoji():
 
 async def test_start_is_one_short_message(env):
     await feed(env, text_update(UID, "/start"))
-    texts = env[2].texts()
-    assert len(texts) == 1
-    assert len(texts[0]) < 400
-    assert "Czekachiko" in texts[0] and "Telegram ID" not in texts[0]
+    text = env[2].last().text  # the start screen; the keyboard carrier was deleted
+    assert len(text) < 400
+    assert "Czekachiko" in text and "Telegram ID" not in text
 
 
 async def test_reply_menu_share_button(env):

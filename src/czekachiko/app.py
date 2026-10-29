@@ -5,6 +5,7 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import SimpleEventIsolation
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from czekachiko.config import DEFAULT_WEBAPP_URL
 from czekachiko.fsm_storage import PgStorage
 from czekachiko.handlers import (
     admin,
@@ -27,6 +28,7 @@ def build_dispatcher(
     calendar_url: str | None = None,
     throttle: bool = True,
     ephemeral_delay: float = 5,
+    webapp_url: str = DEFAULT_WEBAPP_URL,
 ) -> Dispatcher:
     dp = Dispatcher(
         storage=PgStorage(factory),
@@ -36,6 +38,7 @@ def build_dispatcher(
         ephemeral_delay=ephemeral_delay,
         admin_tg_id=admin_tg_id,
         calendar_url=calendar_url,
+        webapp_url=webapp_url,
     )
     flood = ThrottleMiddleware() if throttle else None
     for observer in (dp.message, dp.callback_query, dp.inline_query):

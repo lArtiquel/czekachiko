@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db import repo
 from czekachiko.i18n import t
-from czekachiko.render import show
+from czekachiko.render import refresh_reply_keyboard, show
 from czekachiko.ui import screens
 from czekachiko.ui.keyboards import Act, Nav, Noop, reply_menu
 
@@ -17,9 +17,14 @@ fallback = Router(name="fallback")
 
 
 @router.message(CommandStart())
-async def cmd_start(msg: Message, state: FSMContext, lang: str):
+async def cmd_start(msg: Message, state: FSMContext, lang: str, webapp_url: str):
     await state.clear()
-    await show(msg, (screens.start_text(lang), reply_menu(lang)))
+    # A message holds either an inline or a reply keyboard; the reply one goes in a carrier
+    # message that is deleted at once, and the keyboard stays.
+    await refresh_reply_keyboard(
+        msg.bot, msg.from_user.id, t(lang, "keyboard_ready"), reply_menu(lang, webapp_url)
+    )
+    await show(msg, screens.start_view(lang, webapp_url))
 
 
 @router.message(Command("help"))

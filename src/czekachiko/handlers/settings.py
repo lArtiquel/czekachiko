@@ -25,14 +25,15 @@ async def settings(cq: CallbackQuery, session: AsyncSession, state: FSMContext):
 
 
 @router.callback_query(Act.filter(F.action == "lang"))
-async def switch_lang(cq: CallbackQuery, callback_data: Act, session: AsyncSession):
+async def switch_lang(
+    cq: CallbackQuery, callback_data: Act, session: AsyncSession, webapp_url: str
+):
     if callback_data.value in ("ru", "en"):
         new_lang = callback_data.value
         await repo.set_lang(session, cq.from_user.id, new_lang)
         await cq.answer(t(new_lang, "lang_changed"))  # disappearing toast
-        await refresh_reply_keyboard(
-            cq.bot, cq.from_user.id, t(new_lang, "lang_changed"), reply_menu(new_lang)
-        )
+        kb = reply_menu(new_lang, webapp_url)
+        await refresh_reply_keyboard(cq.bot, cq.from_user.id, t(new_lang, "lang_changed"), kb)
         user = await repo.ensure_user(session, cq.from_user.id)
         await show(cq, screens.settings_view(user.lang, user.lang, user.reminders), answer=False)
         return

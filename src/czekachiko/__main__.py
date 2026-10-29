@@ -3,7 +3,8 @@ import logging
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
-from aiogram.types import BotCommand
+from aiogram.exceptions import TelegramAPIError
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 
 from czekachiko.app import build_dispatcher
 from czekachiko.config import Settings
@@ -21,15 +22,28 @@ async def set_commands(bot: Bot) -> None:
         await bot.set_my_commands(cmds, language_code=code)
 
 
+async def set_menu_button(bot: Bot, url: str) -> None:
+    """The button beside the input field opens the Mini App, in every private chat."""
+    button = MenuButtonWebApp(text="Czekachiko", web_app=WebAppInfo(url=url))
+    try:
+        await bot.set_chat_menu_button(menu_button=button)
+    except TelegramAPIError as e:  # a bad WEBAPP_URL must not keep the bot down
+        log.warning("menu button not set: %s", e)
+
+
 async def run(settings: Settings) -> None:
     engine, factory = make_session_factory(settings.database_url)
     bot = Bot(
         settings.bot_token.get_secret_value(), default=DefaultBotProperties(parse_mode="HTML")
     )
     dp = build_dispatcher(
-        factory, admin_tg_id=settings.admin_tg_id, calendar_url=settings.calendar_public_url
+        factory,
+        admin_tg_id=settings.admin_tg_id,
+        calendar_url=settings.calendar_public_url,
+        webapp_url=settings.webapp_url,
     )
     await set_commands(bot)
+    await set_menu_button(bot, settings.webapp_url)
     tasks = []
     if settings.calendar_enabled:
         from czekachiko.calendar_sync import start_worker
