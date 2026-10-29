@@ -58,7 +58,7 @@ services:
     command: ["tunnel", "--no-autoupdate", "run", "--url", "http://api:8080"]
     env_file: [tunnel.env]  # TUNNEL_TOKEN only; no other container gets it
     depends_on: [api]
-    networks: [edge]
+    networks: [edge, egress]  # edge reaches the api only; egress reaches Cloudflare
     restart: unless-stopped
     read_only: true
     security_opt: ["no-new-privileges:true"]
@@ -90,7 +90,9 @@ networks:
   db:
     internal: true
   egress: {}
-  edge: {}
+  # api <-> tunnel only: internal, so the api has no route to the internet
+  edge:
+    internal: true
 
 volumes:
   pgdata: {}

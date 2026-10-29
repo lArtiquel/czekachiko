@@ -26,15 +26,18 @@ def test_compose_has_no_published_ports_and_every_service_is_limited():
 
 
 def test_networks_isolate_db_and_edge():
+    """db and edge are internal: only bot and tunnel reach the internet, through egress.
+    The api talks to Postgres and to the tunnel, nothing else."""
     c = compose()
     assert c["networks"]["db"]["internal"] is True
-    assert "edge" in c["networks"]
+    assert c["networks"]["edge"]["internal"] is True
+    assert c["networks"]["egress"].get("internal") is not True
     nets = {name: sorted(svc["networks"]) for name, svc in c["services"].items()}
     assert nets == {
         "db": ["db"],
         "bot": ["db", "egress"],
         "api": ["db", "edge"],
-        "tunnel": ["edge"],
+        "tunnel": ["edge", "egress"],
     }
 
 
