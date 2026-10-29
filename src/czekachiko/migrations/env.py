@@ -11,6 +11,8 @@ target_metadata = Base.metadata
 def do_run(connection):
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
+        # Bot and API both migrate on start; the lock makes the second one wait, then no-op.
+        connection.exec_driver_sql("SELECT pg_advisory_xact_lock(7212345)")
         context.run_migrations()
 
 

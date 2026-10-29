@@ -55,6 +55,8 @@ def doc_name(code: str) -> str:
 def clean_name(text: str) -> tuple[str | None, str | None]:
     """A custom document name: (cleaned, None) or (None, error code)."""
     collapsed = " ".join(text.split())  # newlines and tabs become single spaces
+    if any(unicodedata.category(ch) in ("Cs", "Cn") for ch in collapsed):
+        return None, "doc_name_empty"  # lone surrogates / unassigned code points: not a name
     name = "".join(ch for ch in collapsed if unicodedata.category(ch) != "Cc").strip()
     if not name:
         return None, "doc_name_empty"

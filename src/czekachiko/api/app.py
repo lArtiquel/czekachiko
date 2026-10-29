@@ -3,11 +3,14 @@
 Never log request headers: the Authorization header carries the user's signed initData.
 """
 
+import asyncio
+import contextlib
 import json
 import logging
 import time
 from collections.abc import Callable
 from datetime import date
+from urllib.parse import urlsplit
 
 from aiohttp import web
 from sqlalchemy import text
@@ -21,13 +24,14 @@ from czekachiko.db.models import User
 
 log = logging.getLogger(__name__)
 
-ALLOWED_ORIGIN = "https://lartiquel.github.io"
 CORS_PREFLIGHT = {
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "600",
 }
 MAX_BODY = 16 * 1024
+BODY_TIMEOUT = 5.0  # seconds to receive a whole request body
+MAX_CONCURRENT_WRITES = 3  # writes share the db's 0.3 CPU with the bot
 PUBLIC_PATHS = {"/api/health"}
 USER_BURST, USER_PER_SECOND = 10, 120 / 60
 IP_BURST, IP_PER_SECOND = 300, 300 / 60
@@ -73,20 +77,40 @@ async def read_json(request: web.Request) -> dict:
     return body
 
 
+def origin_of(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def cors(allowed_origin: str):
+    @web.middleware
+    async def middleware(request: web.Request, handler):
+        origin = request.headers.get("Origin")
+        if origin is not None and origin != allowed_origin:
+            return web.json_response({"error": "forbidden"}, status=403)
+        if request.method == "OPTIONS":
+            response = web.Response(status=204, headers=CORS_PREFLIGHT)
+        else:
+            response = await handler(request)
+        response.headers["Vary"] = "Origin"
+        if origin is not None:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Expose-Headers"] = "Retry-After"
+        return response
+
+    return middleware
+
+
 @web.middleware
-async def cors(request: web.Request, handler):
-    origin = request.headers.get("Origin")
-    if origin is not None and origin != ALLOWED_ORIGIN:
-        return web.json_response({"error": "forbidden"}, status=403)
-    if request.method == "OPTIONS":
-        response = web.Response(status=204, headers=CORS_PREFLIGHT)
-    else:
-        response = await handler(request)
-    response.headers["Vary"] = "Origin"
-    if origin is not None:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Expose-Headers"] = "Retry-After"
+async def security_headers(request: web.Request, handler):
+    response = await handler(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "no-store"
     return response
+
+
+async def _strip_server_header(request: web.Request, response: web.StreamResponse) -> None:
+    response.headers["Server"] = "czekachiko"
 
 
 @web.middleware
@@ -152,13 +176,27 @@ def db_session(factory: async_sessionmaker):
     run one after the other (idempotency token, case and document limits).
     """
 
+    writes = asyncio.Semaphore(MAX_CONCURRENT_WRITES)
+
     @web.middleware
     async def middleware(request: web.Request, handler):
         tg_id = request.get(TG_ID)
         if tg_id is None:
             return await handler(request)
-        async with factory() as s:
-            if request.method not in ("GET", "HEAD"):
+        write = request.method not in ("GET", "HEAD")
+        if write:
+            # Receive the whole body before touching the database, so a client that sends
+            # its body slowly can never hold a pool connection or a lock.
+            try:
+                async with asyncio.timeout(BODY_TIMEOUT):
+                    await request.read()
+            except TimeoutError:
+                raise ApiError(408, "timeout") from None
+        async with contextlib.AsyncExitStack() as stack:
+            if write:
+                await stack.enter_async_context(writes)
+            s = await stack.enter_async_context(factory())
+            if write:
                 await s.execute(
                     text("SELECT pg_advisory_xact_lock(:ns, hashtext(:k))"),
                     {"ns": USER_LOCK_NS, "k": str(tg_id)},
@@ -187,7 +225,8 @@ def create_app(
     app = web.Application(
         client_max_size=MAX_BODY,
         middlewares=[
-            cors,
+            cors(origin_of(settings.webapp_url)),
+            security_headers,
             errors,
             rate_limit(per_ip, client_ip),
             body_limit,
@@ -197,5 +236,6 @@ def create_app(
         ],
     )
     app[CLOCK] = clock
+    app.on_response_prepare.append(_strip_server_header)
     app.add_routes(routes)
     return app

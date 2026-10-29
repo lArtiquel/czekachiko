@@ -18,7 +18,7 @@ SSH=(ssh -o BatchMode=yes "$DEPLOY_HOST")
 
 avail=$("${SSH[@]}" "awk '/MemAvailable/ {print int(\$2/1024)}' /proc/meminfo")
 echo "host MemAvailable: ${avail} MB"
-(( avail >= 500 )) || { echo "ABORT: less than 500 MB available on the host"; exit 1; }
+(( avail >= 900 )) || { echo "ABORT: less than 900 MB available on the host"; exit 1; }
 
 others() {
   "${SSH[@]}" "docker ps -q | xargs -r docker inspect -f '{{.Name}} {{.State.StartedAt}}' \

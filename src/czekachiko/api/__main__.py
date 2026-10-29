@@ -18,7 +18,7 @@ def main() -> None:
     settings = Settings()
     run_migrations(settings.database_url)
     engine, factory = make_session_factory(
-        settings.database_url, pool_size=POOL_SIZE, max_overflow=MAX_OVERFLOW
+        settings.database_url, pool_size=POOL_SIZE, max_overflow=MAX_OVERFLOW, api=True
     )
     app = create_app(settings, factory)
 

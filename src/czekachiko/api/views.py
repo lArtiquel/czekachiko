@@ -71,7 +71,11 @@ async def case_detail(s: AsyncSession, case: Case, day: date) -> dict:
 
 
 async def detail_response(request: web.Request, case: Case, status: int = 200) -> web.Response:
-    return respond(await case_detail(request[SESSION], case, today(request)), status)
+    s = request[SESSION]
+    if request.method not in ("GET", "HEAD"):
+        # Release the write's advisory locks before the read-only detail queries run.
+        await s.commit()
+    return respond(await case_detail(s, case, today(request)), status)
 
 
 # --- health and profile ----------------------------------------------------------------
@@ -95,7 +99,7 @@ async def get_me(request: web.Request) -> web.Response:
 async def patch_me(request: web.Request) -> web.Response:
     body = await read_json(request)
     if "lang" in body:
-        if body["lang"] not in LOCALES:
+        if not isinstance(body["lang"], str) or body["lang"] not in LOCALES:
             raise invalid(lang="invalid")
         await repo.set_lang(request[SESSION], request[TG_ID], body["lang"])
     return respond(user_json(request[USER]))
