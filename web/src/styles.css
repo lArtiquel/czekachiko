@@ -17,6 +17,7 @@ body {
   padding: 0;
   background: var(--page-bg);
   color: var(--text);
+  font-family: var(--tgui--font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif);
   -webkit-text-size-adjust: 100%;
 }
 
