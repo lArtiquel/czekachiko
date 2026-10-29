@@ -2,7 +2,8 @@
 
 The Mini App's «📤 Отправить в чат» posts these cards, so their text, buttons and caching
 must not drift. The golden file was captured from the bot before its old UI was removed;
-the only change since is the button above the results, which now opens the Mini App.
+since then, only two links changed: the button above the results opens the Mini App,
+and the button under each card links to it with ?startapp.
 """
 
 import json

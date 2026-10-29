@@ -9,6 +9,7 @@ from czekachiko.app import build_dispatcher
 from czekachiko.config import DEFAULT_WEBAPP_URL
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
+from czekachiko.keyboards import APP_LINK
 from czekachiko.locales import en, ru
 from tests.fakes import _ids, _user, make_bot
 
@@ -72,7 +73,8 @@ async def test_inline_code_returns_card(env):
     assert len(a.results) == 1
     text = a.results[0].input_message_content.message_text
     assert "Mazowieckie" in text and "(дел: 1)" in text
-    assert a.results[0].reply_markup.inline_keyboard[0][0].url == "https://t.me/czekachiko_bot"
+    assert a.results[0].reply_markup.inline_keyboard[0][0].url == APP_LINK
+    assert APP_LINK == "https://t.me/czekachiko_bot?startapp"
 
 
 async def test_inline_empty_query_lists_cards_and_an_app_button(env):

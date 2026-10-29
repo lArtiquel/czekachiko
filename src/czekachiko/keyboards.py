@@ -8,7 +8,8 @@ from aiogram.types import (
 
 from czekachiko.i18n import t
 
-BOT_URL = "https://t.me/czekachiko_bot"
+# Opens the Main Mini App from any chat (enabled in BotFather).
+APP_LINK = "https://t.me/czekachiko_bot?startapp"
 FEEDBACK_CANCEL = "fb:cancel"
 
 
@@ -36,6 +37,6 @@ def feedback_cancel(lang: str) -> InlineKeyboardMarkup:
 
 
 def open_bot(lang: str) -> InlineKeyboardMarkup:
-    """Under inline cards in other chats: web_app buttons do not work there, a link does."""
-    button = InlineKeyboardButton(text=t(lang, "btn_open_bot"), url=BOT_URL)
+    """Under inline cards in other chats, where web_app buttons are not allowed."""
+    button = InlineKeyboardButton(text=t(lang, "btn_open_bot"), url=APP_LINK)
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
