@@ -199,7 +199,7 @@ MESSAGES = {
     "admin_title": "🛠 <b>Admin</b>",
     "admin_recomputed": "Recomputed.",
     "lang_changed": "Language: English 🇬🇧",
-    "cmd_start": "🏠 Main menu",
+    "cmd_start": "🚀 Open Czekachiko",
     "cmd_cases": "📂 My cases",
     "cmd_add": "➕ Add a case",
     "cmd_stats": "📊 Timelines by voivodeship",
@@ -207,4 +207,7 @@ MESSAGES = {
     "cmd_settings": "⚙️ Settings",
     "cmd_help": "❓ How it works",
     "cmd_cancel": "✖️ Cancel the current step",
+    "feedback_cancelled": "✖️ Cancelled.",
+    "stale_button": "This button is outdated. Open the app 🚀",
+    "unknown_message": "🐕 Everything is in the app now 👇 A question or an idea? Tap «✉️ Contact us».",
 }

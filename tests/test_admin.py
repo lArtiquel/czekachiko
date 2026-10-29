@@ -3,6 +3,7 @@ from datetime import date
 from czekachiko.app import build_dispatcher
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Purpose, Voivodeship
+from czekachiko.locales import ru
 from tests.fakes import make_bot, text_update
 
 ADMIN = 777
@@ -14,7 +15,6 @@ async def setup(session_factory):
         session_factory,
         clock=lambda: date(2026, 10, 29),
         admin_tg_id=ADMIN,
-        calendar_url=None,
         throttle=False,
     )
     return dp, bot, tg
@@ -22,8 +22,9 @@ async def setup(session_factory):
 
 async def test_admin_hidden_for_others(session_factory):
     dp, bot, tg = await setup(session_factory)
-    await dp.feed_update(bot, text_update(1, "/admin"))
-    assert "Admin" not in tg.last().text and "Czekachiko" in tg.last().text
+    for command in ("/admin", "/admin recompute"):
+        await dp.feed_update(bot, text_update(1, command))
+        assert tg.last().text == ru.MESSAGES["unknown_message"]
 
 
 async def test_admin_shows_counts(session_factory):

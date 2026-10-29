@@ -1,14 +1,16 @@
 from datetime import date
 
 import pytest
-from aiogram.methods import SendMessage
-from aiogram.types import Chat, Message, Update
+from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage
+from aiogram.types import Chat, Location, Message, Update
 from sqlalchemy import select
 
 from czekachiko.app import build_dispatcher
+from czekachiko.config import DEFAULT_WEBAPP_URL
+from czekachiko.db import repo
 from czekachiko.db.models import Feedback
-from czekachiko.locales import ru
-from czekachiko.ui.keyboards import Nav
+from czekachiko.keyboards import FEEDBACK_CANCEL
+from czekachiko.locales import en, ru
 from tests.fakes import NOW, _ids, _user, callback_update, make_bot, text_update
 
 UID, ADMIN = 548, 777
@@ -21,7 +23,6 @@ async def env(session_factory):
         session_factory,
         clock=lambda: date(2026, 10, 29),
         admin_tg_id=ADMIN,
-        calendar_url=None,
         throttle=False,
         ephemeral_delay=0,
     )
@@ -52,7 +53,7 @@ def admin_reply(text: str, reply_to_id: int) -> Update:
 
 
 async def send_feedback(env, text="Бот супер, но добавьте Łódź 🙏"):
-    await feed(env, callback_update(UID, Nav(to="feedback").pack()))
+    await feed(env, text_update(UID, ru.MESSAGES["btn_feedback"]))
     await feed(env, text_update(UID, text))
 
 
@@ -108,11 +109,11 @@ async def test_feedback_too_long_rejected(env):
 
 
 async def test_deleting_data_does_not_reset_feedback_limit(env):
-    from czekachiko.ui.keyboards import Act
-
     for i in range(5):
         await send_feedback(env, f"сообщение {i}")
-    await feed(env, callback_update(UID, Act(action="del_all_yes").pack()))
+    async with env[3]() as s:  # what DELETE /api/me does
+        await repo.delete_user(s, UID)
+        await s.commit()
     await send_feedback(env, "ещё одно после удаления")
     assert len(sends_to(env[2], ADMIN)) == 5
     assert ru.MESSAGES["feedback_limit"] in env[2].last().text
@@ -123,3 +124,57 @@ async def test_start_feedback_deep_link_opens_feedback_prompt(env):
     assert ru.MESSAGES["feedback_prompt"] in env[2].last().text
     await feed(env, text_update(UID, "Привет из мини-приложения"))
     assert any("Привет из мини-приложения" in m.text for m in sends_to(env[2], ADMIN))
+
+
+@pytest.mark.parametrize("label", [ru.MESSAGES["btn_feedback"], en.MESSAGES["btn_feedback"]])
+async def test_keyboard_button_opens_a_prompt_with_only_cancel(env, label):
+    await feed(env, text_update(UID, label))
+    last = env[2].last()
+    assert last.text == ru.MESSAGES["feedback_prompt"]
+    ((button,),) = last.reply_markup.inline_keyboard
+    assert button.text == ru.MESSAGES["btn_cancel"] and button.callback_data == FEEDBACK_CANCEL
+
+
+async def test_cancel_clears_the_flow_and_shows_the_launcher(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_feedback"]))
+    await feed(env, callback_update(UID, FEEDBACK_CANCEL))
+    edit = env[2].last()
+    assert isinstance(edit, EditMessageText) and edit.text == ru.MESSAGES["feedback_cancelled"]
+    ((button,),) = edit.reply_markup.inline_keyboard
+    assert button.web_app.url == DEFAULT_WEBAPP_URL
+    await feed(env, text_update(UID, "это уже не обратная связь"))
+    assert sends_to(env[2], ADMIN) == []
+    assert env[2].last().text == ru.MESSAGES["unknown_message"]
+
+
+async def test_old_menu_button_on_the_prompt_leaves_the_flow(env):
+    """The old prompt also had «🏠 Меню» (n:menu:0); it must not open any old screen."""
+    await feed(env, text_update(UID, "/start feedback"))
+    await feed(env, callback_update(UID, "n:menu:0"))
+    toasts = [c.text for c in env[2].calls if isinstance(c, AnswerCallbackQuery)]
+    assert toasts == [ru.MESSAGES["stale_button"]]
+    assert env[2].last().text == ru.MESSAGES["feedback_prompt"]  # nothing new was shown
+    await feed(env, text_update(UID, "случайный текст"))
+    assert sends_to(env[2], ADMIN) == []
+
+
+async def test_feedback_must_be_text(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_feedback"]))
+    msg = Message(
+        message_id=next(_ids),
+        date=NOW,
+        chat=Chat(id=UID, type="private"),
+        from_user=_user(UID),
+        location=Location(latitude=52.2, longitude=21.0),
+    )
+    await feed(env, Update(update_id=next(_ids), message=msg))
+    assert ru.MESSAGES["feedback_text_only"] in env[2].last().text
+    await feed(env, text_update(UID, "а теперь текстом"))
+    assert len(sends_to(env[2], ADMIN)) == 1
+
+
+async def test_sent_feedback_ends_with_the_launcher(env):
+    await send_feedback(env)
+    launcher = [m for m in sends_to(env[2], UID) if m.text == ru.MESSAGES["menu_title"]]
+    ((button,),) = launcher[-1].reply_markup.inline_keyboard
+    assert button.web_app.url == DEFAULT_WEBAPP_URL

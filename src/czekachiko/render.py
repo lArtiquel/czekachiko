@@ -1,18 +1,16 @@
-"""Show screens while keeping the chat tidy: one live bot screen, no leftover inputs."""
+"""Keep the chat tidy: one live bot message, no leftover inputs."""
 
 import asyncio
 import logging
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardMarkup
-
-from czekachiko.ui.screens import Screen
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup
 
 log = logging.getLogger(__name__)
 
-# user id -> message id of the bot's current screen. In memory on purpose: after a restart
-# the worst case is one old screen left in the chat.
+# user id -> message id of the bot's current message. In memory on purpose: after a restart
+# the worst case is one old message left in the chat.
 LIVE: dict[int, int] = {}
 
 
@@ -25,8 +23,8 @@ async def _delete(bot: Bot, chat_id: int, message_id: int | None) -> None:
         log.debug("delete failed: %s", e)
 
 
-async def replace_screen(bot: Bot, user_id: int, text: str, kb) -> Message:
-    """Send a fresh screen at the bottom of the chat and remove the previous one."""
+async def replace_screen(bot: Bot, user_id: int, text: str, kb: InlineKeyboardMarkup) -> Message:
+    """Send a fresh message at the bottom of the chat and remove the previous one."""
     old = LIVE.get(user_id)
     msg = await bot.send_message(user_id, text, reply_markup=kb)
     LIVE[user_id] = msg.message_id
@@ -35,18 +33,14 @@ async def replace_screen(bot: Bot, user_id: int, text: str, kb) -> Message:
     return msg
 
 
-async def show(
-    event: Message | CallbackQuery, screen: Screen, new: bool = False, answer: bool = True
-) -> None:
-    """Edit the live message for button presses; for typed input replace it and tidy up."""
-    text, kb = screen
+async def show(event: Message | CallbackQuery, text: str, kb: InlineKeyboardMarkup) -> None:
+    """Edit the pressed message for buttons; for typed input replace it and tidy up."""
     if isinstance(event, CallbackQuery):
-        if answer:
-            try:
-                await event.answer()
-            except TelegramBadRequest as e:  # e.g. "query is too old" after a restart
-                log.info("callback answer failed: %s", e)
-        if not new and event.message is not None:
+        try:
+            await event.answer()
+        except TelegramBadRequest as e:  # e.g. "query is too old" after a restart
+            log.info("callback answer failed: %s", e)
+        if event.message is not None:
             try:
                 await event.message.edit_text(text, reply_markup=kb)
                 LIVE[event.from_user.id] = event.message.message_id

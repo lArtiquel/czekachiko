@@ -12,13 +12,13 @@ from czekachiko.db.session import make_session_factory, run_migrations
 from czekachiko.i18n import t
 from czekachiko.middlewares import CONCURRENCY
 
-COMMANDS = ["start", "cases", "add", "stats", "calendar", "settings", "help", "cancel"]
 log = logging.getLogger("czekachiko")
 
 
 async def set_commands(bot: Bot) -> None:
+    """Only /start: everything else lives in the Mini App. Replaces the old command lists."""
     for lang, code in (("ru", None), ("ru", "ru"), ("en", "en")):
-        cmds = [BotCommand(command=c, description=t(lang, f"cmd_{c}")) for c in COMMANDS]
+        cmds = [BotCommand(command="start", description=t(lang, "cmd_start"))]
         await bot.set_my_commands(cmds, language_code=code)
 
 
@@ -39,7 +39,6 @@ async def run(settings: Settings) -> None:
     dp = build_dispatcher(
         factory,
         admin_tg_id=settings.admin_tg_id,
-        calendar_url=settings.calendar_public_url,
         webapp_url=settings.webapp_url,
     )
     await set_commands(bot)

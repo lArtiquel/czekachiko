@@ -7,17 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.config import DEFAULT_WEBAPP_URL
 from czekachiko.fsm_storage import PgStorage
-from czekachiko.handlers import (
-    admin,
-    cases,
-    common,
-    documents,
-    feedback,
-    menu,
-    settings,
-    share,
-    stats,
-)
+from czekachiko.handlers import admin, feedback, inline, start
 from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
 
 
@@ -25,7 +15,6 @@ def build_dispatcher(
     factory: async_sessionmaker,
     clock: Callable[[], date] = date.today,
     admin_tg_id: int | None = None,
-    calendar_url: str | None = None,
     throttle: bool = True,
     ephemeral_delay: float = 5,
     webapp_url: str = DEFAULT_WEBAPP_URL,
@@ -37,7 +26,6 @@ def build_dispatcher(
         clock=clock,
         ephemeral_delay=ephemeral_delay,
         admin_tg_id=admin_tg_id,
-        calendar_url=calendar_url,
         webapp_url=webapp_url,
     )
     flood = ThrottleMiddleware() if throttle else None
@@ -50,15 +38,10 @@ def build_dispatcher(
         feedback.admin_replies,
         feedback.entry,
         admin.router,
-        share.router,
-        common.router,
-        menu.router,
+        inline.router,
+        start.router,
         feedback.router,
-        cases.router,
-        documents.router,
-        stats.router,
-        settings.router,
-        common.fallback,
+        start.fallback,
     ]
     for r in routers:
         # Module-level routers can belong to one dispatcher at a time; detach so tests

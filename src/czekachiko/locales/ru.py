@@ -224,7 +224,7 @@ MESSAGES = {
     "admin_title": "🛠 <b>Admin</b>",
     "admin_recomputed": "Пересчитано.",
     "lang_changed": "Язык: русский 🇷🇺",
-    "cmd_start": "🏠 Главное меню",
+    "cmd_start": "🚀 Открыть Czekachiko",
     "cmd_cases": "📂 Мои дела",
     "cmd_add": "➕ Добавить дело",
     "cmd_stats": "📊 Сроки по воеводствам",
@@ -232,4 +232,7 @@ MESSAGES = {
     "cmd_settings": "⚙️ Настройки",
     "cmd_help": "❓ Как это работает",
     "cmd_cancel": "✖️ Прервать текущий шаг",
+    "feedback_cancelled": "✖️ Отменено.",
+    "stale_button": "Эта кнопка устарела. Открой приложение 🚀",
+    "unknown_message": "🐕 Всё теперь в приложении 👇 Вопрос или идея? Нажми «✉️ Написать нам».",
 }

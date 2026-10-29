@@ -11,38 +11,42 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db import repo
-from czekachiko.i18n import t
+from czekachiko.i18n import LOCALES, t
+from czekachiko.keyboards import FEEDBACK_CANCEL, feedback_cancel, launcher
 from czekachiko.render import flash, show
-from czekachiko.ui import screens
-from czekachiko.ui.keyboards import Nav
 
 router = Router(name="feedback")
-# `/start feedback`: the Mini App's «✉️ Написать нам» closes the app and lands here.
+# `/start feedback` (the Mini App's «✉️ Написать нам» closes the app and lands here) and
+# the reply-keyboard button. Both work from anywhere, even mid-flow.
 entry = Router(name="feedback_entry")
 admin_replies = Router(name="feedback_admin")
 
 MAX_LEN = 1000
 PER_HOUR = 5
+BUTTON = {loc.MESSAGES["btn_feedback"] for loc in LOCALES.values()}
 
 
 class Feedback(StatesGroup):
     writing = State()
 
 
-async def start_feedback(event, state: FSMContext, lang: str) -> None:
-    await state.clear()
-    await state.set_state(Feedback.writing)
-    await show(event, screens.feedback_prompt(lang))
+def prompt(lang: str, warning: str | None = None):
+    text = t(lang, "feedback_prompt")
+    return (f"⚠️ {warning}\n\n{text}" if warning else text), feedback_cancel(lang)
 
 
 @entry.message(CommandStart(deep_link=True, magic=F.args == "feedback"))
-async def feedback_deep_link(msg: Message, state: FSMContext, lang: str):
-    await start_feedback(msg, state, lang)
+@entry.message(F.text.in_(BUTTON))
+async def start_feedback(msg: Message, state: FSMContext, lang: str):
+    await state.clear()
+    await state.set_state(Feedback.writing)
+    await show(msg, *prompt(lang))
 
 
-@router.callback_query(Nav.filter(F.to == "feedback"))
-async def feedback_button(cq: CallbackQuery, state: FSMContext, lang: str):
-    await start_feedback(cq, state, lang)
+@router.callback_query(F.data == FEEDBACK_CANCEL)
+async def cancel(cq: CallbackQuery, state: FSMContext, lang: str, webapp_url: str):
+    await state.clear()
+    await show(cq, t(lang, "feedback_cancelled"), launcher(lang, webapp_url))
 
 
 @router.message(Feedback.writing, F.text)
@@ -53,17 +57,16 @@ async def feedback_text(
     lang: str,
     admin_tg_id: int | None,
     ephemeral_delay: float,
+    webapp_url: str,
 ):
     text = msg.text.strip()
     if len(text) > MAX_LEN:
-        prompt, kb = screens.feedback_prompt(lang)
-        await show(msg, (f"⚠️ {t(lang, 'feedback_too_long')}\n\n{prompt}", kb))
+        await show(msg, *prompt(lang, t(lang, "feedback_too_long")))
         return
     since = datetime.now(UTC) - timedelta(hours=1)
     if await repo.count_feedback_since(session, msg.from_user.id, since) >= PER_HOUR:
         await state.clear()
-        menu_text, kb = screens.main_menu(lang)
-        await show(msg, (f"⏳ {t(lang, 'feedback_limit')}\n\n{menu_text}", kb))
+        await show(msg, f"⏳ {t(lang, 'feedback_limit')}", launcher(lang, webapp_url))
         return
     row = await repo.add_feedback(session, msg.from_user.id, "in", text)
     await repo.log_feedback_send(session, msg.from_user.id)
@@ -72,14 +75,13 @@ async def feedback_text(
         sent = await msg.bot.send_message(admin_tg_id, f"{header}\n\n{text}", parse_mode=None)
         row.admin_msg_id = sent.message_id
     await state.clear()
-    await show(msg, screens.main_menu(lang))
+    await show(msg, t(lang, "menu_title"), launcher(lang, webapp_url))
     await flash(msg.bot, msg.from_user.id, t(lang, "feedback_sent"), ephemeral_delay)
 
 
 @router.message(Feedback.writing)
 async def feedback_not_text(msg: Message, lang: str):
-    prompt, kb = screens.feedback_prompt(lang)
-    await show(msg, (f"⚠️ {t(lang, 'feedback_text_only')}\n\n{prompt}", kb))
+    await show(msg, *prompt(lang, t(lang, "feedback_text_only")))
 
 
 @admin_replies.message(F.reply_to_message, F.text)

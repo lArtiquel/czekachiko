@@ -1,10 +1,10 @@
 """Route handlers. Every case and document is reached through repo.get_case (owner check).
 
-Writes go through the same repo functions as the bot, so aggregates recompute and the
-calendar outbox fills exactly as they do there.
+Writes go through repo, which recomputes aggregates and fills the calendar outbox.
 """
 
 from datetime import date
+from urllib.parse import quote, urlencode
 
 from aiohttp import web
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,6 @@ from czekachiko.db.models import Case
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.forecasting import case_forecast, find_outlier, who_now_spans
 from czekachiko.i18n import LOCALES, loc, voiv_label
-from czekachiko.ui.screens import calendar_url
 
 routes = web.RouteTableDef()
 M = Milestone
@@ -347,6 +346,12 @@ async def stats(request: web.Request) -> web.Response:
             "chain": chain_json(chain),
             "who_now": {"fingerprints": span_json(fp), "decision": span_json(dec)},
         }
+    )
+
+
+def calendar_url(calendar_id: str) -> str:
+    return "https://calendar.google.com/calendar/embed?" + urlencode(
+        {"src": calendar_id, "ctz": "Europe/Warsaw"}, quote_via=quote
     )
 
 
