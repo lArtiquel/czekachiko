@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 # shellcheck disable=SC1091
 source deploy.env
 : "${DEPLOY_HOST:?set in deploy.env}" "${DEPLOY_PATH:?set in deploy.env}"
+bash scripts/lib/validate-path.sh "$DEPLOY_PATH"
 [[ -f .env ]] || { echo ".env missing (copy .env.example)"; exit 1; }
 grep -q '^BOT_TOKEN=.' .env || { echo ".env has no BOT_TOKEN"; exit 1; }
 

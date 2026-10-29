@@ -132,3 +132,24 @@ async def test_delete_case_enqueues_delete_for_every_milestone(session):
         ("delete", "filed"),
         ("delete", "fingerprints"),
     ]
+
+
+async def test_concurrent_saves_same_purpose_both_counted(session_factory):
+    import asyncio
+
+    async with session_factory() as s:
+        a = await make_case(s, 1, "a", voiv=V.mazowieckie)
+        b = await make_case(s, 2, "b", voiv=V.dolnoslaskie)
+        await s.commit()
+
+    async def save(uid, case_id, day):
+        async with session_factory() as s:
+            case = await repo.get_case(s, uid, case_id)
+            await repo.set_milestone(s, case, M.fingerprints, day)
+            await asyncio.sleep(0.2)  # hold the transaction open, like a Telegram round-trip
+            await s.commit()
+
+    await asyncio.gather(save(1, a.id, date(2026, 6, 4)), save(2, b.id, date(2026, 7, 4)))
+    async with session_factory() as s:
+        nat = await repo.get_aggregate(s, None, P.jdg, M.filed, M.fingerprints)
+    assert nat.n == 2

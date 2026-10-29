@@ -2,6 +2,7 @@ from collections.abc import Callable
 from datetime import date
 
 from aiogram import Dispatcher
+from aiogram.fsm.storage.memory import SimpleEventIsolation
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.fsm_storage import PgStorage
@@ -17,7 +18,12 @@ def build_dispatcher(
     throttle: bool = True,
 ) -> Dispatcher:
     dp = Dispatcher(
-        storage=PgStorage(factory), clock=clock, admin_tg_id=admin_tg_id, calendar_url=calendar_url
+        storage=PgStorage(factory),
+        # One update at a time per user: double taps run in order, never concurrently.
+        events_isolation=SimpleEventIsolation(),
+        clock=clock,
+        admin_tg_id=admin_tg_id,
+        calendar_url=calendar_url,
     )
     flood = ThrottleMiddleware() if throttle else None
     for observer in (dp.message, dp.callback_query):

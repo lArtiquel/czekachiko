@@ -9,6 +9,7 @@ from czekachiko.app import build_dispatcher
 from czekachiko.config import Settings
 from czekachiko.db.session import make_session_factory, run_migrations
 from czekachiko.i18n import t
+from czekachiko.middlewares import CONCURRENCY
 
 COMMANDS = ["start", "cases", "add", "stats", "calendar", "settings", "help", "cancel"]
 log = logging.getLogger("czekachiko")
@@ -36,7 +37,7 @@ async def run(settings: Settings) -> None:
         tasks.append(start_worker(settings, factory))
     try:
         await dp.start_polling(
-            bot, allowed_updates=["message", "callback_query"], tasks_concurrency_limit=20
+            bot, allowed_updates=["message", "callback_query"], tasks_concurrency_limit=CONCURRENCY
         )
     finally:
         for task in tasks:

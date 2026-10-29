@@ -12,7 +12,10 @@ async def show(event: Message | CallbackQuery, screen: Screen, new: bool = False
     """Edit the live message for button presses; send a new one for typed input."""
     text, kb = screen
     if isinstance(event, CallbackQuery):
-        await event.answer()
+        try:
+            await event.answer()
+        except TelegramBadRequest as e:  # e.g. "query is too old" after a restart
+            log.info("callback answer failed: %s", e)
         if not new and event.message is not None:
             try:
                 await event.message.edit_text(text, reply_markup=kb)

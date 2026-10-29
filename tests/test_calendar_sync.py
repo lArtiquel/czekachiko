@@ -109,3 +109,22 @@ async def test_upsert_for_deleted_case_is_dropped(session_factory):
     await drain_outbox(session_factory, cal, CAL, NOW)
     assert list(cal.events) == ["e1"]  # only the real case's event
     assert c.id != 999
+
+
+async def test_case_deleted_during_insert_leaves_no_event(session_factory):
+    async with session_factory() as s:
+        c = await new_case(s)
+    case_id = c.id
+
+    class DeletingCalendar(FakeCalendar):
+        async def insert(self, calendar_id, title, day, description):
+            eid = await super().insert(calendar_id, title, day, description)
+            async with session_factory() as s2:  # user deletes the case mid-flight
+                await repo.delete_case(s2, await repo.get_case(s2, 1, case_id))
+                await s2.commit()
+            return eid
+
+    cal = DeletingCalendar()
+    await drain_outbox(session_factory, cal, CAL, NOW)
+    await drain_outbox(session_factory, cal, CAL, NOW)
+    assert cal.events == {}

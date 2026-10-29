@@ -217,3 +217,34 @@ async def test_throttle_bans_flooder():
     t[0] = 20.5 + 601
     await mw(handler, None, user)
     assert calls == before + 1
+
+
+async def test_answer_failure_does_not_lose_data(env):
+    env[2].fail_answer = True
+    await drive_wizard(env)
+    async with env[3]() as s:
+        assert await repo.count_cases(s, UID) == 1
+
+
+async def test_double_tap_on_filed_date_creates_one_case_without_error(env):
+    import asyncio
+
+    for data in [
+        Nav(to="add"),
+        Pick(field="voiv", value="mazowieckie"),
+        Pick(field="purpose", value="jdg"),
+        Pick(field="channel", value="paper"),
+    ]:
+        await feed(env, callback_update(UID, data.pack()))
+    tap = Day(y=2026, m=3, d=6).pack()
+    await asyncio.gather(feed(env, callback_update(UID, tap)), feed(env, callback_update(UID, tap)))
+    async with env[3]() as s:
+        assert await repo.count_cases(s, UID) == 1
+
+
+def test_db_pool_covers_concurrency():
+    from czekachiko.db.session import MAX_OVERFLOW, POOL_SIZE
+    from czekachiko.middlewares import CONCURRENCY
+
+    # each in-flight update may hold its own session plus one FSM-storage session
+    assert CONCURRENCY * 2 <= POOL_SIZE + MAX_OVERFLOW

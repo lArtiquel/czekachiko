@@ -239,36 +239,44 @@ async def get_aggregate(
 async def _recompute_key(s: AsyncSession, voiv: str | None, purpose: str, a: str, b: str) -> None:
     scope = "national" if voiv is None else "voiv"
     agg = aggregate(await interval_values(s, scope, voiv, purpose, a, b))
-    voiv_cond = (
-        AggregateRow.voivodeship.is_(None) if voiv is None else AggregateRow.voivodeship == voiv
-    )
-    await s.execute(
-        delete(AggregateRow).where(
-            voiv_cond,
-            AggregateRow.purpose == purpose,
-            AggregateRow.from_m == a,
-            AggregateRow.to_m == b,
+    if agg is None:
+        voiv_cond = (
+            AggregateRow.voivodeship.is_(None) if voiv is None else AggregateRow.voivodeship == voiv
         )
-    )
-    if agg is not None:
-        s.add(
-            AggregateRow(
-                voivodeship=voiv,
-                purpose=purpose,
-                from_m=a,
-                to_m=b,
-                n=agg.n,
-                p10=agg.p10,
-                median=agg.median,
-                p90=agg.p90,
-                min=agg.min,
-                max=agg.max,
+        await s.execute(
+            delete(AggregateRow).where(
+                voiv_cond,
+                AggregateRow.purpose == purpose,
+                AggregateRow.from_m == a,
+                AggregateRow.to_m == b,
             )
         )
+        return
+    values = {
+        "n": agg.n,
+        "p10": agg.p10,
+        "median": agg.median,
+        "p90": agg.p90,
+        "min": agg.min,
+        "max": agg.max,
+    }
+    await s.execute(
+        insert(AggregateRow)
+        .values(voivodeship=voiv, purpose=purpose, from_m=a, to_m=b, **values)
+        .on_conflict_do_update(
+            index_elements=["voivodeship", "purpose", "from_m", "to_m"],
+            set_={**values, "updated_at": func.now()},
+        )
+    )
 
 
 async def recompute_for(s: AsyncSession, voiv: str, purpose: str) -> None:
-    """Recompute every interval pair for one voivodeship + purpose and its national key."""
+    """Recompute every interval pair for one voivodeship + purpose and its national key.
+
+    Writers of the same purpose share the national key, so they are serialized with a
+    transaction-scoped advisory lock; the next writer then reads the committed data.
+    """
+    await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"agg:{purpose}"})
     for a, b in INTERVAL_PAIRS:
         await _recompute_key(s, str(voiv), str(purpose), str(a), str(b))
         await _recompute_key(s, None, str(purpose), str(a), str(b))

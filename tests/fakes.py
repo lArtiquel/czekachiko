@@ -16,9 +16,14 @@ class FakeSession(BaseSession):
     def __init__(self):
         super().__init__()
         self.calls: list[TelegramMethod] = []
+        self.fail_answer = False
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
+        if self.fail_answer and isinstance(method, AnswerCallbackQuery):
+            from aiogram.exceptions import TelegramBadRequest
+
+            raise TelegramBadRequest(method=method, message="query is too old")
         if isinstance(method, SendMessage | EditMessageText):
             chat_id = getattr(method, "chat_id", None) or 1
             return Message(

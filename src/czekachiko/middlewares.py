@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from czekachiko.db import repo
 
 log = logging.getLogger(__name__)
+# Each in-flight update holds its own DB session plus short FSM-storage sessions.
+CONCURRENCY = 5
 Handler = Callable[[Any, dict[str, Any]], Awaitable[Any]]
 
 
@@ -71,7 +73,7 @@ class DbMiddleware(BaseMiddleware):
 
 
 class ConcurrencyMiddleware(BaseMiddleware):
-    def __init__(self, limit: int = 20):
+    def __init__(self, limit: int = CONCURRENCY):
         self.sem = asyncio.Semaphore(limit)
 
     async def __call__(self, handler: Handler, event: Any, data: dict[str, Any]) -> Any:

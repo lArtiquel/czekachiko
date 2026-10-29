@@ -6,11 +6,11 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.db import repo
-from czekachiko.db.models import CalendarEvent, Case, MilestoneRow, OutboxRow
+from czekachiko.db.models import CalendarEvent, MilestoneRow, OutboxRow
 
 log = logging.getLogger(__name__)
 API = "https://www.googleapis.com/calendar/v3/calendars"
@@ -80,34 +80,54 @@ async def _milestone_exists(s, case_id: int, milestone: str) -> bool:
     return await s.get(MilestoneRow, (case_id, milestone)) is not None
 
 
-async def _process(s, row: OutboxRow, client: CalendarClient, calendar_id: str) -> None:
-    mapping = await s.get(CalendarEvent, (row.case_id, row.milestone))
+async def _case_alive(factory: async_sessionmaker, case_id: int, milestone: str) -> bool:
+    async with factory() as s:
+        return await s.get(MilestoneRow, (case_id, milestone)) is not None
+
+
+async def _process(
+    factory: async_sessionmaker, row: OutboxRow, client: CalendarClient, calendar_id: str
+) -> None:
+    async with factory() as s:
+        mapping = await s.get(CalendarEvent, (row.case_id, row.milestone))
+        event_id = mapping.event_id if mapping else None
+
     if row.op == "delete":
-        if mapping is not None:
-            await client.delete(calendar_id, mapping.event_id)
-            await s.delete(mapping)
+        if event_id is not None:
+            await client.delete(calendar_id, event_id)
+            async with factory() as s:
+                await s.execute(
+                    delete(CalendarEvent).where(
+                        CalendarEvent.case_id == row.case_id,
+                        CalendarEvent.milestone == row.milestone,
+                    )
+                )
+                await s.commit()
         return
-    if await s.get(Case, row.case_id) is None or not await _milestone_exists(
-        s, row.case_id, row.milestone
-    ):
+
+    if not await _case_alive(factory, row.case_id, row.milestone):
         return  # case or milestone gone; a delete row handles any existing event
     p = row.payload
     day = date.fromisoformat(p["date"])
-    if mapping is not None:
-        await client.update(calendar_id, mapping.event_id, p["title"], day, p["description"])
+    if event_id is not None:
+        await client.update(calendar_id, event_id, p["title"], day, p["description"])
         return
     event_id = await client.insert(calendar_id, p["title"], day, p["description"])
-    await repo.record_event_id(s, row.case_id, row.milestone, event_id)
-    await s.flush()
-    # The case may have been deleted while the insert was in flight.
-    await s.refresh(row)
-    if await s.get(Case, row.case_id, populate_existing=True) is None:
+    # Commit the mapping at once, so a delete or edit queued meanwhile can find the event.
+    async with factory() as s:
+        await repo.record_event_id(s, row.case_id, row.milestone, event_id)
+        await s.commit()
+    if not await _case_alive(factory, row.case_id, row.milestone):
+        # Deleted while the insert was in flight: remove the event now.
         await client.delete(calendar_id, event_id)
-        await s.execute(
-            delete(CalendarEvent).where(
-                CalendarEvent.case_id == row.case_id, CalendarEvent.milestone == row.milestone
+        async with factory() as s:
+            await s.execute(
+                delete(CalendarEvent).where(
+                    CalendarEvent.case_id == row.case_id,
+                    CalendarEvent.milestone == row.milestone,
+                )
             )
-        )
+            await s.commit()
 
 
 async def drain_outbox(
@@ -118,38 +138,39 @@ async def drain_outbox(
     batch: int = 50,
 ) -> int:
     async with factory() as s:
-        ids = (
+        rows = (
             await s.scalars(
-                select(OutboxRow.id)
+                select(OutboxRow)
                 .where(OutboxRow.next_try_at <= now)
                 .order_by(OutboxRow.id)
                 .limit(batch)
             )
         ).all()
     done = 0
-    for row_id in ids:
-        async with factory() as s:
-            row = await s.get(OutboxRow, row_id)
-            if row is None:
-                continue
-            try:
-                await _process(s, row, client, calendar_id)
-                await s.delete(row)
-                await s.commit()
-                done += 1
-            except Exception as e:  # noqa: BLE001 — one bad row must not stop the queue
-                await s.rollback()
-                row = await s.get(OutboxRow, row_id)
-                if row is not None:
-                    row.attempts += 1
-                    row.next_try_at = now + timedelta(minutes=min(2**row.attempts, 360))
-                    await s.commit()
-                log.warning(
-                    "calendar sync failed (row %s, attempt %s): %s",
-                    row_id,
-                    row.attempts if row else "?",
-                    type(e).__name__,
+    for row in rows:
+        try:
+            await _process(factory, row, client, calendar_id)
+        except Exception as e:  # noqa: BLE001 — one bad row must not stop the queue
+            async with factory() as s:
+                attempts = row.attempts + 1
+                await s.execute(
+                    update(OutboxRow)
+                    .where(OutboxRow.id == row.id)
+                    .values(
+                        attempts=attempts,
+                        next_try_at=now + timedelta(minutes=min(2**attempts, 360)),
+                    )
                 )
+                await s.commit()
+            log.warning(
+                "calendar sync failed (row %s, attempt %s): %s", row.id, attempts, type(e).__name__
+            )
+            continue
+        async with factory() as s:
+            # The row may already be gone (superseded by an edit or deletion): fine.
+            await s.execute(delete(OutboxRow).where(OutboxRow.id == row.id))
+            await s.commit()
+        done += 1
     return done
 
 
