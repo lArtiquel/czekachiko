@@ -99,7 +99,12 @@ def _add_months(y: int, m: int, delta: int) -> tuple[int, int]:
 
 
 def date_picker(
-    lang: str, year: int, month: int, today: date, can_clear: bool = False
+    lang: str,
+    year: int,
+    month: int,
+    today: date,
+    can_clear: bool = False,
+    back: CallbackData | None = None,
 ) -> InlineKeyboardMarkup:
     L = loc(lang)
     rows: list[list[InlineKeyboardButton]] = []
@@ -129,7 +134,7 @@ def date_picker(
     rows.append(quick)
     if can_clear:
         rows.append([btn(t(lang, "btn_clear_date"), Act(action="clear_date"))])
-    rows.append(cancel_row(lang))
+    rows.append(([btn(t(lang, "btn_back"), back)] if back is not None else []) + cancel_row(lang))
     return markup(rows)
 
 

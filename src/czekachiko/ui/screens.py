@@ -1,10 +1,12 @@
 """Pure screen renderers: data in, (text, keyboard) out."""
 
 from datetime import date
+from html import escape
 from urllib.parse import quote, urlencode
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from czekachiko import documents
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.i18n import label, loc, t, voiv_label
 from czekachiko.stats import Aggregate, Forecast
@@ -13,6 +15,8 @@ from czekachiko.ui.keyboards import (
     Nav,
     Pick,
     btn,
+    cancel_row,
+    date_picker,
     enum_picker,
     markup,
     nav_row,
@@ -161,19 +165,30 @@ def _forecast_text(lang: str, case, f: Forecast | None) -> str:
     return f"{head}\n{body}\n<i>{extra}</i>"
 
 
-def case_view(lang: str, case, f: Forecast | None, chain: dict | None = None) -> Screen:
+def case_view(
+    lang: str,
+    case,
+    f: Forecast | None,
+    chain: dict | None = None,
+    docs: tuple[int, int] | None = None,
+) -> Screen:
+    """docs: (ticked, total) for the owner's checklist; None leaves the line out."""
     dates = case.dates()
     channel = label(lang, "CHANNEL_LABELS", Channel(case.channel))
     filed = dates[M.filed]
     lines = [
         f"<b>{case_title(lang, case)}</b> · {channel}",
         f"📨 {label(lang, 'MILESTONE_LABELS', M.filed)} — {fmt(filed)}",
-        "",
-        *chain_lines(lang, chain or {}, dates),
     ]
+    if docs is not None:
+        lines.append(t(lang, "docs_progress", done=docs[0], total=docs[1]))
+    lines += ["", *chain_lines(lang, chain or {}, dates)]
     lines += ["", _forecast_text(lang, case, f), "", t(lang, "disclaimer")]
     rows = [
-        [btn(t(lang, "btn_mark"), Nav(to="mark", case_id=case.id))],
+        [
+            btn(t(lang, "btn_mark"), Nav(to="mark", case_id=case.id)),
+            btn(t(lang, "btn_docs"), Nav(to="docs", case_id=case.id)),
+        ],
         [send_to_chat(lang, f"c:{case.id}")],
         [btn(t(lang, "btn_delete_case"), Act(action="del_case", case_id=case.id))],
         nav_row(lang, Nav(to="cases")),
@@ -255,6 +270,89 @@ def outlier_prompt(
         nav_row(lang),
     ]
     return text, markup(rows)
+
+
+# --- documents -----------------------------------------------------------
+# Custom names are free text. Message text is parsed as HTML, so names are escaped there;
+# button labels are plain text and take the raw name.
+
+
+def docs_view(lang: str, case, docs: list, notice: str | None = None) -> Screen:
+    """Buttons tick every item; the text lists what was sent, with dates (text wraps,
+    button labels get cut off)."""
+    std = {d.code: d.submitted_on for d in docs if d.code is not None}
+    # (label, submitted_on, callback value): the purpose's list first, then the owner's own.
+    items = [(documents.doc_name(c), std.get(c), c) for c in documents.checklist(case.purpose)]
+    items += [(d.name, d.submitted_on, str(d.id)) for d in docs if d.name is not None]
+    done, total = documents.progress(case.purpose, docs)
+    lines = [t(lang, "docs_title", done=done, total=total), case_title(lang, case), ""]
+    sent = [f"✅ {escape(name)} — {fmt(d)}" for name, d, _ in items if d]
+    lines += [*sent, ""] if sent else []
+    lines += [f"<i>{t(lang, 'docs_note')}</i>", t(lang, "docs_hint")]
+    if notice:
+        lines[:0] = [notice, ""]
+    rows = [
+        [btn(f"{'✅' if d else '⬜'} {name}", Pick(field="doc", value=v, case_id=case.id))]
+        for name, d, v in items
+    ]
+    rows.append([btn(t(lang, "btn_doc_add"), Act(action="doc_add", case_id=case.id))])
+    rows.append(nav_row(lang, Nav(to="case", case_id=case.id)))
+    return "\n".join(lines), markup(rows)
+
+
+def doc_item_view(lang: str, case_id: int, doc) -> Screen:
+    """One of the owner's own documents: date, rename, delete."""
+    d = doc.submitted_on
+    status = t(lang, "doc_sent", date=fmt(d)) if d else t(lang, "doc_not_sent")
+    v = str(doc.id)
+    rows = [
+        [btn(t(lang, "btn_doc_date"), Act(action="doc_date", case_id=case_id, value=v))],
+        [
+            btn(t(lang, "btn_doc_rename"), Act(action="doc_ren", case_id=case_id, value=v)),
+            btn(t(lang, "btn_doc_delete"), Act(action="doc_del", case_id=case_id, value=v)),
+        ],
+        nav_row(lang, Nav(to="docs", case_id=case_id)),
+    ]
+    return f"📄 <b>{escape(doc.name)}</b>\n{status}", markup(rows)
+
+
+def doc_name_prompt(
+    lang: str, case_id: int, rename: bool = False, error: str | None = None
+) -> Screen:
+    text = t(lang, "doc_ask_rename" if rename else "doc_ask_name", max=documents.MAX_NAME)
+    if error:
+        text = f"⚠️ {error}\n\n{text}"
+    rows = [[btn(t(lang, "btn_back"), Nav(to="docs", case_id=case_id)), *cancel_row(lang)]]
+    return text, markup(rows)
+
+
+def doc_date_prompt(
+    lang: str,
+    case_id: int,
+    name: str,
+    year: int,
+    month: int,
+    today: date,
+    can_clear: bool = False,
+    error: str | None = None,
+) -> Screen:
+    text = t(lang, "doc_ask_date", name=escape(name))
+    if error:
+        text = f"⚠️ {error}\n\n{text}"
+    back = Nav(to="docs", case_id=case_id)
+    return text, date_picker(lang, year, month, today, can_clear=can_clear, back=back)
+
+
+def confirm_delete_doc(lang: str, case_id: int, doc) -> Screen:
+    v = str(doc.id)
+    rows = [
+        [
+            btn(t(lang, "btn_yes_delete"), Act(action="doc_del_yes", case_id=case_id, value=v)),
+            btn(t(lang, "btn_no"), Pick(field="doc", value=v, case_id=case_id)),
+        ],
+        nav_row(lang, Nav(to="docs", case_id=case_id)),
+    ]
+    return t(lang, "confirm_delete_doc", name=escape(doc.name)), markup(rows)
 
 
 # --- stats ---------------------------------------------------------------
