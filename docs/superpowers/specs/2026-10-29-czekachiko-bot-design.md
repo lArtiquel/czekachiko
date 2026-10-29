@@ -92,6 +92,7 @@ Order validation: each set milestone date is at or after `filed`, and `fingerpri
 ## Public Google Calendar
 
 - A **Google service account** owns a dedicated calendar, shared publicly as read-only (ACL `default: reader`). Events are created by the service account, so its email is the creator. **The maintainer's personal email never appears.** The maintainer creates the Cloud project and service account and keeps the JSON key outside the repo. That is the only manual step.
+- **Every milestone of every case is published automatically**, with no opt-in and no checkbox. The maintainer decided this on 2026-10-29. The first-screen privacy line says so.
 - Each set milestone produces one all-day event titled `<Voivodeship> · <purpose label> · <milestone>`, for example `Mazowieckie · art. 142 · отпечатки`. The description holds the filing month only, for example "filed 03.2026". No user id, no case id.
 - Edits and deletions update or remove the event. The mapping event_id ↔ (case, milestone) is stored in our DB.
 - Calendar writes are **asynchronous and best-effort**: a failure is logged and retried later and never blocks the bot's reply. If no credentials are configured, the calendar feature is disabled and the `/calendar` screen says "coming soon".
@@ -134,4 +135,4 @@ Module layout, FSM implementation detail, the exact calendar keyboard, i18n mech
 
 1. The bot token from BotFather, and the chosen username.
 2. A Google Cloud project + service-account JSON key for the calendar. The bot ships without it, and the calendar switches on when the key arrives.
-3. **Calendar consent:** whether every milestone is published automatically or only for cases whose owner opted in, and whether a minimum group size applies before publishing. *(pending)*
+
