@@ -199,7 +199,7 @@ def stats_pick_voiv(lang: str) -> Screen:
 
 
 def stats_pick_purpose(lang: str, voiv: str) -> Screen:
-    opts = [(str(p), label(lang, "PURPOSE_BUTTONS", p)) for p in Purpose]
+    opts = [(f"{voiv}|{p}", label(lang, "PURPOSE_BUTTONS", p)) for p in Purpose]
     kb = enum_picker(lang, "stats_purpose", opts, cols=1, back=Nav(to="stats"), cancel=False)
     return t(lang, "stats_pick_purpose"), kb
 
@@ -312,3 +312,7 @@ def date_prompt(lang: str, milestone: Milestone) -> str:
         milestone=label(lang, "MILESTONE_LABELS", milestone),
         hint=label(lang, "MILESTONE_HINTS", milestone),
     )
+
+
+def markup_one(lang: str, key: str, data) -> InlineKeyboardMarkup:
+    return markup([[btn(t(lang, key), data)], nav_row(lang)])

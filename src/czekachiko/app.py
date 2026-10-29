@@ -1,0 +1,34 @@
+from collections.abc import Callable
+from datetime import date
+
+from aiogram import Dispatcher
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from czekachiko.fsm_storage import PgStorage
+from czekachiko.handlers import cases, common, settings, stats
+from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
+
+
+def build_dispatcher(
+    factory: async_sessionmaker,
+    clock: Callable[[], date] = date.today,
+    admin_tg_id: int | None = None,
+    calendar_url: str | None = None,
+    throttle: bool = True,
+) -> Dispatcher:
+    dp = Dispatcher(
+        storage=PgStorage(factory), clock=clock, admin_tg_id=admin_tg_id, calendar_url=calendar_url
+    )
+    flood = ThrottleMiddleware() if throttle else None
+    for observer in (dp.message, dp.callback_query):
+        if flood is not None:
+            observer.outer_middleware(flood)
+        observer.outer_middleware(ConcurrencyMiddleware())
+        observer.middleware(DbMiddleware(factory))
+    routers = [common.router, cases.router, stats.router, settings.router, common.fallback]
+    for r in routers:
+        # Module-level routers can belong to one dispatcher at a time; detach so tests
+        # (and any rebuild) can create a fresh dispatcher.
+        r._parent_router = None
+    dp.include_routers(*routers)
+    return dp
