@@ -5,7 +5,7 @@ from aiogram import Dispatcher
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.fsm_storage import PgStorage
-from czekachiko.handlers import cases, common, settings, stats
+from czekachiko.handlers import admin, cases, common, settings, stats
 from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
 
 
@@ -25,7 +25,14 @@ def build_dispatcher(
             observer.outer_middleware(flood)
         observer.outer_middleware(ConcurrencyMiddleware())
         observer.middleware(DbMiddleware(factory))
-    routers = [common.router, cases.router, stats.router, settings.router, common.fallback]
+    routers = [
+        admin.router,
+        common.router,
+        cases.router,
+        stats.router,
+        settings.router,
+        common.fallback,
+    ]
     for r in routers:
         # Module-level routers can belong to one dispatcher at a time; detach so tests
         # (and any rebuild) can create a fresh dispatcher.
