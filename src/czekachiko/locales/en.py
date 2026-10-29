@@ -5,15 +5,15 @@ from czekachiko.domain import Channel, Milestone, Purpose
 P, M = Purpose, Milestone
 
 PURPOSE_LABELS = {
-    P.praca: "art. 114",
-    P.jdg: "art. 142",
+    P.praca: "work",
+    P.jdg: "own business (JDG)",
     P.studia: "study",
     P.rodzina: "family",
     P.inne: "other",
 }
 PURPOSE_BUTTONS = {
     P.praca: "Work (art. 114)",
-    P.jdg: "Business, JDG (art. 142)",
+    P.jdg: "Own business — JDG (art. 142)",
     P.studia: "Study",
     P.rodzina: "Family",
     P.inne: "Other",

@@ -99,7 +99,7 @@ async def test_outbox_payload_is_anonymous(session):
             select(OutboxRow).where(OutboxRow.milestone == "fingerprints", OutboxRow.op == "upsert")
         )
     ).first()
-    assert row.payload["title"] == "Mazowieckie · art. 142 · отпечатки"
+    assert row.payload["title"] == "Mazowieckie · своё дело (JDG) · отпечатки"
     assert row.payload["date"] == "2026-10-29"
     assert "03.2026" in row.payload["description"]
     assert "548" not in str(row.payload) and str(c.id) not in row.payload["description"]

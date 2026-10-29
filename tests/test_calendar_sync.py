@@ -54,7 +54,7 @@ async def test_drain_inserts_and_records_event_id(session_factory):
         ev = await s.get(CalendarEvent, (c.id, "filed"))
         assert ev.event_id == "e1"
         assert (await s.scalars(select(OutboxRow))).all() == []
-    assert cal.events["e1"]["title"] == "Mazowieckie · art. 142 · подача"
+    assert cal.events["e1"]["title"] == "Mazowieckie · своё дело (JDG) · подача"
 
 
 async def test_drain_update_uses_existing_event_id(session_factory):

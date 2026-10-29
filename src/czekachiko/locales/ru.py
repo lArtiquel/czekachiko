@@ -24,8 +24,8 @@ VOIV_LABELS = {
 }
 
 PURPOSE_LABELS = {
-    P.praca: "art. 114",
-    P.jdg: "art. 142",
+    P.praca: "работа",
+    P.jdg: "своё дело (JDG)",
     P.studia: "учёба",
     P.rodzina: "семья",
     P.inne: "другое",
@@ -44,7 +44,7 @@ CHANNEL_LABELS = {Channel.mos: "MOS (онлайн)", Channel.paper: "Лично 
 
 PURPOSE_BUTTONS = {
     P.praca: "Работа (art. 114)",
-    P.jdg: "Działalność gospodarcza (art. 142)",
+    P.jdg: "Своё дело / ИП — JDG (art. 142)",
     P.studia: "Учёба",
     P.rodzina: "Семья",
     P.inne: "Другое",

@@ -138,3 +138,9 @@ def test_stats_view_shows_rows_even_with_one_case():
     text, _ = screens.stats_view("ru", "mazowieckie", "jdg", aggs, None, None)
     assert "в среднем 195 дн." in text and "(дел: 1)" in text
     assert "decyzja" in text and "(дел: 0)" in text
+
+
+def test_purpose_labels_are_plain_words():
+    for loc in (ru, en):
+        for v in loc.PURPOSE_LABELS.values():
+            assert "art." not in v
