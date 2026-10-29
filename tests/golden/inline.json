@@ -1,0 +1,252 @@
+{
+  "empty": {
+    "query": "",
+    "cache_time": 30,
+    "is_personal": false,
+    "button": {
+      "text": "🔘 Выбрать кнопками",
+      "start_parameter": "pick"
+    },
+    "results": [
+      {
+        "id": "s:praca:6",
+        "title": "Mazowieckie · работа",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · работа</b>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 105 дн. (мин 105, макс 105) (дел: 1)</i>\n• decyzja\n    <i>данных пока нет (дел: 0)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      },
+      {
+        "id": "s:jdg:6",
+        "title": "Mazowieckie · бизнес (JDG)",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · бизнес (JDG)</b>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>обычно: в среднем 30 дн. (мин 28, макс 35) (дел: 3)</i>\n• вызов на отпечатки пальцев\n    <i>обычно: в среднем 42 дн. (мин 42, макс 42) (дел: 1)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 133 дн. (мин 105, макс 161) (дел: 6)</i>\n• decyzja\n    <i>обычно: в среднем 201 дн. (мин 177, макс 224) (дел: 3)</i>\n• карта\n    <i>обычно: в среднем 217 дн. (мин 217, макс 217) (дел: 1)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      },
+      {
+        "id": "s:praca:5",
+        "title": "Małopolskie · работа",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · работа</b>\n\n<b>Małopolskie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 99 дн. (мин 99, макс 99) (дел: 1)</i>\n• decyzja\n    <i>обычно: в среднем 188 дн. (мин 188, макс 188) (дел: 1)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      },
+      {
+        "id": "s:praca:0",
+        "title": "Dolnośląskie · работа",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · работа</b>\n\n<b>Dolnośląskie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>данных пока нет (дел: 0)</i>\n• decyzja\n    <i>данных пока нет (дел: 0)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "alias_warszawa": {
+    "query": "варшава",
+    "cache_time": 30,
+    "is_personal": false,
+    "button": {
+      "text": "🔘 Выбрать кнопками",
+      "start_parameter": "pick"
+    },
+    "results": [
+      {
+        "id": "s:praca:6",
+        "title": "Mazowieckie · работа",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · работа</b>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 105 дн. (мин 105, макс 105) (дел: 1)</i>\n• decyzja\n    <i>данных пока нет (дел: 0)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      },
+      {
+        "id": "s:jdg:6",
+        "title": "Mazowieckie · бизнес (JDG)",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · бизнес (JDG)</b>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>обычно: в среднем 30 дн. (мин 28, макс 35) (дел: 3)</i>\n• вызов на отпечатки пальцев\n    <i>обычно: в среднем 42 дн. (мин 42, макс 42) (дел: 1)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 133 дн. (мин 105, макс 161) (дел: 6)</i>\n• decyzja\n    <i>обычно: в среднем 201 дн. (мин 177, макс 224) (дел: 3)</i>\n• карта\n    <i>обычно: в среднем 217 дн. (мин 217, макс 217) (дел: 1)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "stats_code": {
+    "query": "s:jdg:6",
+    "cache_time": 30,
+    "is_personal": false,
+    "button": {
+      "text": "🔘 Выбрать кнопками",
+      "start_parameter": "pick"
+    },
+    "results": [
+      {
+        "id": "s:jdg:6",
+        "title": "Mazowieckie · бизнес (JDG)",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · бизнес (JDG)</b>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>обычно: в среднем 30 дн. (мин 28, макс 35) (дел: 3)</i>\n• вызов на отпечатки пальцев\n    <i>обычно: в среднем 42 дн. (мин 42, макс 42) (дел: 1)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 133 дн. (мин 105, макс 161) (дел: 6)</i>\n• decyzja\n    <i>обычно: в среднем 201 дн. (мин 177, макс 224) (дел: 3)</i>\n• карта\n    <i>обычно: в среднем 217 дн. (мин 217, макс 217) (дел: 1)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "compare_code": {
+    "query": "s:praca:5,6",
+    "cache_time": 30,
+    "is_personal": false,
+    "button": {
+      "text": "🔘 Выбрать кнопками",
+      "start_parameter": "pick"
+    },
+    "results": [
+      {
+        "id": "s:praca:5,6",
+        "title": "Małopolskie, Mazowieckie · работа",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "📊 <b>Czekachiko · работа</b>\n\n<b>Małopolskie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 99 дн. (мин 99, макс 99) (дел: 1)</i>\n• decyzja\n    <i>обычно: в среднем 188 дн. (мин 188, макс 188) (дел: 1)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<b>Mazowieckie</b>\n• номер дела\n    <i>данных пока нет (дел: 0)</i>\n• вызов на отпечатки пальцев\n    <i>данных пока нет (дел: 0)</i>\n• отпечатки сданы\n    <i>обычно: в среднем 105 дн. (мин 105, макс 105) (дел: 1)</i>\n• decyzja\n    <i>данных пока нет (дел: 0)</i>\n• карта\n    <i>данных пока нет (дел: 0)</i>\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "own_case": {
+    "query": "c:12",
+    "cache_time": 0,
+    "is_personal": true,
+    "button": null,
+    "results": [
+      {
+        "id": "c:12",
+        "title": "Моё дело · Mazowieckie · бизнес (JDG)",
+        "description": "Сроки по этапам: в среднем, мин, макс",
+        "message_text": "🐕 <b>Моё дело в Czekachiko</b>\n\n<b>Mazowieckie · бизнес (JDG)</b> · Лично / почтой\n📨 подача — 03.08.2026\n\n✅ номер дела — 07.09.2026 · 35 дн.\n    <i>обычно: в среднем 30 дн. (мин 28, макс 35) (дел: 3)</i>\n⏳ вызов на отпечатки пальцев\n    <i>обычно: в среднем 42 дн. (мин 42, макс 42) (дел: 1)</i>\n⏳ отпечатки сданы\n    <i>обычно: в среднем 133 дн. (мин 105, макс 161) (дел: 6)</i>\n⏳ decyzja\n    <i>обычно: в среднем 201 дн. (мин 177, макс 224) (дел: 3)</i>\n⏳ карта\n    <i>обычно: в среднем 217 дн. (мин 217, макс 217) (дел: 1)</i>\n\nПрогноз: <b>отпечатки сданы</b>\nобычно между <b>19.11.2026</b> и <b>04.01.2027</b>, чаще всего около <b>17.12.2026</b>\n<i>по 6 завершённым делам (Mazowieckie, бизнес (JDG)), которые ждали не меньше тебя</i>\n<i>быстрее всех: 105 дн. · дольше всех: 161 дн.</i>\n\nℹ️ Дата в письме urzędu — не прогноз. Здесь оценка по данным людей, не официальная.\n\n<i>Сроки по анонимным данным людей, не официальные · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Открыть Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "foreign_case": {
+    "query": "c:1",
+    "cache_time": 0,
+    "is_personal": true,
+    "button": null,
+    "results": []
+  },
+  "malformed_case": {
+    "query": "c:abc",
+    "cache_time": 0,
+    "is_personal": true,
+    "button": null,
+    "results": []
+  },
+  "own_case_en": {
+    "query": "c:12",
+    "cache_time": 0,
+    "is_personal": true,
+    "button": null,
+    "results": [
+      {
+        "id": "c:12",
+        "title": "My case · Mazowieckie · business (JDG)",
+        "description": "Timelines per milestone: average, min, max",
+        "message_text": "🐕 <b>My case on Czekachiko</b>\n\n<b>Mazowieckie · business (JDG)</b> · In person / by post\n📨 filed — 03.08.2026\n\n✅ case number — 07.09.2026 · 35 d\n    <i>typically: on average 30 d (min 28, max 35) (cases: 3)</i>\n⏳ fingerprint appointment letter\n    <i>typically: on average 42 d (min 42, max 42) (cases: 1)</i>\n⏳ fingerprints given\n    <i>typically: on average 133 d (min 105, max 161) (cases: 6)</i>\n⏳ decision\n    <i>typically: on average 201 d (min 177, max 224) (cases: 3)</i>\n⏳ card\n    <i>typically: on average 217 d (min 217, max 217) (cases: 1)</i>\n\nForecast: <b>fingerprints given</b>\nusually between <b>19.11.2026</b> and <b>04.01.2027</b>, most often around <b>17.12.2026</b>\n<i>from 6 completed cases (Mazowieckie, business (JDG)) that waited at least as long as you</i>\n<i>fastest: 105 d · slowest: 161 d</i>\n\nℹ️ The date in the office's letter is not a forecast. This is an estimate from people's data, not official.\n\n<i>Timelines from people's anonymous data, not official · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Open Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  },
+  "compare_code_en": {
+    "query": "s:praca:5,6",
+    "cache_time": 30,
+    "is_personal": false,
+    "button": {
+      "text": "🔘 Pick with buttons",
+      "start_parameter": "pick"
+    },
+    "results": [
+      {
+        "id": "s:praca:5,6",
+        "title": "Małopolskie, Mazowieckie · work",
+        "description": "Timelines per milestone: average, min, max",
+        "message_text": "📊 <b>Czekachiko · work</b>\n\n<b>Małopolskie</b>\n• case number\n    <i>no data yet (cases: 0)</i>\n• fingerprint appointment letter\n    <i>no data yet (cases: 0)</i>\n• fingerprints given\n    <i>typically: on average 99 d (min 99, max 99) (cases: 1)</i>\n• decision\n    <i>typically: on average 188 d (min 188, max 188) (cases: 1)</i>\n• card\n    <i>no data yet (cases: 0)</i>\n\n<b>Mazowieckie</b>\n• case number\n    <i>no data yet (cases: 0)</i>\n• fingerprint appointment letter\n    <i>no data yet (cases: 0)</i>\n• fingerprints given\n    <i>typically: on average 105 d (min 105, max 105) (cases: 1)</i>\n• decision\n    <i>no data yet (cases: 0)</i>\n• card\n    <i>no data yet (cases: 0)</i>\n\n<i>Timelines from people's anonymous data, not official · @czekachiko_bot</i>",
+        "parse_mode": "HTML",
+        "reply_markup": [
+          [
+            {
+              "text": "🐕 Open Czekachiko",
+              "url": "https://t.me/czekachiko_bot"
+            }
+          ]
+        ]
+      }
+    ]
+  }
+}
