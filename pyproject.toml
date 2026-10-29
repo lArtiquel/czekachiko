@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
     "aiogram>=3.13,<4",
+    "aiohttp>=3.14,<4",  # web.RequestKey
     "sqlalchemy[asyncio]>=2.0,<3",
     "asyncpg>=0.29",
     "alembic>=1.13",

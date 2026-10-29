@@ -9,9 +9,11 @@ MAX_OVERFLOW = 4
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
-def make_session_factory(url: str) -> tuple[AsyncEngine, async_sessionmaker]:
+def make_session_factory(
+    url: str, pool_size: int = POOL_SIZE, max_overflow: int = MAX_OVERFLOW
+) -> tuple[AsyncEngine, async_sessionmaker]:
     engine = create_async_engine(
-        url, pool_size=POOL_SIZE, max_overflow=MAX_OVERFLOW, pool_pre_ping=True
+        url, pool_size=pool_size, max_overflow=max_overflow, pool_pre_ping=True
     )
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 

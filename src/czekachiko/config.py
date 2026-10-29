@@ -1,6 +1,8 @@
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_WEBAPP_URL = "https://lartiquel.github.io/czekachiko/"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
@@ -11,6 +13,7 @@ class Settings(BaseSettings):
     google_service_account_json: str | None = None
     calendar_id: str | None = None
     calendar_public_url: str | None = None
+    webapp_url: str = DEFAULT_WEBAPP_URL
 
     @property
     def calendar_enabled(self) -> bool:
