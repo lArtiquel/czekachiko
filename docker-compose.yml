@@ -18,7 +18,7 @@ services:
     read_only: true
     tmpfs: [/tmp]
     security_opt: ["no-new-privileges:true"]
-    mem_limit: 200m
+    mem_limit: 320m
     cpus: 0.5
     pids_limit: 128
     logging: *logging
