@@ -54,7 +54,7 @@ def test_api_service():
     assert api["command"] == ["python", "-m", "czekachiko.api"]
     assert api["env_file"] == s["bot"]["env_file"]
     assert api["read_only"] is True and api["tmpfs"] == ["/tmp"]
-    assert (api["mem_limit"], api["cpus"], api["pids_limit"]) == ("256m", 0.5, 128)
+    assert (api["mem_limit"], api["cpus"], api["pids_limit"]) == ("320m", 0.5, 128)
     assert api["restart"] == "unless-stopped"
     assert "/api/health" in " ".join(api["healthcheck"]["test"])
     assert "volumes" not in api  # no access to the calendar key
