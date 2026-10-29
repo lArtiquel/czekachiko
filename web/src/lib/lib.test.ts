@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { isKey } from '../i18n';
 import { meta } from '../test/fixtures';
 import { parseHash } from '../router';
 import { addDays, daysBetween, formatDate, monthSpan, validateMilestones } from './dates';
 import { cleanDocName, docDateError } from './docs';
-import { validateNewCase } from './validation';
+import { newClientToken, validateNewCase } from './validation';
 import { filterVoivodeships } from './voivSearch';
 
 describe('validateMilestones mirrors the bot', () => {
@@ -74,5 +75,29 @@ describe('dates and search', () => {
     expect(parseHash('#/stats')).toEqual({ name: 'stats' });
     expect(parseHash('#tgWebAppData=query_id%3D1&tgWebAppVersion=8.0')).toEqual({ name: 'home' });
     expect(parseHash('#/case/abc')).toEqual({ name: 'home' });
+  });
+});
+
+describe('client token', () => {
+  // czekachiko/api/payloads.py CLIENT_TOKEN
+  const SERVER_RULE = /^[A-Za-z0-9_-]{8,64}$/;
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('matches the server rule, with and without crypto.randomUUID', () => {
+    expect(newClientToken()).toMatch(SERVER_RULE);
+    const { getRandomValues } = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: getRandomValues.bind(globalThis.crypto) });
+    const fallback = newClientToken();
+    expect(fallback).toMatch(SERVER_RULE);
+    expect(fallback).not.toBe(newClientToken());
+  });
+});
+
+describe('error copy', () => {
+  it('has a message for every validation code the API sends', () => {
+    // From czekachiko/api/views.py, dates.validate_milestones and documents.
+    const codes = ['invalid', 'not_date', 'required', 'too_many', 'future', 'before_2015', 'before_filed',
+      'order', 'filed_missing', 'doc_name_empty', 'doc_name_long', 'doc_too_early'];
+    for (const code of codes) expect(isKey(`err_${code}`), code).toBe(true);
   });
 });

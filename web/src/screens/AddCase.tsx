@@ -15,7 +15,7 @@ const FIELDS = ['voivodeship', 'purpose', 'channel', 'filed'] as const;
 
 export function AddCase() {
   const { api, tg, t, meta, labels, cache, fail } = useApp();
-  const [clientToken] = useState(newClientToken);
+  const [clientToken, setClientToken] = useState(newClientToken);
   const [voivodeship, setVoivodeship] = useState<string | null>(null);
   const [voivOpen, setVoivOpen] = useState(true);
   const [query, setQuery] = useState('');
@@ -68,7 +68,12 @@ export function AddCase() {
       haptic(tg, 'success');
       navigate(`/case/${created.id}`);
     } catch (err) {
-      if (isApiError(err) && err.kind === 'invalid') {
+      if (isApiError(err) && err.kind === 'invalid' && err.fields.client_token) {
+        // Only possible if the token belongs to someone else's case: start over with a new one.
+        setClientToken(newClientToken());
+        haptic(tg, 'error');
+        await alertDialog(tg, t('err_try_again'));
+      } else if (isApiError(err) && err.kind === 'invalid') {
         const next: Record<string, string> = {};
         for (const f of FIELDS) {
           const code = err.fields[f]?.[0];

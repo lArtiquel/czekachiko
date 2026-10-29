@@ -110,6 +110,22 @@ describe('Add case', () => {
     expect(await screen.findByText('Дата подачи не может быть раньше 2015 года.')).toBeInTheDocument();
   });
 
+  it('starts over with a new token if the server says it is taken', async () => {
+    const { api, tg, user } = await openForm({
+      'POST /api/cases': (_c: Call, n: number) =>
+        n === 1
+          ? { status: 422, body: { error: 'invalid', fields: { client_token: 'taken' } } }
+          : { status: 201, body: cases[0] },
+    });
+    await fillValid(user);
+    await tg.clickMain();
+    expect(tg.webApp.showAlert).toHaveBeenCalledWith('Не получилось сохранить. Попробуй ещё раз.', expect.any(Function));
+    await tg.clickMain();
+    await waitFor(() => expect(window.location.hash).toBe('#/case/7'));
+    const [a, b] = api.callsTo('POST', '/api/cases').map((c) => (c.body as { client_token: string }).client_token);
+    expect(a).not.toBe(b);
+  });
+
   it('explains the five-case limit', async () => {
     const { tg, user } = await openForm({ 'POST /api/cases': { status: 409, body: { error: 'too_many_cases' } } });
     await fillValid(user);
