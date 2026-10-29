@@ -1,0 +1,172 @@
+/* Telegram sets --tg-theme-* and safe-area variables; telegram-ui maps its palette onto them. */
+:root {
+  --page-bg: var(--tg-theme-secondary-bg-color, var(--tgui--secondary_bg_color, #efeff4));
+  --text: var(--tg-theme-text-color, var(--tgui--text_color, #000));
+  --hint: var(--tg-theme-hint-color, var(--tgui--hint_color, #8e8e93));
+  --link: var(--tg-theme-link-color, var(--tgui--link_color, #2481cc));
+  --danger: var(--tg-theme-destructive-text-color, var(--tgui--destructive_text_color, #e53935));
+  --inset-top: max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px));
+  --inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  --inset-left: max(env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
+  --inset-right: max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px));
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--page-bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+.app {
+  min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  background: var(--page-bg);
+  box-sizing: border-box;
+  padding: calc(var(--inset-top) + var(--tg-content-safe-area-inset-top, 0px)) var(--inset-right)
+    calc(24px + var(--inset-bottom) + var(--tg-content-safe-area-inset-bottom, 0px)) var(--inset-left);
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.page-title {
+  padding: 16px 20px 4px;
+}
+
+.page-title p {
+  margin: 6px 0 0;
+}
+
+.hint {
+  color: var(--hint);
+}
+
+.section-text {
+  margin: 0;
+  padding: 12px 20px;
+  line-height: 1.4;
+}
+
+p.section-text + p.section-text {
+  padding-top: 0;
+}
+
+.wrap,
+.section-text,
+.page-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.mark {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 12px;
+}
+
+.editor > .hint {
+  margin: 0;
+  padding: 0 20px;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px;
+}
+
+.editor-actions.padded {
+  padding: 12px 20px;
+}
+
+.danger {
+  color: var(--danger) !important;
+}
+
+.field-error {
+  color: var(--danger);
+  padding: 0 20px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.field-error:empty {
+  display: none;
+}
+
+.forecast p {
+  margin: 0 0 8px;
+}
+
+.forecast-main {
+  font-weight: 600;
+}
+
+.disclaimer {
+  color: var(--hint);
+  font-size: 14px;
+}
+
+.text-button {
+  all: unset;
+  display: inline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.text-button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: -2px;
+}
+
+.hero {
+  font-size: 64px;
+  line-height: 1;
+}
+
+.link-button {
+  display: inline-block;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #fff);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+input[type='date'] {
+  min-height: 24px;
+}
