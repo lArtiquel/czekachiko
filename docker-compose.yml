@@ -25,6 +25,48 @@ services:
     volumes:
       - ./secrets:/run/secrets:ro
 
+  api:
+    build: .
+    command: ["python", "-m", "czekachiko.api"]
+    env_file: [.env, db.env, runtime.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [db, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    logging: *logging
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Publishes the API through a locally managed Cloudflare tunnel. No host ports anywhere.
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    command: ["tunnel", "--no-autoupdate", "run", "--url", "http://api:8080"]
+    env_file: [tunnel.env]  # TUNNEL_TOKEN only; no other container gets it
+    depends_on: [api]
+    networks: [edge]
+    restart: unless-stopped
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    cpus: 0.3
+    pids_limit: 64
+    logging: *logging
+
   db:
     image: postgres:16-alpine
     command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=20"]
@@ -48,6 +90,7 @@ networks:
   db:
     internal: true
   egress: {}
+  edge: {}
 
 volumes:
   pgdata: {}

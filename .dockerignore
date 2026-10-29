@@ -5,9 +5,11 @@
 deploy.env
 db.env
 runtime.env
+tunnel.env
 secrets
 backups
 .superpowers
 **/__pycache__
 tests
 docs
+web
