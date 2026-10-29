@@ -76,7 +76,8 @@ async def test_delete_case_enqueues_calendar_deletes_and_recomputes(session):
     agg = await repo.get_aggregate(session, V.mazowieckie, P.jdg, M.filed, M.fingerprints)
     assert agg.n == 4
     rows = (await session.scalars(select(OutboxRow).where(OutboxRow.case_id == cases[0].id))).all()
-    assert [(r.op, r.milestone) for r in rows] == [("delete", "fingerprints")]
+    assert ("delete", "fingerprints") in [(r.op, r.milestone) for r in rows]
+    assert not [r for r in rows if r.op == "upsert"]
 
 
 async def test_delete_user_cascades(session):
@@ -110,3 +111,24 @@ async def test_recent_events(session):
     await session.commit()
     ev = await repo.recent_events(session, V.mazowieckie, P.jdg, M.fingerprints, date(2026, 10, 1))
     assert ev == [(date(2026, 10, 20), date(2026, 3, 6))]
+
+
+async def test_client_token_scoped_to_owner(session):
+    await make_case(session, 1, "same-token")
+    await session.commit()
+    with pytest.raises(repo.TokenConflict):
+        await make_case(session, 2, "same-token")
+
+
+async def test_delete_case_enqueues_delete_for_every_milestone(session):
+    c = await make_case(session, 1, "tok")
+    await repo.set_milestone(session, c, M.fingerprints, date(2026, 6, 1))
+    await session.commit()
+    case_id = c.id
+    await repo.delete_case(session, c)
+    await session.commit()
+    rows = (await session.scalars(select(OutboxRow).where(OutboxRow.case_id == case_id))).all()
+    assert sorted((r.op, r.milestone) for r in rows) == [
+        ("delete", "filed"),
+        ("delete", "fingerprints"),
+    ]

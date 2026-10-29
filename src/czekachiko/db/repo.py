@@ -19,6 +19,10 @@ class TooManyCases(Exception):
     pass
 
 
+class TokenConflict(Exception):
+    """A client token already belongs to another user's case."""
+
+
 # --- users ---------------------------------------------------------------
 
 
@@ -70,6 +74,8 @@ async def create_case(
 ) -> Case:
     existing = await s.scalar(select(Case).where(Case.client_token == client_token))
     if existing is not None:
+        if existing.tg_id != tg_id:
+            raise TokenConflict
         return existing
     if await count_cases(s, tg_id) >= MAX_CASES:
         raise TooManyCases
@@ -86,10 +92,13 @@ async def delete_case(s: AsyncSession, case: Case) -> None:
     voiv, purpose, case_id = case.voivodeship, case.purpose, case.id
     # Pending upserts would recreate events for a case that no longer exists.
     await s.execute(delete(OutboxRow).where(OutboxRow.case_id == case_id, OutboxRow.op == "upsert"))
+    # Queue a delete for every milestone, not only those with a recorded event: an insert
+    # may be in flight. The worker resolves the event id when it processes the delete.
+    milestones = {m.milestone for m in case.milestones}
     known = (
         await s.scalars(select(CalendarEvent.milestone).where(CalendarEvent.case_id == case_id))
     ).all()
-    for m in known:
+    for m in sorted(milestones | set(known)):
         s.add(OutboxRow(op="delete", case_id=case_id, milestone=m))
     await s.delete(case)
     await s.flush()
