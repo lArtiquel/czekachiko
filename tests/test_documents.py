@@ -1,9 +1,12 @@
 from datetime import date
 
 import pytest
+from sqlalchemy import func, select
 
 from czekachiko import documents
-from czekachiko.domain import Purpose
+from czekachiko.db import repo
+from czekachiko.db.models import AggregateRow, CaseDocument, OutboxRow
+from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 
 TODAY = date(2026, 10, 29)
 FILED = date(2026, 3, 6)
@@ -106,3 +109,114 @@ def test_progress_counts_standard_and_custom():
     ]
     total = len(documents.checklist(Purpose.jdg)) + 2
     assert documents.progress(Purpose.jdg, rows) == (2, total)
+
+
+# --- repository ----------------------------------------------------------------------
+
+
+async def make_case(s, tg_id=1, token="tok", purpose=Purpose.jdg):
+    await repo.ensure_user(s, tg_id)
+    return await repo.create_case(
+        s, tg_id, Voivodeship.mazowieckie, purpose, Channel.mos, FILED, token
+    )
+
+
+async def doc_dates(s, case) -> dict:
+    return {(d.code or d.name): d.submitted_on for d in await repo.list_docs(s, case)}
+
+
+async def test_standard_doc_tick_redate_untick(session):
+    case = await make_case(session)
+    await repo.set_standard_doc(session, case, "wniosek", FILED)
+    assert await doc_dates(session, case) == {"wniosek": FILED}
+    await repo.set_standard_doc(session, case, "wniosek", date(2026, 3, 9))
+    assert await doc_dates(session, case) == {"wniosek": date(2026, 3, 9)}
+    await repo.set_standard_doc(session, case, "wniosek", None)
+    assert await doc_dates(session, case) == {}
+
+
+async def test_standard_code_must_belong_to_the_purpose(session):
+    case = await make_case(session, purpose=Purpose.jdg)
+    with pytest.raises(ValueError):
+        await repo.set_standard_doc(session, case, "zalacznik1", FILED)  # praca only
+
+
+async def test_add_custom_doc_and_limit(session):
+    case = await make_case(session)
+    for i in range(documents.MAX_CUSTOM):
+        await repo.add_custom_doc(session, case, f"Dokument {i}", FILED)
+    assert await repo.count_custom_docs(session, case) == 15
+    with pytest.raises(repo.TooManyDocs):
+        await repo.add_custom_doc(session, case, "Dokument 16", FILED)
+    assert await repo.count_custom_docs(session, case) == 15
+
+
+async def test_custom_doc_name_is_validated_by_the_repo_too(session):
+    case = await make_case(session)
+    with pytest.raises(ValueError):
+        await repo.add_custom_doc(session, case, "a" * 61, FILED)
+    with pytest.raises(ValueError):
+        await repo.add_custom_doc(session, case, "   ", FILED)
+
+
+async def test_custom_doc_rename_redate_untick_delete(session):
+    case = await make_case(session)
+    doc = await repo.add_custom_doc(session, case, "  Zaświadczenie  z banku ", FILED)
+    assert doc.name == "Zaświadczenie z banku"
+    await repo.rename_custom_doc(session, doc, "Wyciąg z banku")
+    await repo.set_doc_date(session, doc, date(2026, 4, 1))
+    assert await doc_dates(session, case) == {"Wyciąg z banku": date(2026, 4, 1)}
+    await repo.set_doc_date(session, doc, None)
+    assert await doc_dates(session, case) == {"Wyciąg z banku": None}
+    await repo.delete_custom_doc(session, doc)
+    assert await doc_dates(session, case) == {}
+
+
+async def test_custom_doc_of_another_case_is_invisible(session):
+    mine = await make_case(session, 1, "a")
+    theirs = await make_case(session, 2, "b")
+    doc = await repo.add_custom_doc(session, theirs, "Cudzy", FILED)
+    assert await repo.get_custom_doc(session, mine, doc.id) is None
+    assert (await repo.get_custom_doc(session, theirs, doc.id)).id == doc.id
+
+
+async def count_docs(s) -> int:
+    return await s.scalar(select(func.count()).select_from(CaseDocument))
+
+
+async def test_deleting_a_case_deletes_its_documents(session):
+    case = await make_case(session)
+    await repo.set_standard_doc(session, case, "wniosek", FILED)
+    await repo.add_custom_doc(session, case, "Własny", FILED)
+    await session.commit()
+    await repo.delete_case(session, case)
+    await session.commit()
+    assert await count_docs(session) == 0
+
+
+async def test_deleting_the_user_deletes_their_documents(session):
+    case = await make_case(session)
+    await repo.add_custom_doc(session, case, "Własny", FILED)
+    await session.commit()
+    await repo.delete_user(session, 1)
+    await session.commit()
+    assert await count_docs(session) == 0
+
+
+async def test_documents_touch_neither_aggregates_nor_calendar(session):
+    case = await make_case(session)
+    await repo.set_milestone(session, case, Milestone.fingerprints, date(2026, 6, 1))
+    await session.commit()
+
+    async def snapshot():
+        aggs = (await session.execute(select(AggregateRow.id, AggregateRow.updated_at))).all()
+        outbox = (await session.execute(select(OutboxRow.id, OutboxRow.payload))).all()
+        return sorted(aggs), sorted(outbox, key=lambda r: r.id)
+
+    before = await snapshot()
+    await repo.set_standard_doc(session, case, "wniosek", FILED)
+    doc = await repo.add_custom_doc(session, case, "SECRET-XYZ", FILED)
+    await repo.rename_custom_doc(session, doc, "SECRET-ABC")
+    await repo.delete_custom_doc(session, doc)
+    await session.commit()
+    assert await snapshot() == before

@@ -3,6 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -53,6 +54,25 @@ class MilestoneRow(Base):
     milestone: Mapped[str] = mapped_column(String(16), primary_key=True)
     date: Mapped[date] = mapped_column(Date)
     confirmed_outlier: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
+class CaseDocument(Base):
+    """A checklist entry: a standard item (code) or the owner's own (name, free text).
+
+    Owner-only. Never used for statistics, the public calendar or share cards.
+    """
+
+    __tablename__ = "case_documents"
+    __table_args__ = (
+        UniqueConstraint("case_id", "code", name="uq_case_documents_code"),
+        CheckConstraint("(code IS NULL) <> (name IS NULL)", name="ck_case_documents_kind"),
+        CheckConstraint("name IS NULL OR btrim(name) <> ''", name="ck_case_documents_name"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id", ondelete="CASCADE"))
+    code: Mapped[str | None] = mapped_column(String(32))
+    name: Mapped[str | None] = mapped_column(String(60))
+    submitted_on: Mapped[date | None] = mapped_column(Date)  # NULL = not ticked
 
 
 class AggregateRow(Base):

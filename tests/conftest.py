@@ -14,7 +14,7 @@ TEST_URL = os.environ.get(
 )
 TABLES = (
     "users, cases, milestones, aggregates, fsm, calendar_events, calendar_outbox, feedback, "
-    "feedback_rate"
+    "feedback_rate, case_documents"
 )
 
 

@@ -7,10 +7,12 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from czekachiko import documents
 from czekachiko.db.models import (
     AggregateRow,
     CalendarEvent,
     Case,
+    CaseDocument,
     Feedback,
     FeedbackRate,
     MilestoneRow,
@@ -376,3 +378,90 @@ async def feedback_by_admin_msg(s: AsyncSession, admin_msg_id: int) -> Feedback 
     return await s.scalar(
         select(Feedback).where(Feedback.admin_msg_id == admin_msg_id, Feedback.direction == "in")
     )
+
+
+# --- documents -------------------------------------------------------------
+# The owner's checklist. Every function takes a case the caller loaded with get_case, so a
+# document is only reachable through its owner. Nothing here touches aggregates or the
+# calendar outbox.
+
+
+class TooManyDocs(Exception):
+    pass
+
+
+async def list_docs(s: AsyncSession, case: Case) -> list[CaseDocument]:
+    query = (
+        select(CaseDocument)
+        .where(CaseDocument.case_id == case.id)
+        .order_by(CaseDocument.id)
+        .execution_options(populate_existing=True)  # upserts bypass the identity map
+    )
+    return list((await s.scalars(query)).all())
+
+
+async def set_standard_doc(s: AsyncSession, case: Case, code: str, d: date | None) -> None:
+    """Tick (or re-date) a standard item; None un-ticks it."""
+    if code not in documents.checklist(case.purpose):
+        raise ValueError(f"{code!r} is not on the {case.purpose} checklist")
+    if d is None:
+        await s.execute(
+            delete(CaseDocument).where(CaseDocument.case_id == case.id, CaseDocument.code == code)
+        )
+    else:
+        await s.execute(
+            insert(CaseDocument)
+            .values(case_id=case.id, code=code, submitted_on=d)
+            .on_conflict_do_update(index_elements=["case_id", "code"], set_={"submitted_on": d})
+        )
+    await s.flush()
+
+
+async def count_custom_docs(s: AsyncSession, case: Case) -> int:
+    return await s.scalar(
+        select(func.count())
+        .select_from(CaseDocument)
+        .where(CaseDocument.case_id == case.id, CaseDocument.name.is_not(None))
+    )
+
+
+async def get_custom_doc(s: AsyncSession, case: Case, doc_id: int) -> CaseDocument | None:
+    return await s.scalar(
+        select(CaseDocument).where(
+            CaseDocument.id == doc_id,
+            CaseDocument.case_id == case.id,
+            CaseDocument.name.is_not(None),
+        )
+    )
+
+
+def _valid_name(name: str) -> str:
+    cleaned, error = documents.clean_name(name)
+    if error:
+        raise ValueError(error)
+    return cleaned
+
+
+async def add_custom_doc(s: AsyncSession, case: Case, name: str, d: date | None) -> CaseDocument:
+    name = _valid_name(name)
+    if await count_custom_docs(s, case) >= documents.MAX_CUSTOM:
+        raise TooManyDocs
+    doc = CaseDocument(case_id=case.id, name=name, submitted_on=d)
+    s.add(doc)
+    await s.flush()
+    return doc
+
+
+async def rename_custom_doc(s: AsyncSession, doc: CaseDocument, name: str) -> None:
+    doc.name = _valid_name(name)
+    await s.flush()
+
+
+async def set_doc_date(s: AsyncSession, doc: CaseDocument, d: date | None) -> None:
+    doc.submitted_on = d
+    await s.flush()
+
+
+async def delete_custom_doc(s: AsyncSession, doc: CaseDocument) -> None:
+    await s.delete(doc)
+    await s.flush()
