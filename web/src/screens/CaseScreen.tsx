@@ -589,7 +589,9 @@ function Timeline({
             </span>
             <button type="button" className="tl-row" aria-expanded={editingMilestone === m} onClick={() => onToggle(m)}>
               <span className="tl-title cap">{labels.milestone(m)}</span>
-              <span className={date ? 'tl-when' : 'tl-when is-empty'}>{when}</span>
+              {date || editingMilestone !== m ? (
+                <span className={date ? 'tl-when' : 'tl-when is-empty'}>{when}</span>
+              ) : null}
               {m !== 'filed' && agg ? (
                 <span className="range" aria-hidden="true">
                   <span className="range-span" style={{ left: pct(agg.min), width: `calc(${pct(agg.max)} - ${pct(agg.min)})` }} />

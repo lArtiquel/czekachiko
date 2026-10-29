@@ -1262,6 +1262,11 @@ p {
   animation: rise 0.18s ease-out both;
 }
 
+.editor .field-label,
+.editor .field-hint {
+  padding: 0;
+}
+
 .editor-doc {
   padding: 2px 16px 16px;
 }
@@ -1519,11 +1524,11 @@ p {
     padding-left: 12px;
   }
 
-  .date-box .field-icon {
+  .tl-item .date-box .field-icon {
     display: none;
   }
 
-  .date-placeholder {
+  .tl-item .date-placeholder {
     left: 14px;
   }
 }
