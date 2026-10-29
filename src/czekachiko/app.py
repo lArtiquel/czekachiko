@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.fsm_storage import PgStorage
-from czekachiko.handlers import admin, cases, common, feedback, menu, settings, stats
+from czekachiko.handlers import admin, cases, common, feedback, menu, settings, share, stats
 from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
 
 
@@ -28,7 +28,7 @@ def build_dispatcher(
         calendar_url=calendar_url,
     )
     flood = ThrottleMiddleware() if throttle else None
-    for observer in (dp.message, dp.callback_query):
+    for observer in (dp.message, dp.callback_query, dp.inline_query):
         if flood is not None:
             observer.outer_middleware(flood)
         observer.outer_middleware(ConcurrencyMiddleware())
@@ -36,6 +36,7 @@ def build_dispatcher(
     routers = [
         feedback.admin_replies,
         admin.router,
+        share.router,
         common.router,
         menu.router,
         feedback.router,

@@ -39,7 +39,9 @@ async def run(settings: Settings) -> None:
             tasks.append(task)
     try:
         await dp.start_polling(
-            bot, allowed_updates=["message", "callback_query"], tasks_concurrency_limit=CONCURRENCY
+            bot,
+            allowed_updates=["message", "callback_query", "inline_query"],
+            tasks_concurrency_limit=CONCURRENCY,
         )
     finally:
         for task in tasks:

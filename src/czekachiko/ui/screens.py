@@ -281,6 +281,7 @@ def stats_view(
     if who_dec:
         lines += ["", t(lang, "who_dec", span=month_span(lang, who_dec))]
     rows = [
+        [btn(t(lang, "btn_compare"), Nav(to="compare"))],
         [
             btn(t(lang, "btn_other_voiv"), Nav(to="stats")),
             btn(t(lang, "btn_other_purpose"), Pick(field="stats_voiv", value=voiv)),
