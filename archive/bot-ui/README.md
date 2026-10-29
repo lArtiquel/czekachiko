@@ -6,7 +6,7 @@ Until 2026-10-29 everything in Czekachiko ran on Telegram bot buttons. The code 
 git checkout v1-bot-ui   # browse or deploy the old version
 ```
 
-The button screens also remain in `src/czekachiko/handlers/` for now, reachable through their commands and old buttons, until the Mini App has proven itself.
+On 2026-10-30 the button screens were removed from `src/`. The bot now keeps `/start` with the app launcher, feedback, `/admin` and inline mode; buttons left in old chats answer with a short "open the app" notice.
 
 ## What the bot UI did
 

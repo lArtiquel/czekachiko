@@ -10,3 +10,5 @@
 - The button screens also stay in the code for now, reachable through their commands and callbacks, until the Mini App has proven itself.
 
 **Cost.** One more moving part: a public API behind a Cloudflare Tunnel (`czekachiko-api.artware.me`), with Telegram initData auth, rate limits and strict CORS. The design and API contract are in `docs/superpowers/specs/2026-10-29-mini-app-design.md`.
+
+**Update 2026-10-30.** The button screens are gone from the code. The bot keeps `/start` (with the app launcher), feedback, `/admin` and inline mode; buttons left in old chats answer with a short "open the app" notice.

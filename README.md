@@ -6,7 +6,7 @@ The bot speaks Russian by default, and English is available in settings. Case da
 
 ## Mini App
 
-The bot's screens also live in a Telegram Mini App: a React + TypeScript app in [`web/`](web/) that talks to the bot's HTTP API and identifies people by the `initData` Telegram signs. Outside Telegram it only shows a link to the bot. Every push to `master` that touches `web/` runs its tests and publishes it to GitHub Pages at `https://lartiquel.github.io/czekachiko/` ([workflow](.github/workflows/pages.yml)).
+Czekachiko runs as a Telegram Mini App: a React + TypeScript app in [`web/`](web/) that talks to the bot's HTTP API and identifies people by the `initData` Telegram signs. The bot itself opens the app, takes feedback, and answers inline queries (`@czekachiko_bot …`) with cards to share in any chat. Outside Telegram the app only shows a link to the bot. Every push to `master` that touches `web/` runs its tests and publishes it to GitHub Pages at `https://lartiquel.github.io/czekachiko/` ([workflow](.github/workflows/pages.yml)).
 
 ```bash
 cd web
