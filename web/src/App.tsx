@@ -7,7 +7,7 @@ import { AppContext, CaseCache, makeLabels, useApp, type AppServices } from './a
 import { Loading, LoadError } from './components/common';
 import { LangContext, guessLang, translate, type Params } from './i18n';
 import { errorMessage } from './lib/errors';
-import { navigate, useRoute } from './router';
+import { navigate, parseHash, routeKey, useRoute } from './router';
 import { AddCase } from './screens/AddCase';
 import { Calendars } from './screens/Calendars';
 import { CaseScreen } from './screens/CaseScreen';
@@ -20,11 +20,14 @@ import { alertDialog, applyColorScheme, boot, getWebApp, haptic, type WebApp } f
 
 const API_URL = apiBase(import.meta.env.VITE_API_URL);
 
-/** Telegram only: without signed initData there is nothing to show and nothing to call. */
-export function App() {
+/**
+ * Telegram only: without signed initData there is nothing to show and nothing to call.
+ * `entry` is the path Telegram opened the app at (see `scrubLaunchHash`).
+ */
+export function App({ entry = '/' }: { entry?: string }) {
   const tg = getWebApp();
   if (!tg || !tg.initData) return <OutsideTelegram />;
-  return <TelegramApp tg={tg} />;
+  return <TelegramApp tg={tg} entry={entry} />;
 }
 
 type BootState =
@@ -32,7 +35,7 @@ type BootState =
   | { status: 'error'; error: unknown }
   | { status: 'ready'; lang: Lang; meta: Meta };
 
-function TelegramApp({ tg }: { tg: WebApp }) {
+function TelegramApp({ tg, entry }: { tg: WebApp; entry: string }) {
   const scheme = useColorScheme(tg);
   useEffect(() => applyColorScheme(scheme), [scheme]);
   const [authFailed, setAuthFailed] = useState(false);
@@ -44,6 +47,10 @@ function TelegramApp({ tg }: { tg: WebApp }) {
   const [state, setState] = useState<BootState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const cache = useMemo(() => new CaseCache(), []);
+  const entryKey = routeKey(parseHash(`#${entry}`));
+  // The inline-mode button above @czekachiko_bot results opens #/stats; Telegram only sets
+  // chat_type when the app is opened from a chat (attachment menu, direct link).
+  const inline = entryKey === 'stats' && tg.initDataUnsafe?.chat_type === undefined;
 
   useEffect(() => boot(tg), [tg]);
 
@@ -88,6 +95,8 @@ function TelegramApp({ tg }: { tg: WebApp }) {
       labels: makeLabels(state.meta),
       t,
       cache,
+      inline,
+      entryKey,
       changeLang,
       fail(err, params) {
         if (isApiError(err) && err.kind === 'unauthorized') return; // the re-open screen takes over
@@ -95,7 +104,7 @@ function TelegramApp({ tg }: { tg: WebApp }) {
         void alertDialog(tg, errorMessage(t, err, params));
       },
     };
-  }, [state, tg, api, cache, changeLang]);
+  }, [state, tg, api, cache, inline, entryKey, changeLang]);
 
   let body;
   if (authFailed) body = <Reopen tg={tg} />;
@@ -120,10 +129,11 @@ function TelegramApp({ tg }: { tg: WebApp }) {
 const goHome = () => navigate('/');
 
 function Routes() {
-  const { tg } = useApp();
+  const { tg, entryKey } = useApp();
   const route = useRoute();
-  const key = route.name === 'case' ? `case/${route.id}` : route.name;
-  useBackButton(tg, route.name === 'home' ? null : goHome);
+  const key = routeKey(route);
+  // Nothing to go back to on home or on the screen Telegram opened the app at.
+  useBackButton(tg, key === 'home' || key === entryKey ? null : goHome);
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [key]);

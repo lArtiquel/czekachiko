@@ -5,13 +5,13 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { scrubLaunchHash } from './router';
 
-scrubLaunchHash();
+const entry = scrubLaunchHash();
 
 const root = document.getElementById('root');
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <App entry={entry} />
     </StrictMode>,
   );
 }

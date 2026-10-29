@@ -48,13 +48,30 @@ export function navigate(path: string): void {
   listeners.forEach((cb) => cb());
 }
 
+export function routeKey(route: Route): string {
+  return route.name === 'case' ? `case/${route.id}` : route.name;
+}
+
+/**
+ * The app path in a launch fragment. Telegram appends its parameters to the URL's own
+ * fragment: `#/stats?tgWebAppData=…` gives `/stats`, a bare `#tgWebAppData=…` gives `/`.
+ */
+export function launchPath(hash: string): string {
+  const path = hash.replace(/^#/, '').split(/[?&]/, 1)[0] ?? '';
+  return path.startsWith('/') && !path.includes('=') ? path : '/';
+}
+
 /**
  * Telegram passes launch parameters (including the signed initData) in the URL fragment.
  * telegram-web-app.js has already read them by the time our code runs, so drop them from
- * the address to keep initData out of the URL.
+ * the address to keep initData out of the URL, keeping the path the app was opened at.
+ * Returns that entry path; `/` when the page was not just launched by Telegram.
  */
-export function scrubLaunchHash(): void {
-  if (window.location.hash.includes('tgWebApp')) navigate('/');
+export function scrubLaunchHash(): string {
+  if (!window.location.hash.includes('tgWebApp')) return '/';
+  const path = launchPath(window.location.hash);
+  navigate(path);
+  return path;
 }
 
 export function useRoute(): Route {

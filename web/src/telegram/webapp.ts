@@ -69,11 +69,16 @@ export function popupDialog(tg: WebApp, params: PopupParams): Promise<string | n
   return new Promise((resolve) => tg.showPopup(safe, (id) => resolve(id || null)));
 }
 
-/** Opens Telegram's chat picker with `@czekachiko_bot <query>`. False if the client can't. */
-export function shareInline(tg: WebApp, query: string): boolean {
+/**
+ * Puts `@czekachiko_bot <query>` into a chat's input field. Normally Telegram first shows its
+ * chat picker. When the app was opened from inline mode (`backToChat`), the query goes straight
+ * back into the chat the person came from. False if the client can't.
+ */
+export function shareInline(tg: WebApp, query: string, backToChat = false): boolean {
   if (!supports(tg, '6.7')) return false;
   try {
-    tg.switchInlineQuery(query, SHARE_CHAT_TYPES);
+    if (backToChat) tg.switchInlineQuery(query);
+    else tg.switchInlineQuery(query, SHARE_CHAT_TYPES);
     return true;
   } catch {
     return false;

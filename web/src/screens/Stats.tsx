@@ -12,7 +12,7 @@ export const MAX_COMPARE = 6;
 type Result = { data: StatsResponse } | { error: unknown };
 
 export function Stats() {
-  const { api, tg, t, lang, meta, labels, cache, fail } = useApp();
+  const { api, tg, t, lang, meta, labels, cache, inline, fail } = useApp();
   const first = cache.list?.[0];
   const [purpose, setPurpose] = useState(first?.purpose ?? meta.purposes[0]?.code ?? 'praca');
   const [voivs, setVoivs] = useState<string[]>(first ? [first.voivodeship] : []);
@@ -61,7 +61,7 @@ export function Stats() {
   const share = async () => {
     try {
       const { query } = await api.shareStats(purpose, voivs);
-      if (!shareInline(tg, query)) await alertDialog(tg, t('err_share'));
+      if (!shareInline(tg, query, inline)) await alertDialog(tg, t('err_share'));
     } catch (err) {
       fail(err);
     }

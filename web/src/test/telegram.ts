@@ -19,6 +19,8 @@ export interface TelegramOptions {
   initData?: string;
   languageCode?: string;
   version?: string;
+  /** initDataUnsafe.chat_type: set when the app is opened from a chat, absent otherwise. */
+  chatType?: 'sender' | 'private' | 'group' | 'supergroup' | 'channel';
   /** Button id the next popups resolve with. */
   popupChoice?: string | null;
   confirm?: boolean;
@@ -50,7 +52,10 @@ export function installTelegram(opts: TelegramOptions = {}) {
   };
   const webApp = {
     initData: opts.initData ?? FAKE_INIT_DATA,
-    initDataUnsafe: { user: { id: 42, first_name: 'Test', language_code: opts.languageCode ?? 'ru' } },
+    initDataUnsafe: {
+      user: { id: 42, first_name: 'Test', language_code: opts.languageCode ?? 'ru' },
+      ...(opts.chatType ? { chat_type: opts.chatType } : {}),
+    },
     colorScheme: 'light',
     themeParams: {},
     platform: 'android',

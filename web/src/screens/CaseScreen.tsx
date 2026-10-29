@@ -40,7 +40,7 @@ export function CaseScreen({ id }: { id: number }) {
 }
 
 function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: CaseDetail) => void }) {
-  const { api, tg, t, meta, labels, cache, fail } = useApp();
+  const { api, tg, t, meta, labels, cache, inline, fail } = useApp();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -232,7 +232,7 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
   const share = async () => {
     try {
       const { query } = await api.shareCase(id);
-      if (!shareInline(tg, query)) await alertDialog(tg, t('err_share'));
+      if (!shareInline(tg, query, inline)) await alertDialog(tg, t('err_share'));
     } catch (err) {
       fail(err);
     }

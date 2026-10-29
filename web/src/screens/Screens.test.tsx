@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
+import { scrubLaunchHash } from '../router';
 import { mockApi } from '../test/api';
 import { meta, stats } from '../test/fixtures';
 import { installTelegram } from '../test/telegram';
@@ -99,6 +100,47 @@ describe('Stats', () => {
     for (const v of meta.voivodeships.slice(0, 5)) await user.click(screen.getByLabelText(v.label));
     expect(screen.getByText('Можно выбрать не больше 6')).toBeInTheDocument();
     expect(screen.getByLabelText('Zachodniopomorskie')).toBeDisabled();
+  });
+});
+
+describe('Stats opened from inline mode', () => {
+  const LAUNCH = '#/stats?tgWebAppData=query_id%3DTEST%26hash%3Ddeadbeef&tgWebAppVersion=8.0&tgWebAppPlatform=ios';
+
+  async function pickAndShare(chatType?: 'private') {
+    window.history.replaceState(null, '', `/${LAUNCH}`);
+    const entry = scrubLaunchHash();
+    const api = mockApi({
+      'GET /api/stats': { body: stats },
+      'GET /api/share/stats': { body: { query: 's:praca:6' } },
+    });
+    const tg = installTelegram(chatType ? { chatType } : {});
+    render(<App entry={entry} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByLabelText('Mazowieckie'));
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+    await user.click(await screen.findByRole('button', { name: '📤 Отправить в чат' }));
+    await waitFor(() => expect(tg.webApp.switchInlineQuery).toHaveBeenCalled());
+    return { api, tg, entry };
+  }
+
+  it('opens at #/stats without a back button and sends the card back into the same chat', async () => {
+    const { tg, entry } = await pickAndShare();
+    expect(entry).toBe('/stats');
+    expect(window.location.hash).toBe('#/stats');
+    expect(window.location.href).not.toContain('tgWebAppData');
+    expect(tg.webApp.BackButton.show).not.toHaveBeenCalled();
+    expect(tg.webApp.switchInlineQuery.mock.calls).toEqual([['s:praca:6']]);
+  });
+
+  it('opened at #/stats from a chat, it still asks which chat to send to', async () => {
+    const { tg } = await pickAndShare('private');
+    expect(tg.webApp.switchInlineQuery.mock.calls).toEqual([['s:praca:6', ['users', 'groups', 'channels']]]);
+  });
+
+  it('a normal launch keeps the back button on stats', async () => {
+    open('#/stats');
+    await screen.findByLabelText('Mazowieckie');
+    expect(window.Telegram!.WebApp.BackButton.show).toHaveBeenCalled();
   });
 });
 

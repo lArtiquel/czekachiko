@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isKey } from '../i18n';
 import { meta } from '../test/fixtures';
-import { parseHash } from '../router';
+import { launchPath, parseHash } from '../router';
 import { addDays, daysBetween, formatDate, monthSpan, validateMilestones } from './dates';
 import { cleanDocName, docDateError } from './docs';
 import { newClientToken, validateNewCase } from './validation';
@@ -69,6 +69,12 @@ describe('dates and search', () => {
     expect(codes('Варшава')).toEqual(['mazowieckie']);
     expect(codes('krak')).toEqual(['malopolskie']);
     expect(codes('')).toHaveLength(16);
+  });
+  it('keeps the path Telegram opened the app at', () => {
+    expect(launchPath('#/stats?tgWebAppData=query_id%3D1&tgWebAppVersion=8.0')).toBe('/stats');
+    expect(launchPath('#/stats&tgWebAppData=query_id%3D1')).toBe('/stats');
+    expect(launchPath('#tgWebAppData=query_id%3D1&tgWebAppVersion=8.0')).toBe('/');
+    expect(launchPath('')).toBe('/');
   });
   it('parses routes and ignores Telegram launch fragments', () => {
     expect(parseHash('#/case/12')).toEqual({ name: 'case', id: 12 });

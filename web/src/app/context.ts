@@ -52,6 +52,10 @@ export interface AppServices {
   labels: Labels;
   t: TFn;
   cache: CaseCache;
+  /** Opened from inline mode: shared cards go back into the chat the person came from. */
+  inline: boolean;
+  /** Route key of the screen Telegram opened the app at; it has no back button. */
+  entryKey: string;
   changeLang(lang: Lang): Promise<void>;
   /** Tell the person an action failed: native alert plus error haptic. */
   fail(err: unknown, params?: Params): void;
