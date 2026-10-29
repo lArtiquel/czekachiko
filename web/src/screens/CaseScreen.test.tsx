@@ -42,6 +42,25 @@ describe('Case screen', () => {
     expect(screen.getByText(/^ℹ️ Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
   });
 
+  it.each([
+    [
+      'waited_longer',
+      { ...caseDetail.forecast!, kind: 'waited_longer' as const, start: null, likely: null, end: null, n: 14, waited_longer_than: 12, total: 14 },
+      'ты уже ждёшь дольше, чем 12 из 14 завершённых дел в этой группе. Окно посчитать не из чего — держись 🐾',
+    ],
+    [
+      'no_data',
+      { ...caseDetail.forecast!, kind: 'no_data' as const, start: null, likely: null, end: null, n: 0, fastest: null, slowest: null },
+      'Пока мало данных для прогноза. Позови знакомых добавить свои дела 🙏',
+    ],
+    ['all done', null, 'Все этапы пройдены — поздравляю! 🎉'],
+  ])('renders the %s forecast with the disclaimer', async (_kind, forecast, text) => {
+    await openCase({ 'GET /api/cases/7': { body: { ...caseDetail, forecast } } });
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/^ℹ️ Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
+    if (!forecast) expect(screen.queryByText(/^Прогноз:/)).not.toBeInTheDocument();
+  });
+
   it('renders documents, with the owner’s names as plain text', async () => {
     await openCase();
     expect(screen.getByText('📋 Документы · отправлено 2 из 4')).toBeInTheDocument();

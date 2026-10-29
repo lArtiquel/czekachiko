@@ -70,6 +70,10 @@ export function Settings() {
         </div>
       </Section>
 
+      <Section header={t('help_title')}>
+        <p className="section-text">{t('help')}</p>
+      </Section>
+
       <Section header={t('privacy_title')}>
         <p className="section-text">{t('privacy')}</p>
       </Section>

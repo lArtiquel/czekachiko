@@ -18,6 +18,7 @@ describe('Home', () => {
   it('shows the case card with its forecast line and links out through Telegram', async () => {
     const { tg, user } = open('#/');
     expect(await screen.findByText(/decyzja: чаще всего около 15\.01\.2026/)).toBeInTheDocument();
+    expect(screen.getByText(/📋 Документы: 2\/4/)).toBeInTheDocument();
     expect(tg.webApp.BackButton.show).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: '✉️ Написать нам' }));
     expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith('https://t.me/czekachiko_bot');
@@ -40,6 +41,12 @@ describe('Settings', () => {
     expect(api.callsTo('PATCH', '/api/me')[0]!.body).toEqual({ lang: 'en' });
     expect(api.calls.some((c) => c.url.endsWith('/api/meta?lang=en'))).toBe(true);
     expect(tg.webApp.HapticFeedback.notificationOccurred).toHaveBeenCalledWith('success');
+  });
+
+  it('explains how it works and what is stored', async () => {
+    open('#/settings');
+    expect(await screen.findByText(/^Добавь своё дело и отмечай этапы/)).toBeInTheDocument();
+    expect(screen.getByText(/^Храню только Telegram ID/)).toBeInTheDocument();
   });
 
   it('deletes all data after confirmation', async () => {
