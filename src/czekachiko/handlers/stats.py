@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import date
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -7,9 +7,9 @@ from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db import repo
-from czekachiko.domain import Milestone, Purpose, Voivodeship
+from czekachiko.domain import Purpose, Voivodeship
+from czekachiko.forecasting import who_now_spans
 from czekachiko.render import show
-from czekachiko.stats import WHO_NOW_DAYS, who_now
 from czekachiko.ui import screens
 from czekachiko.ui.keyboards import Nav, Pick
 
@@ -39,12 +39,5 @@ async def stats_view(
     voiv_s, purpose_s = callback_data.value.split("|", 1)
     voiv, purpose = Voivodeship(voiv_s), Purpose(purpose_s)
     aggs = await repo.chain_aggregates(session, voiv, purpose)
-    today = clock()
-    since = today - timedelta(days=WHO_NOW_DAYS)
-    fp = who_now(
-        await repo.recent_events(session, voiv, purpose, Milestone.fingerprints, since), today
-    )
-    dec = who_now(
-        await repo.recent_events(session, voiv, purpose, Milestone.decision, since), today
-    )
+    fp, dec = await who_now_spans(session, voiv, purpose, clock())
     await show(cq, screens.stats_view(lang, voiv, purpose, aggs, fp, dec))

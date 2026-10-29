@@ -14,10 +14,10 @@ from czekachiko import documents
 from czekachiko.dates import parse_date, validate_milestones
 from czekachiko.db import repo
 from czekachiko.db.models import Case
-from czekachiko.domain import INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
+from czekachiko.forecasting import case_forecast, find_outlier
 from czekachiko.i18n import t
 from czekachiko.render import show
-from czekachiko.stats import Forecast, aggregate, forecast, is_suspicious
 from czekachiko.ui import screens
 from czekachiko.ui.keyboards import Act, Day, Month, Nav, Pick, date_picker
 
@@ -40,16 +40,6 @@ class MarkDate(StatesGroup):
 
 
 # --- helpers ---------------------------------------------------------------
-
-
-async def case_forecast(s: AsyncSession, case: Case, today: date) -> Forecast | None:
-    values: dict[tuple[str, M, M], list[int]] = {}
-    for scope in ("voiv", "national"):
-        for a, b in INTERVAL_PAIRS:
-            values[(scope, a, b)] = await repo.interval_values(
-                s, scope, case.voivodeship, case.purpose, a, b
-            )
-    return forecast(case.dates(), today, lambda sc, a, b: values.get((sc, a, b), []))
 
 
 async def case_screen(s: AsyncSession, lang: str, case: Case, today: date, with_docs: bool = False):
@@ -275,17 +265,6 @@ async def accept_date(
         )
         return
     await save_and_return(event, s, state, lang, case, milestone, d, False, today)
-
-
-async def find_outlier(s: AsyncSession, case: Case, dates: dict[M, date], milestone: M):
-    for a, b in INTERVAL_PAIRS:
-        if milestone not in (a, b) or a not in dates or b not in dates:
-            continue
-        value = (dates[b] - dates[a]).days
-        values = await repo.interval_values(s, "voiv", case.voivodeship, case.purpose, a, b)
-        if is_suspicious(value, values):
-            return a, b, value, aggregate(values)
-    return None
 
 
 async def save_and_return(
