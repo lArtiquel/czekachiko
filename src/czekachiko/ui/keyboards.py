@@ -2,7 +2,12 @@ import calendar
 from datetime import date
 
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from czekachiko.dates import EARLIEST
 from czekachiko.i18n import loc, t
@@ -125,3 +130,17 @@ def date_picker(
         rows.append([btn(t(lang, "btn_clear_date"), Act(action="clear_date"))])
     rows.append(cancel_row(lang))
     return markup(rows)
+
+
+REPLY_MENU = [
+    ["btn_add", "btn_cases"],
+    ["btn_stats", "btn_calendar"],
+    ["btn_settings", "btn_help"],
+    ["btn_share"],
+]
+
+
+def reply_menu(lang: str) -> ReplyKeyboardMarkup:
+    """Always-visible menu under the input field."""
+    rows = [[KeyboardButton(text=t(lang, key)) for key in row] for row in REPLY_MENU]
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, is_persistent=True)

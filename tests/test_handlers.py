@@ -248,3 +248,76 @@ def test_db_pool_covers_concurrency():
 
     # each in-flight update may hold its own session plus one FSM-storage session
     assert CONCURRENCY * 2 <= POOL_SIZE + MAX_OVERFLOW
+
+
+async def test_start_sends_persistent_reply_menu(env):
+    from aiogram.methods import SendMessage
+    from aiogram.types import ReplyKeyboardMarkup
+
+    await feed(env, text_update(UID, "/start"))
+    kbs = [c.reply_markup for c in env[2].calls if isinstance(c, SendMessage)]
+    reply = [k for k in kbs if isinstance(k, ReplyKeyboardMarkup)]
+    assert reply and reply[0].is_persistent and reply[0].resize_keyboard
+    labels = {b.text for row in reply[0].keyboard for b in row}
+    assert ru.MESSAGES["btn_cases"] in labels and ru.MESSAGES["btn_add"] in labels
+
+
+async def test_reply_menu_button_opens_cases(env):
+    await drive_wizard(env)
+    await feed(env, text_update(UID, ru.MESSAGES["btn_cases"]))
+    assert ru.MESSAGES["cases_title"] in env[2].last().text
+
+
+async def test_reply_menu_button_leaves_date_picker(env):
+    for data in [
+        Nav(to="add"),
+        Pick(field="voiv", value="mazowieckie"),
+        Pick(field="purpose", value="jdg"),
+        Pick(field="channel", value="paper"),
+    ]:
+        await feed(env, callback_update(UID, data.pack()))
+    await feed(env, text_update(UID, ru.MESSAGES["btn_stats"]))
+    assert ru.MESSAGES["stats_pick_voiv"] in env[2].last().text
+
+
+async def test_reply_menu_add_starts_wizard(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_add"]))
+    assert ru.MESSAGES["ask_voiv"] in env[2].last().text
+
+
+async def test_language_switch_resends_reply_menu(env):
+    from aiogram.methods import SendMessage
+    from aiogram.types import ReplyKeyboardMarkup
+
+    from czekachiko.locales import en
+
+    await feed(env, callback_update(UID, Act(action="lang", value="en").pack()))
+    reply = [
+        c.reply_markup
+        for c in env[2].calls
+        if isinstance(c, SendMessage) and isinstance(c.reply_markup, ReplyKeyboardMarkup)
+    ]
+    assert reply and en.MESSAGES["btn_cases"] in {b.text for row in reply[-1].keyboard for b in row}
+
+
+def test_command_descriptions_have_emoji():
+    from czekachiko.locales import en
+
+    for loc in (ru, en):
+        for c in ["start", "cases", "add", "stats", "calendar", "settings", "help", "cancel"]:
+            assert not loc.MESSAGES[f"cmd_{c}"][0].isalnum(), c
+
+
+async def test_start_is_one_short_message(env):
+    await feed(env, text_update(UID, "/start"))
+    texts = env[2].texts()
+    assert len(texts) == 1
+    assert len(texts[0]) < 400
+    assert "Czekachiko" in texts[0] and "Telegram ID" in texts[0]
+
+
+async def test_reply_menu_share_button(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_share"]))
+    assert env[2].last().text == ru.MESSAGES["share_prompt"]
+    kb = env[2].last().reply_markup
+    assert any(b.url and "t.me/share/url" in b.url for row in kb.inline_keyboard for b in row)

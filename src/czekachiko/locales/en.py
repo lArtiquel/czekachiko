@@ -52,11 +52,7 @@ MONTHS = [
 WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 MESSAGES = {
-    "menu_title": (
-        "🐕 <b>Czekachiko</b> estimates when to expect your fingerprint appointment, "
-        "decision and residence card.\n\nForecasts come from other people's anonymous cases "
-        "in your voivodeship. Add yours to make them better for everyone."
-    ),
+    "menu_title": "🐕 <b>Czekachiko</b> estimates when to expect fingerprints, the decision and your residence card, from people's anonymous cases in your voivodeship.",
     "btn_add": "➕ Add a case",
     "btn_cases": "📂 My cases",
     "btn_stats": "📊 Timelines by voivodeship",
@@ -64,28 +60,13 @@ MESSAGES = {
     "btn_settings": "⚙️ Settings",
     "btn_share": "📣 Share the bot",
     "share_text": "When will my karta pobytu arrive? 🐕 Czekachiko forecasts timelines by voivodeship from people's anonymous data. Add your case to make it better for everyone.",
+    "share_prompt": "Send Czekachiko to friends or a chat 👇",
     "btn_help": "❓ How it works",
     "btn_back": "⬅️ Back",
     "btn_menu": "🏠 Menu",
     "btn_cancel": "✖️ Cancel",
-    "privacy": (
-        "🔒 <b>What I store</b>\n"
-        "Only your Telegram ID, voivodeship, purpose of stay, filing channel and milestone dates. "
-        "I never accept names, case numbers or any free text.\n\n"
-        "Milestones of all cases appear anonymously in a public calendar: voivodeship, purpose, "
-        "milestone and filing month, with nothing about you.\n\n"
-        "Delete everything: ⚙️ Settings → 🗑 Delete all my data."
-    ),
-    "help": (
-        "❓ <b>How it works</b>\n\n"
-        "1. Add your case: voivodeship, purpose, filing date and the milestones you've passed.\n"
-        "2. Mark new milestones as they happen.\n"
-        "3. From all cases I compute how long each step usually takes in your voivodeship "
-        "and show a from–to window for your next step.\n\n"
-        "The more people add cases, the better the forecast. This is not official "
-        "information from the office.\n\n"
-        "Commands: /start /cases /add /stats /calendar /settings /cancel"
-    ),
+    "privacy": "🔒 I store only your Telegram ID, voivodeship, purpose and milestone dates. Milestones appear anonymously in a public calendar. Delete everything in ⚙️ Settings.",
+    "help": "❓ <b>How it works</b>\n\nAdd your case and mark milestones. From all cases I compute how long each step usually takes in your voivodeship and show a forecast. More cases, better forecasts. Not official information.",
     "cases_title": "📂 <b>My cases</b>",
     "cases_empty": "No cases yet. Adding your first takes a minute.",
     "case_limit": "You can track up to 5 cases. Delete an old one to add a new one.",
@@ -168,12 +149,13 @@ MESSAGES = {
     "saved": "Saved ✅",
     "admin_title": "🛠 <b>Admin</b>",
     "admin_recomputed": "Recomputed.",
-    "cmd_start": "Main menu",
-    "cmd_cases": "My cases",
-    "cmd_add": "Add a case",
-    "cmd_stats": "Timelines by voivodeship",
-    "cmd_calendar": "Public calendar",
-    "cmd_settings": "Settings",
-    "cmd_help": "How it works",
-    "cmd_cancel": "Cancel the current step",
+    "lang_changed": "Language: English 🇬🇧",
+    "cmd_start": "🏠 Main menu",
+    "cmd_cases": "📂 My cases",
+    "cmd_add": "➕ Add a case",
+    "cmd_stats": "📊 Timelines by voivodeship",
+    "cmd_calendar": "📅 Public calendar",
+    "cmd_settings": "⚙️ Settings",
+    "cmd_help": "❓ How it works",
+    "cmd_cancel": "✖️ Cancel the current step",
 }

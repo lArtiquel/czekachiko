@@ -82,14 +82,16 @@ async def show_date_picker(
 
 
 @router.callback_query(Nav.filter(F.to == "add"))
-async def start_add(cq: CallbackQuery, session: AsyncSession, state: FSMContext, lang: str):
-    if await repo.count_cases(session, cq.from_user.id) >= repo.MAX_CASES:
-        await show(cq, (t(lang, "case_limit"), screens.main_menu(lang)[1]))
+async def start_add(
+    event: CallbackQuery | Message, session: AsyncSession, state: FSMContext, lang: str
+):
+    if await repo.count_cases(session, event.from_user.id) >= repo.MAX_CASES:
+        await show(event, (t(lang, "case_limit"), screens.main_menu(lang)[1]))
         return
     await state.clear()
     await state.set_state(AddCase.voiv)
     await state.update_data(client_token=uuid.uuid4().hex)
-    await show(cq, screens.wizard_prompt(lang, "voiv"))
+    await show(event, screens.wizard_prompt(lang, "voiv"))
 
 
 @router.callback_query(AddCase.voiv, Pick.filter(F.field == "voiv"))

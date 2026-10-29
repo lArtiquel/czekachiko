@@ -60,6 +60,15 @@ def privacy(lang: str) -> Screen:
     return t(lang, "privacy"), markup([nav_row(lang)])
 
 
+def share_view(lang: str) -> Screen:
+    rows = [[InlineKeyboardButton(text=t(lang, "btn_share"), url=share_url(lang))], nav_row(lang)]
+    return t(lang, "share_prompt"), markup(rows)
+
+
+def start_text(lang: str) -> str:
+    return f"{t(lang, 'menu_title')}\n\n{t(lang, 'privacy')}"
+
+
 def help_view(lang: str) -> Screen:
     text = t(lang, "help") + "\n\n" + t(lang, "privacy")
     return text, markup([nav_row(lang)])

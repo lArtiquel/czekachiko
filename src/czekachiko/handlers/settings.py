@@ -8,7 +8,7 @@ from czekachiko.db import repo
 from czekachiko.i18n import t
 from czekachiko.render import show
 from czekachiko.ui import screens
-from czekachiko.ui.keyboards import Act, Nav
+from czekachiko.ui.keyboards import Act, Nav, reply_menu
 
 router = Router(name="settings")
 
@@ -28,6 +28,11 @@ async def settings(cq: CallbackQuery, session: AsyncSession, state: FSMContext):
 async def switch_lang(cq: CallbackQuery, callback_data: Act, session: AsyncSession):
     if callback_data.value in ("ru", "en"):
         await repo.set_lang(session, cq.from_user.id, callback_data.value)
+        await cq.bot.send_message(
+            cq.from_user.id,
+            t(callback_data.value, "lang_changed"),
+            reply_markup=reply_menu(callback_data.value),
+        )
     await _settings(cq, session, cq.from_user.id)
 
 

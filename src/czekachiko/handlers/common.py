@@ -10,7 +10,7 @@ from czekachiko.db import repo
 from czekachiko.i18n import t
 from czekachiko.render import show
 from czekachiko.ui import screens
-from czekachiko.ui.keyboards import Act, Nav, Noop
+from czekachiko.ui.keyboards import Act, Nav, Noop, reply_menu
 
 router = Router(name="common")
 fallback = Router(name="fallback")
@@ -19,8 +19,7 @@ fallback = Router(name="fallback")
 @router.message(CommandStart())
 async def cmd_start(msg: Message, state: FSMContext, lang: str):
     await state.clear()
-    await show(msg, screens.main_menu(lang))
-    await msg.answer(t(lang, "privacy"))
+    await msg.answer(screens.start_text(lang), reply_markup=reply_menu(lang))
 
 
 @router.message(Command("help"))
