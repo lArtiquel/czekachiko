@@ -268,7 +268,8 @@ async def test_start_sends_persistent_reply_menu(env):
     (app, write), *rest = reply[0].keyboard
     assert rest == []
     assert app.text == ru.MESSAGES["btn_open_app"] == "🚀 Открыть приложение"
-    assert app.web_app.url == DEFAULT_WEBAPP_URL
+    # Keyboard-button Mini Apps get no initData, so this button answers with the inline launcher.
+    assert app.web_app is None
     assert write.text == ru.MESSAGES["btn_feedback"] == "✉️ Написать нам"
     assert write.web_app is None
 
@@ -429,3 +430,9 @@ async def test_stray_text_is_one_screen(env):
     await feed(env, text_update(UID, "привет"))
     assert len(env[2].texts()) == before + 1
     assert ru.MESSAGES["err_use_buttons"] in env[2].last().text
+
+
+async def test_keyboard_open_app_replies_with_inline_launcher(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_open_app"]))
+    kb = env[2].last().reply_markup
+    assert kb.inline_keyboard[0][0].web_app.url == DEFAULT_WEBAPP_URL

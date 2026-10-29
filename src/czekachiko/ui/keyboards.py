@@ -152,7 +152,9 @@ LEGACY_REPLY_MENU = [
 def reply_menu(lang: str, webapp_url: str) -> ReplyKeyboardMarkup:
     """Always-visible menu under the input field: the Mini App and feedback."""
     row = [
-        KeyboardButton(text=t(lang, "btn_open_app"), web_app=WebAppInfo(url=webapp_url)),
+        # Plain text: Mini Apps opened from keyboard buttons receive no initData, so this
+        # button is answered with the inline launcher instead (handlers/menu.py).
+        KeyboardButton(text=t(lang, "btn_open_app")),
         KeyboardButton(text=t(lang, "btn_feedback")),
     ]
     return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=True, is_persistent=True)
