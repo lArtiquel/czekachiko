@@ -51,7 +51,7 @@ async def test_drain_inserts_and_records_event_id(session_factory):
     cal = FakeCalendar()
     assert await drain_outbox(session_factory, cal, CAL, NOW) == 1
     async with session_factory() as s:
-        ev = await s.get(CalendarEvent, (c.id, "filed"))
+        ev = await s.get(CalendarEvent, (c.id, "filed", "all"))
         assert ev.event_id == "e1"
         assert (await s.scalars(select(OutboxRow))).all() == []
     assert cal.events["e1"]["title"] == "Mazowieckie · бизнес (JDG) · подача"
@@ -90,7 +90,7 @@ async def test_delete_after_insert_removes_event(session_factory):
     await drain_outbox(session_factory, cal, CAL, NOW)
     assert cal.events == {}
     async with session_factory() as s:
-        assert await s.get(CalendarEvent, (c.id, "filed")) is None
+        assert await s.get(CalendarEvent, (c.id, "filed", "all")) is None
 
 
 async def test_upsert_for_deleted_case_is_dropped(session_factory):
@@ -138,3 +138,50 @@ async def test_start_worker_survives_unreadable_key(session_factory, tmp_path):
         calendar_id = CAL
 
     assert start_worker(S(), session_factory) is None  # logged, bot keeps running
+
+
+class MultiCalendar(FakeCalendar):
+    def __init__(self):
+        super().__init__()
+        self.created: list[str] = []
+        self.where: dict[str, str] = {}
+
+    async def create_calendar(self, summary: str) -> str:
+        cid = f"cal-{len(self.created)}"
+        self.created.append(summary)
+        return cid
+
+    async def insert(self, calendar_id, title, day, description):
+        eid = await super().insert(calendar_id, title, day, description)
+        self.where[eid] = calendar_id
+        return eid
+
+
+async def test_ensure_calendars_creates_each_voivodeship_once(session_factory):
+    from czekachiko.calendar_sync import ensure_calendars
+    from czekachiko.db import repo as r
+
+    cal = MultiCalendar()
+    await ensure_calendars(session_factory, cal, CAL)
+    await ensure_calendars(session_factory, cal, CAL)
+    assert len(cal.created) == 16
+    async with session_factory() as s:
+        links = await r.calendar_links(s)
+    assert links["all"] == CAL and len(links) == 17
+
+
+async def test_milestone_goes_to_poland_and_voivodeship_calendars(session_factory):
+    from czekachiko.calendar_sync import ensure_calendars
+
+    cal = MultiCalendar()
+    await ensure_calendars(session_factory, cal, CAL)
+    async with session_factory() as s:
+        c = await new_case(s)
+        voiv_cal = (await repo.calendar_links(s))["mazowieckie"]
+    await drain_outbox(session_factory, cal, CAL, NOW)
+    assert sorted(cal.where.values()) == sorted([CAL, voiv_cal])
+    async with session_factory() as s:
+        await repo.delete_case(s, await repo.get_case(s, 1, c.id))
+        await s.commit()
+    await drain_outbox(session_factory, cal, CAL, NOW)
+    assert cal.events == {}

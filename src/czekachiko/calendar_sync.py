@@ -4,13 +4,14 @@ import asyncio
 import logging
 from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
+from urllib.parse import quote
 
 import httpx
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.db import repo
-from czekachiko.db.models import CalendarEvent, MilestoneRow, OutboxRow
+from czekachiko.db.models import CalendarEvent, CalendarRow, Case, MilestoneRow, OutboxRow
 
 log = logging.getLogger(__name__)
 API = "https://www.googleapis.com/calendar/v3/calendars"
@@ -68,6 +69,28 @@ class GoogleCalendarClient:
         )
         r.raise_for_status()
 
+    async def create_calendar(self, summary: str) -> str:
+        """A new calendar owned by the service account, readable by everyone."""
+        headers = await self._headers()
+        r = await self.http.post(
+            API,
+            headers=headers,
+            json={
+                "summary": summary,
+                "description": "Anonymous residence-permit milestones · t.me/czekachiko_bot",
+                "timeZone": "Europe/Warsaw",
+            },
+        )
+        r.raise_for_status()
+        cid = r.json()["id"]
+        r = await self.http.post(
+            f"{API}/{quote(cid)}/acl",
+            headers=headers,
+            json={"role": "reader", "scope": {"type": "default"}},
+        )
+        r.raise_for_status()
+        return cid
+
     async def delete(self, calendar_id, event_id) -> None:
         r = await self.http.delete(
             f"{API}/{calendar_id}/events/{event_id}", headers=await self._headers()
@@ -85,48 +108,89 @@ async def _case_alive(factory: async_sessionmaker, case_id: int, milestone: str)
         return await s.get(MilestoneRow, (case_id, milestone)) is not None
 
 
+async def _calendar_for(factory: async_sessionmaker, scope: str, default_all: str) -> str | None:
+    if scope == "all":
+        return default_all
+    async with factory() as s:
+        row = await s.get(CalendarRow, scope)
+        return row.calendar_id if row else None
+
+
+async def _forget(factory: async_sessionmaker, case_id: int, milestone: str, scope: str) -> None:
+    async with factory() as s:
+        await s.execute(
+            delete(CalendarEvent).where(
+                CalendarEvent.case_id == case_id,
+                CalendarEvent.milestone == milestone,
+                CalendarEvent.scope == scope,
+            )
+        )
+        await s.commit()
+
+
 async def _process(
     factory: async_sessionmaker, row: OutboxRow, client: CalendarClient, calendar_id: str
 ) -> None:
-    async with factory() as s:
-        mapping = await s.get(CalendarEvent, (row.case_id, row.milestone))
-        event_id = mapping.event_id if mapping else None
-
     if row.op == "delete":
-        if event_id is not None:
-            await client.delete(calendar_id, event_id)
-            async with factory() as s:
-                await s.execute(
-                    delete(CalendarEvent).where(
+        async with factory() as s:
+            mappings = (
+                await s.scalars(
+                    select(CalendarEvent).where(
                         CalendarEvent.case_id == row.case_id,
                         CalendarEvent.milestone == row.milestone,
                     )
                 )
-                await s.commit()
+            ).all()
+        for m in mappings:
+            target = await _calendar_for(factory, m.scope, calendar_id)
+            if target is not None:
+                await client.delete(target, m.event_id)
+            await _forget(factory, row.case_id, row.milestone, m.scope)
         return
 
-    if not await _case_alive(factory, row.case_id, row.milestone):
+    async with factory() as s:
+        case = await s.get(Case, row.case_id)
+        voiv = case.voivodeship if case else None
+    if voiv is None or not await _case_alive(factory, row.case_id, row.milestone):
         return  # case or milestone gone; a delete row handles any existing event
     p = row.payload
     day = date.fromisoformat(p["date"])
-    if event_id is not None:
-        await client.update(calendar_id, event_id, p["title"], day, p["description"])
-        return
-    event_id = await client.insert(calendar_id, p["title"], day, p["description"])
-    # Commit the mapping at once, so a delete or edit queued meanwhile can find the event.
-    async with factory() as s:
-        await repo.record_event_id(s, row.case_id, row.milestone, event_id)
-        await s.commit()
-    if not await _case_alive(factory, row.case_id, row.milestone):
-        # Deleted while the insert was in flight: remove the event now.
-        await client.delete(calendar_id, event_id)
+    for scope in ("all", voiv):  # whole Poland + the case's voivodeship
+        target = await _calendar_for(factory, scope, calendar_id)
+        if target is None:
+            continue
         async with factory() as s:
-            await s.execute(
-                delete(CalendarEvent).where(
-                    CalendarEvent.case_id == row.case_id,
-                    CalendarEvent.milestone == row.milestone,
-                )
-            )
+            mapping = await s.get(CalendarEvent, (row.case_id, row.milestone, scope))
+            event_id = mapping.event_id if mapping else None
+        if event_id is not None:
+            await client.update(target, event_id, p["title"], day, p["description"])
+            continue
+        event_id = await client.insert(target, p["title"], day, p["description"])
+        # Commit the mapping at once, so a delete or edit queued meanwhile can find the event.
+        async with factory() as s:
+            await repo.record_event_id(s, row.case_id, row.milestone, event_id, scope)
+            await s.commit()
+        if not await _case_alive(factory, row.case_id, row.milestone):
+            # Deleted while the insert was in flight: remove the event now.
+            await client.delete(target, event_id)
+            await _forget(factory, row.case_id, row.milestone, scope)
+
+
+async def ensure_calendars(factory: async_sessionmaker, client, all_calendar_id: str) -> None:
+    """Record the whole-Poland calendar and create any missing per-voivodeship calendar."""
+    from czekachiko.domain import Voivodeship
+    from czekachiko.locales.ru import VOIV_LABELS
+
+    async with factory() as s:
+        await repo.set_calendar(s, "all", all_calendar_id)
+        await s.commit()
+        existing = await repo.calendar_links(s)
+    for v in Voivodeship:
+        if v.value in existing:
+            continue
+        cid = await client.create_calendar(f"Czekachiko · {VOIV_LABELS[v]}")
+        async with factory() as s:
+            await repo.set_calendar(s, v.value, cid)
             await s.commit()
 
 
@@ -177,6 +241,10 @@ async def drain_outbox(
 async def run_calendar_worker(
     factory: async_sessionmaker, client: CalendarClient, calendar_id: str, interval: float = 30
 ) -> None:
+    try:
+        await ensure_calendars(factory, client, calendar_id)
+    except Exception:  # noqa: BLE001 — voivodeship calendars are retried on next start
+        log.exception("could not create voivodeship calendars")
     while True:
         try:
             await drain_outbox(factory, client, calendar_id, datetime.now(UTC))

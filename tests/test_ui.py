@@ -144,3 +144,21 @@ def test_purpose_labels_are_plain_words():
     for loc in (ru, en):
         for v in loc.PURPOSE_LABELS.values():
             assert "art." not in v
+
+
+def test_calendar_view_links_every_voivodeship():
+    links = {
+        "all": "ALL",
+        **{
+            v.value: f"c-{v.value}"
+            for v in __import__("czekachiko.domain", fromlist=["Voivodeship"]).Voivodeship
+        },
+    }
+    _, kb = screens.calendar_view("ru", links)
+    urls = [b.url for b in buttons(kb) if b.url]
+    assert len(urls) == 17 and all("calendar.google.com" in u for u in urls)
+
+
+def test_calendar_view_soon_without_links():
+    text, _ = screens.calendar_view("ru", {})
+    assert text == ru.MESSAGES["calendar_soon"]

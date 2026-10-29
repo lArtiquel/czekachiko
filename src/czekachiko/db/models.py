@@ -133,7 +133,16 @@ class CalendarEvent(Base):
     __tablename__ = "calendar_events"
     case_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     milestone: Mapped[str] = mapped_column(String(16), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(32), primary_key=True, default="all")
     event_id: Mapped[str] = mapped_column(String(256))
+
+
+class CalendarRow(Base):
+    """Public calendars: "all" (whole Poland) and one per voivodeship."""
+
+    __tablename__ = "calendars"
+    scope: Mapped[str] = mapped_column(String(32), primary_key=True)
+    calendar_id: Mapped[str] = mapped_column(String(256))
 
 
 class OutboxRow(Base):

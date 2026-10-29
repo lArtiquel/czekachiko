@@ -60,10 +60,10 @@ async def del_all_yes(cq: CallbackQuery, session: AsyncSession, state: FSMContex
 
 
 @router.callback_query(Nav.filter(F.to == "calendar"))
-async def calendar(cq: CallbackQuery, lang: str, calendar_url: str | None):
-    await show(cq, screens.calendar_view(lang, calendar_url))
+async def calendar(cq: CallbackQuery, session: AsyncSession, lang: str):
+    await show(cq, screens.calendar_view(lang, await repo.calendar_links(session)))
 
 
 @router.message(Command("calendar"))
-async def cmd_calendar(msg: Message, lang: str, calendar_url: str | None):
-    await show(msg, screens.calendar_view(lang, calendar_url))
+async def cmd_calendar(msg: Message, session: AsyncSession, lang: str):
+    await show(msg, screens.calendar_view(lang, await repo.calendar_links(session)))

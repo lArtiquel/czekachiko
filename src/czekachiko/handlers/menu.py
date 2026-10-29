@@ -42,7 +42,7 @@ async def reply_menu_button(
     elif key == "btn_stats":
         screen = screens.stats_pick_voiv(lang)
     elif key == "btn_calendar":
-        screen = screens.calendar_view(lang, calendar_url)
+        screen = screens.calendar_view(lang, await repo.calendar_links(session))
     elif key == "btn_settings":
         user = await repo.ensure_user(session, msg.from_user.id)
         screen = screens.settings_view(lang, user.lang, user.reminders)

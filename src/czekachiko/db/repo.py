@@ -11,6 +11,7 @@ from czekachiko import documents
 from czekachiko.db.models import (
     AggregateRow,
     CalendarEvent,
+    CalendarRow,
     Case,
     CaseDocument,
     Feedback,
@@ -192,11 +193,27 @@ async def _enqueue_case_upserts(s: AsyncSession, case: Case) -> None:
     await s.flush()
 
 
-async def record_event_id(s: AsyncSession, case_id: int, milestone: str, event_id: str) -> None:
+async def record_event_id(
+    s: AsyncSession, case_id: int, milestone: str, event_id: str, scope: str = "all"
+) -> None:
     await s.execute(
         insert(CalendarEvent)
-        .values(case_id=case_id, milestone=milestone, event_id=event_id)
-        .on_conflict_do_update(index_elements=["case_id", "milestone"], set_={"event_id": event_id})
+        .values(case_id=case_id, milestone=milestone, scope=scope, event_id=event_id)
+        .on_conflict_do_update(
+            index_elements=["case_id", "milestone", "scope"], set_={"event_id": event_id}
+        )
+    )
+
+
+async def calendar_links(s: AsyncSession) -> dict[str, str]:
+    return {r.scope: r.calendar_id for r in (await s.scalars(select(CalendarRow))).all()}
+
+
+async def set_calendar(s: AsyncSession, scope: str, calendar_id: str) -> None:
+    await s.execute(
+        insert(CalendarRow)
+        .values(scope=scope, calendar_id=calendar_id)
+        .on_conflict_do_update(index_elements=["scope"], set_={"calendar_id": calendar_id})
     )
 
 

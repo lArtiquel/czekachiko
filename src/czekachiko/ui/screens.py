@@ -436,10 +436,26 @@ def confirm_delete_all(lang: str) -> Screen:
     return t(lang, "confirm_delete_all"), markup(rows)
 
 
-def calendar_view(lang: str, url: str | None) -> Screen:
-    if not url:
+def calendar_url(calendar_id: str) -> str:
+    return "https://calendar.google.com/calendar/embed?" + urlencode(
+        {"src": calendar_id, "ctz": "Europe/Warsaw"}, quote_via=quote
+    )
+
+
+def calendar_view(lang: str, links: dict[str, str] | None) -> Screen:
+    """Whole Poland first, then one link per voivodeship."""
+    if not links or "all" not in links:
         return t(lang, "calendar_soon"), markup([nav_row(lang)])
-    rows = [[InlineKeyboardButton(text=t(lang, "btn_open_calendar"), url=url)], nav_row(lang)]
+    rows = [
+        [InlineKeyboardButton(text=t(lang, "btn_calendar_all"), url=calendar_url(links["all"]))]
+    ]
+    voivs = [
+        InlineKeyboardButton(text=voiv_label(v), url=calendar_url(links[v.value]))
+        for v in Voivodeship
+        if v.value in links
+    ]
+    rows += [voivs[i : i + 2] for i in range(0, len(voivs), 2)]
+    rows.append(nav_row(lang))
     return t(lang, "calendar_text"), markup(rows)
 
 
