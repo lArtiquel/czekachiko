@@ -1,0 +1,53 @@
+name: czekachiko
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  bot:
+    build: .
+    env_file: [.env, db.env, runtime.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [db, egress]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 200m
+    cpus: 0.5
+    pids_limit: 128
+    logging: *logging
+    volumes:
+      - ./secrets:/run/secrets:ro
+
+  db:
+    image: postgres:16-alpine
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=20"]
+    env_file: [db.env]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [db]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 150m
+    cpus: 0.3
+    pids_limit: 128
+    logging: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  db:
+    internal: true
+  egress: {}
+
+volumes:
+  pgdata: {}

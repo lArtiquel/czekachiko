@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+.env.*
+deploy.env
+db.env
+runtime.env
+secrets
+backups
+.superpowers
+**/__pycache__
+tests
+docs

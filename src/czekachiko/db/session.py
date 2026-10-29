@@ -4,7 +4,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
-ROOT = Path(__file__).resolve().parents[3]
+MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
 def make_session_factory(url: str) -> tuple[AsyncEngine, async_sessionmaker]:
@@ -14,7 +14,7 @@ def make_session_factory(url: str) -> tuple[AsyncEngine, async_sessionmaker]:
 
 def run_migrations(url: str) -> None:
     """Synchronous; call before the event loop starts."""
-    cfg = Config(str(ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(ROOT / "migrations"))
+    cfg = Config()
+    cfg.set_main_option("script_location", str(MIGRATIONS))
     cfg.set_main_option("sqlalchemy.url", url)
     command.upgrade(cfg, "head")

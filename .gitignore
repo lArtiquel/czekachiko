@@ -20,3 +20,5 @@ __pycache__/
 # Tooling
 .superpowers/
 .DS_Store
+db.env
+runtime.env
