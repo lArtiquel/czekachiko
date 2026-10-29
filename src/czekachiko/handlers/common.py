@@ -1,6 +1,9 @@
 """Commands, top-level navigation and the catch-all fallbacks."""
 
+import contextlib
+
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -10,7 +13,7 @@ from czekachiko.db import repo
 from czekachiko.i18n import t
 from czekachiko.render import show
 from czekachiko.ui import screens
-from czekachiko.ui.keyboards import Act, Nav, Noop, reply_menu
+from czekachiko.ui.keyboards import Act, MonthGrid, Nav, Noop, month_grid, reply_menu
 
 router = Router(name="common")
 fallback = Router(name="fallback")
@@ -77,6 +80,16 @@ async def nav_help(cq: CallbackQuery, lang: str):
 @router.callback_query(Nav.filter(F.to == "privacy"))
 async def nav_privacy(cq: CallbackQuery, lang: str):
     await show(cq, screens.privacy(lang))
+
+
+@router.callback_query(MonthGrid.filter())
+async def open_month_grid(cq: CallbackQuery, callback_data: MonthGrid, lang: str, clock):
+    """Swap the day grid for a month grid; the Month buttons go to the usual handlers."""
+    await cq.answer()
+    with contextlib.suppress(TelegramBadRequest):
+        await cq.message.edit_reply_markup(
+            reply_markup=month_grid(lang, callback_data.y, callback_data.m, clock())
+        )
 
 
 @router.callback_query(Noop.filter())

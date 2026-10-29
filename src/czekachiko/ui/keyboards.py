@@ -36,6 +36,11 @@ class Month(CallbackData, prefix="mo"):
     m: int
 
 
+class MonthGrid(CallbackData, prefix="mg"):
+    y: int
+    m: int  # the month to return to
+
+
 class Act(CallbackData, prefix="a"):
     action: str
     case_id: int = 0
@@ -110,7 +115,7 @@ def date_picker(
     rows: list[list[InlineKeyboardButton]] = []
     prev_y, prev_m = _add_months(year, month, -1)
     next_y, next_m = _add_months(year, month, 1)
-    header = [btn(f"{L.MONTHS[month - 1]} {year}", NOOP)]
+    header = [btn(f"{L.MONTHS[month - 1]} {year} ▾", MonthGrid(y=year, m=month))]
     if date(prev_y, prev_m, 1) >= EARLIEST.replace(day=1):
         header.insert(0, btn("‹", Month(y=prev_y, m=prev_m)))
     if date(next_y, next_m, 1) <= today.replace(day=1):
@@ -164,3 +169,27 @@ def send_to_chat(lang: str, query: str) -> InlineKeyboardButton:
             allow_bot_chats=False,
         ),
     )
+
+
+def month_grid(lang: str, year: int, back_month: int, today: date) -> InlineKeyboardMarkup:
+    """Jump to any month: 12 buttons plus year arrows. Future months are disabled."""
+    L = loc(lang)
+    rows: list[list[InlineKeyboardButton]] = []
+    head = [btn(str(year), NOOP)]
+    if year - 1 >= EARLIEST.year:
+        head.insert(0, btn("‹", MonthGrid(y=year - 1, m=back_month)))
+    if year + 1 <= today.year:
+        head.append(btn("›", MonthGrid(y=year + 1, m=back_month)))
+    rows.append(head)
+    months = []
+    for m in range(1, 13):
+        first = date(year, m, 1)
+        if first > today.replace(day=1) or first < EARLIEST.replace(day=1):
+            months.append(btn("·", NOOP))
+        else:
+            months.append(btn(L.MONTHS[m - 1][:3], Month(y=year, m=m)))
+    rows += grid(months, 3)
+    back_year = year if date(year, back_month, 1) <= today.replace(day=1) else today.year
+    rows.append([btn(t(lang, "btn_back"), Month(y=back_year, m=back_month))])
+    rows.append(cancel_row(lang))
+    return markup(rows)

@@ -373,3 +373,35 @@ async def test_stray_text_is_one_screen(env):
     await feed(env, text_update(UID, "привет"))
     assert len(env[2].texts()) == before + 1
     assert ru.MESSAGES["err_use_buttons"] in env[2].last().text
+
+
+class _FakeCq:
+    def __init__(self, data):
+        self.data = data
+        self.answered = 0
+
+    async def answer(self, *a, **kw):
+        self.answered += 1
+
+
+async def test_throttle_allows_fast_month_flipping_and_answers_dropped():
+    from aiogram.types import CallbackQuery
+
+    from czekachiko.middlewares import ThrottleMiddleware
+
+    t = [0.0]
+    mw = ThrottleMiddleware(clock=lambda: t[0])
+    calls = 0
+
+    async def handler(event, data):
+        nonlocal calls
+        calls += 1
+
+    user = {"event_from_user": type("U", (), {"id": 1})()}
+    flips = [_FakeCq("mo:2026:9") for _ in range(16)]
+    for i, cq in enumerate(flips):
+        t[0] = i * 0.1
+        cq.__class__ = type("Cq", (_FakeCq, CallbackQuery), {})  # isinstance(…, CallbackQuery)
+        await mw(handler, cq, user)
+    assert calls == 15  # navigation gets 15 per 3 s
+    assert flips[-1].answered == 1  # the dropped tap is acknowledged: no endless spinner

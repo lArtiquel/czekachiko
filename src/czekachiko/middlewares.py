@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import time
 from collections import defaultdict, deque
@@ -6,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
+from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.db import repo
@@ -13,6 +15,8 @@ from czekachiko.db import repo
 log = logging.getLogger(__name__)
 # Each in-flight update holds its own DB session plus short FSM-storage sessions.
 CONCURRENCY = 5
+# Cheap calendar navigation (month flips, month grid, no-op cells) gets a separate, larger budget.
+NAV_PREFIXES = ("mo:", "mg:", "x")
 Handler = Callable[[Any, dict[str, Any]], Awaitable[Any]]
 
 
@@ -25,12 +29,15 @@ class ThrottleMiddleware(BaseMiddleware):
         per: float = 3.0,
         ban_after_per_min: int = 40,
         ban_seconds: int = 600,
+        nav_rate: int = 15,
         clock: Callable[[], float] = time.monotonic,
     ):
         self.rate, self.per = rate, per
         self.ban_after, self.ban_seconds = ban_after_per_min, ban_seconds
         self.clock = clock
         self.hits: dict[int, deque[float]] = defaultdict(deque)
+        self.nav_hits: dict[int, deque[float]] = defaultdict(deque)
+        self.nav_rate = nav_rate
         self.banned_until: dict[int, float] = {}
 
     async def __call__(self, handler: Handler, event: Any, data: dict[str, Any]) -> Any:
@@ -39,20 +46,28 @@ class ThrottleMiddleware(BaseMiddleware):
             return await handler(event, data)
         now = self.clock()
         if self.banned_until.get(user.id, 0) > now:
-            return None
-        hits = self.hits[user.id]
+            return await self._drop(event)
+        nav = isinstance(event, CallbackQuery) and (event.data or "").startswith(NAV_PREFIXES)
+        hits = (self.nav_hits if nav else self.hits)[user.id]
         hits.append(now)
         while hits and hits[0] < now - 60:
             hits.popleft()
-        if len(hits) > self.ban_after:
+        if len(hits) > (self.ban_after * 3 if nav else self.ban_after):
             self.banned_until[user.id] = now + self.ban_seconds
             hits.clear()
             log.warning("flood: user muted for %ss", self.ban_seconds)
-            return None
+            return await self._drop(event)
         recent = sum(1 for h in hits if h > now - self.per)
-        if recent > self.rate:
-            return None
+        if recent > (self.nav_rate if nav else self.rate):
+            return await self._drop(event)
         return await handler(event, data)
+
+    @staticmethod
+    async def _drop(event: Any) -> None:
+        """Acknowledge a dropped button press so the client stops showing a spinner."""
+        if isinstance(event, CallbackQuery):
+            with contextlib.suppress(Exception):
+                await event.answer()
 
 
 class DbMiddleware(BaseMiddleware):

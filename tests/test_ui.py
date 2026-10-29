@@ -162,3 +162,21 @@ def test_calendar_view_links_every_voivodeship():
 def test_calendar_view_soon_without_links():
     text, _ = screens.calendar_view("ru", {})
     assert text == ru.MESSAGES["calendar_soon"]
+
+
+def test_date_picker_header_opens_month_grid():
+    from czekachiko.ui.keyboards import MonthGrid
+
+    header = date_picker("ru", 2026, 3, TODAY).inline_keyboard[0]
+    assert any(b.callback_data == MonthGrid(y=2026, m=3).pack() for b in header)
+
+
+def test_month_grid_lists_months_and_disables_future():
+    from czekachiko.ui.keyboards import Month, MonthGrid, month_grid
+
+    kb = month_grid("ru", 2026, 3, TODAY)
+    packed = {b.callback_data for b in buttons(kb)}
+    assert Month(y=2026, m=10).pack() in packed
+    assert Month(y=2026, m=11).pack() not in packed  # future
+    assert MonthGrid(y=2025, m=3).pack() in packed  # previous year
+    assert Month(y=2026, m=3).pack() in packed  # back to the days of March
