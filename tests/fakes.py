@@ -115,3 +115,36 @@ def sign_init_data(
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
     fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
     return urlencode(fields)
+
+
+class FakeTime:
+    """Injectable epoch clock. Each signed request moves it forward by `step` seconds, so
+    ordinary tests never trip the rate limits; set step to 0 to freeze time."""
+
+    def __init__(self, t: float, step: float = 0.5):
+        self.t, self.step = t, step
+
+    def __call__(self) -> float:
+        return self.t
+
+
+class Api:
+    """aiohttp TestClient plus a valid `Authorization: tma …` header per request."""
+
+    def __init__(self, client, time: FakeTime, uid: int = 548):
+        self.client, self.time, self.uid = client, time, uid
+
+    def auth(self, uid: int | None = None) -> dict[str, str]:
+        user = {"id": uid or self.uid, "first_name": "T"}
+        return {"Authorization": "tma " + sign_init_data(user=user, auth_date=int(self.time.t))}
+
+    async def call(self, method: str, path: str, *, uid: int | None = None, signed=True, **kw):
+        self.time.t += self.time.step
+        headers = {**(self.auth(uid) if signed else {}), **kw.pop("headers", {})}
+        return await self.client.request(method, path, headers=headers, **kw)
+
+    async def json(self, method: str, path: str, status: int = 200, **kw):
+        r = await self.call(method, path, **kw)
+        body = await r.json() if r.status != 204 else None
+        assert r.status == status, (r.status, body)
+        return body

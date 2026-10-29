@@ -51,3 +51,40 @@ async def session_factory(db_url):
 async def session(session_factory):
     async with session_factory() as s:
         yield s
+
+
+@pytest.fixture
+def api_time():
+    from tests.fakes import NOW, FakeTime
+
+    return FakeTime(NOW.timestamp())
+
+
+@pytest.fixture
+def make_api(session_factory, db_url, api_time):
+    """Build the API app (optionally extending it) and wrap it in a test client."""
+    from contextlib import asynccontextmanager
+    from datetime import date
+
+    from aiohttp.test_utils import TestClient, TestServer
+
+    from czekachiko.api.app import create_app
+    from czekachiko.config import Settings
+    from tests.fakes import TOKEN, Api
+
+    @asynccontextmanager
+    async def build(extend=None):
+        settings = Settings(bot_token=TOKEN, database_url=db_url, _env_file=None)
+        app = create_app(settings, session_factory, clock=lambda: date(2026, 10, 29), now=api_time)
+        if extend is not None:
+            extend(app)
+        async with TestClient(TestServer(app)) as client:
+            yield Api(client, api_time)
+
+    return build
+
+
+@pytest.fixture
+async def api(make_api):
+    async with make_api() as client:
+        yield client
