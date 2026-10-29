@@ -129,7 +129,7 @@ def test_case_view_shows_full_chain_with_counts():
     text, _ = screens.case_view("ru", FakeCase(), FORECAST, chain)
     assert "номер дела" in text and "195" in text and "(дел: 1)" in text
     assert "в среднем 192 дн." in text and "мин 140" in text and "макс 237" in text
-    assert "wezwanie о brakach" in text and "(дел: 0)" in text
+    assert "вызов на отпечатки пальцев" in text and "(дел: 0)" in text
     assert "карта" in text
 
 

@@ -21,15 +21,15 @@ PURPOSE_BUTTONS = {
 MILESTONE_LABELS = {
     M.filed: "filed",
     M.case_number: "case number",
-    M.braki: "formal-defects letter",
-    M.fingerprints: "fingerprints",
+    M.braki: "fingerprint appointment letter",
+    M.fingerprints: "fingerprints given",
     M.decision: "decision",
     M.card: "card",
 }
 MILESTONE_HINTS = {
     M.filed: "when you filed the application",
     M.case_number: "when you got the case number (sygnatura)",
-    M.braki: "when the letter about formal defects arrived",
+    M.braki: "when the letter (wezwanie) inviting you to give fingerprints arrived",
     M.fingerprints: "when you gave fingerprints",
     M.decision: "when the decision was issued",
     M.card: "when you collected the card",

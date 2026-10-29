@@ -34,8 +34,8 @@ PURPOSE_LABELS = {
 MILESTONE_LABELS = {
     M.filed: "подача",
     M.case_number: "номер дела",
-    M.braki: "wezwanie о brakach",
-    M.fingerprints: "отпечатки",
+    M.braki: "вызов на отпечатки пальцев",
+    M.fingerprints: "отпечатки сданы",
     M.decision: "decyzja",
     M.card: "карта",
 }
@@ -53,7 +53,7 @@ PURPOSE_BUTTONS = {
 MILESTONE_HINTS = {
     M.filed: "когда подал wniosek",
     M.case_number: "когда пришёл номер дела (sygnatura)",
-    M.braki: "когда пришло wezwanie о brakach formalnych",
+    M.braki: "когда пришёл вызов (wezwanie) на отпечатки / uzupełnienie braków",
     M.fingerprints: "когда сдал отпечатки",
     M.decision: "когда вынесли decyzję",
     M.card: "когда получил карту",
@@ -138,7 +138,7 @@ MESSAGES = {
     "err_future": "Эта дата ещё не наступила. Выбери прошедший день.",
     "err_before_2015": "Дата подачи не может быть раньше 2015 года.",
     "err_before_filed": "Этап не может быть раньше даты подачи.",
-    "err_order": "Порядок этапов нарушен: отпечатки → decyzja → карта.",
+    "err_order": "Порядок этапов нарушен: отпечатки сданы → decyzja → карта.",
     "err_filed_missing": "Сначала нужна дата подачи.",
     "err_not_date": "Это не похоже на дату. Выбери день в календаре или напиши ДД.ММ.ГГГГ.",
     "err_use_buttons": "Пожалуйста, выбери вариант кнопкой 👇",
