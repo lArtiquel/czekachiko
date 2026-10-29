@@ -48,11 +48,6 @@ async def set_lang(s: AsyncSession, tg_id: int, lang: str) -> None:
     await s.flush()
 
 
-async def set_reminders(s: AsyncSession, tg_id: int, on: bool) -> None:
-    (await ensure_user(s, tg_id)).reminders = on
-    await s.flush()
-
-
 async def delete_user(s: AsyncSession, tg_id: int) -> None:
     for case in await list_cases(s, tg_id):
         await delete_case(s, case)
