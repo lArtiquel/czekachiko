@@ -7,7 +7,15 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from czekachiko.db.models import AggregateRow, CalendarEvent, Case, MilestoneRow, OutboxRow, User
+from czekachiko.db.models import (
+    AggregateRow,
+    CalendarEvent,
+    Case,
+    Feedback,
+    MilestoneRow,
+    OutboxRow,
+    User,
+)
 from czekachiko.domain import CHAIN, INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
 from czekachiko.locales.ru import MILESTONE_LABELS, PURPOSE_LABELS, VOIV_LABELS
 from czekachiko.stats import Aggregate, aggregate
@@ -332,3 +340,28 @@ async def admin_counts(s: AsyncSession) -> list[tuple[str, int]]:
 
 async def admin_recent(s: AsyncSession, limit: int = 10) -> list[Case]:
     return list((await s.scalars(select(Case).order_by(Case.id.desc()).limit(limit))).all())
+
+
+# --- feedback --------------------------------------------------------------
+
+
+async def add_feedback(s: AsyncSession, tg_id: int, direction: str, text_: str) -> Feedback:
+    await ensure_user(s, tg_id)
+    row = Feedback(tg_id=tg_id, direction=direction, text=text_[:1000])
+    s.add(row)
+    await s.flush()
+    return row
+
+
+async def count_feedback_since(s: AsyncSession, tg_id: int, since) -> int:
+    return await s.scalar(
+        select(func.count())
+        .select_from(Feedback)
+        .where(Feedback.tg_id == tg_id, Feedback.direction == "in", Feedback.created_at >= since)
+    )
+
+
+async def feedback_by_admin_msg(s: AsyncSession, admin_msg_id: int) -> Feedback | None:
+    return await s.scalar(
+        select(Feedback).where(Feedback.admin_msg_id == admin_msg_id, Feedback.direction == "in")
+    )

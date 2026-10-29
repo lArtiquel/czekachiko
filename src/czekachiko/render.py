@@ -1,5 +1,6 @@
 """Show screens while keeping the chat tidy: one live bot screen, no leftover inputs."""
 
+import asyncio
 import logging
 
 from aiogram import Bot
@@ -67,3 +68,17 @@ async def refresh_reply_keyboard(
     The keyboard stays."""
     msg = await bot.send_message(user_id, text, reply_markup=kb)
     await _delete(bot, user_id, msg.message_id)
+
+
+async def flash(bot: Bot, chat_id: int, text: str, delay: float = 5) -> None:
+    """A short-lived notice: sent now, deleted after `delay` seconds."""
+    msg = await bot.send_message(chat_id, text)
+
+    async def _later() -> None:
+        await asyncio.sleep(delay)
+        await _delete(bot, chat_id, msg.message_id)
+
+    if delay <= 0:
+        await _later()
+    else:
+        asyncio.create_task(_later())

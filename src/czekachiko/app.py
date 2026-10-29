@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from czekachiko.fsm_storage import PgStorage
-from czekachiko.handlers import admin, cases, common, menu, settings, stats
+from czekachiko.handlers import admin, cases, common, feedback, menu, settings, stats
 from czekachiko.middlewares import ConcurrencyMiddleware, DbMiddleware, ThrottleMiddleware
 
 
@@ -16,12 +16,14 @@ def build_dispatcher(
     admin_tg_id: int | None = None,
     calendar_url: str | None = None,
     throttle: bool = True,
+    ephemeral_delay: float = 5,
 ) -> Dispatcher:
     dp = Dispatcher(
         storage=PgStorage(factory),
         # One update at a time per user: double taps run in order, never concurrently.
         events_isolation=SimpleEventIsolation(),
         clock=clock,
+        ephemeral_delay=ephemeral_delay,
         admin_tg_id=admin_tg_id,
         calendar_url=calendar_url,
     )
@@ -32,9 +34,11 @@ def build_dispatcher(
         observer.outer_middleware(ConcurrencyMiddleware())
         observer.middleware(DbMiddleware(factory))
     routers = [
+        feedback.admin_replies,
         admin.router,
         common.router,
         menu.router,
+        feedback.router,
         cases.router,
         stats.router,
         settings.router,

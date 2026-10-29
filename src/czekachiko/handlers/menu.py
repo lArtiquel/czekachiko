@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db import repo
 from czekachiko.handlers.cases import start_add
+from czekachiko.handlers.feedback import start_feedback
 from czekachiko.i18n import LOCALES
 from czekachiko.render import show
 from czekachiko.ui import screens
@@ -31,6 +32,9 @@ async def reply_menu_button(
     key = ROUTES[msg.text]
     if key == "btn_add":
         await start_add(msg, session, state, lang)
+        return
+    if key == "btn_feedback":
+        await start_feedback(msg, state, lang)
         return
     await state.clear()
     if key == "btn_cases":

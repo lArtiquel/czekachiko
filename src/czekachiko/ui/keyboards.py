@@ -136,7 +136,7 @@ REPLY_MENU = [
     ["btn_add", "btn_cases"],
     ["btn_stats", "btn_calendar"],
     ["btn_settings", "btn_help"],
-    ["btn_share"],
+    ["btn_share", "btn_feedback"],
 ]
 
 

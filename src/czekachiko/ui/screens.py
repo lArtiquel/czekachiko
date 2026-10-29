@@ -46,7 +46,10 @@ def main_menu(lang: str) -> Screen:
             btn(t(lang, "btn_settings"), Nav(to="settings")),
             btn(t(lang, "btn_help"), Nav(to="help")),
         ],
-        [InlineKeyboardButton(text=t(lang, "btn_share"), url=share_url(lang))],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_share"), url=share_url(lang)),
+            btn(t(lang, "btn_feedback"), Nav(to="feedback")),
+        ],
     ]
     return t(lang, "menu_title"), markup(rows)
 
@@ -58,6 +61,13 @@ def share_url(lang: str) -> str:
 
 def privacy(lang: str) -> Screen:
     return t(lang, "privacy"), markup([nav_row(lang)])
+
+
+def feedback_prompt(lang: str) -> Screen:
+    rows = [
+        [btn(t(lang, "btn_cancel"), Act(action="cancel")), btn(t(lang, "btn_menu"), Nav(to="menu"))]
+    ]
+    return t(lang, "feedback_prompt"), markup(rows)
 
 
 def share_view(lang: str) -> Screen:
