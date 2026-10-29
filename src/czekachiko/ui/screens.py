@@ -5,9 +5,9 @@ from urllib.parse import urlencode
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from czekachiko.domain import INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.i18n import label, loc, t, voiv_label
-from czekachiko.stats import MIN_WINDOW_N, Aggregate, Forecast
+from czekachiko.stats import Aggregate, Forecast
 from czekachiko.ui.keyboards import Act, Nav, Pick, btn, enum_picker, markup, nav_row
 
 Screen = tuple[str, InlineKeyboardMarkup]
@@ -66,7 +66,7 @@ def share_view(lang: str) -> Screen:
 
 
 def start_text(lang: str) -> str:
-    return f"{t(lang, 'menu_title')}\n\n{t(lang, 'privacy')}"
+    return t(lang, "menu_title")
 
 
 def help_view(lang: str) -> Screen:
@@ -86,6 +86,35 @@ def cases_list(lang: str, cases: list) -> Screen:
     rows.append(nav_row(lang))
     text = t(lang, "cases_title") + "\n\n" + ("" if cases else t(lang, "cases_empty"))
     return text.strip(), markup(rows)
+
+
+def chain_lines(
+    lang: str,
+    chain: dict[tuple[Milestone, Milestone], Aggregate | None],
+    dates: dict | None = None,
+) -> list[str]:
+    """Each milestone from filing: the case's own date (if any) and the typical span."""
+    from czekachiko.domain import CHAIN
+
+    lines = []
+    filed = (dates or {}).get(M.filed)
+    for a, b in CHAIN:
+        name = label(lang, "MILESTONE_LABELS", b)
+        if dates is None:
+            head = f"• {name}"
+        elif b in dates:
+            own = t(lang, "chain_own", days=(dates[b] - filed).days) if filed else ""
+            head = f"✅ {name} — {fmt(dates[b])} · {own}"
+        else:
+            head = f"⏳ {name}"
+        agg = chain.get((a, b))
+        typical = (
+            t(lang, "chain_line", mean=round(agg.mean), min=agg.min, max=agg.max, n=agg.n)
+            if agg is not None
+            else t(lang, "chain_none")
+        )
+        lines.append(f"{head}\n    <i>{typical}</i>")
+    return lines
 
 
 def _forecast_text(lang: str, case, f: Forecast | None) -> str:
@@ -113,15 +142,16 @@ def _forecast_text(lang: str, case, f: Forecast | None) -> str:
     return f"{head}\n{body}\n<i>{extra}</i>"
 
 
-def case_view(lang: str, case, f: Forecast | None) -> Screen:
+def case_view(lang: str, case, f: Forecast | None, chain: dict | None = None) -> Screen:
     dates = case.dates()
     channel = label(lang, "CHANNEL_LABELS", Channel(case.channel))
-    lines = [f"<b>{case_title(lang, case)}</b> · {channel}", ""]
-    for m in M:
-        if m in dates:
-            lines.append(f"✅ {label(lang, 'MILESTONE_LABELS', m)} — {fmt(dates[m])}")
-        elif m in (M.fingerprints, M.decision, M.card):
-            lines.append(f"⏳ {label(lang, 'MILESTONE_LABELS', m)}")
+    filed = dates[M.filed]
+    lines = [
+        f"<b>{case_title(lang, case)}</b> · {channel}",
+        f"📨 {label(lang, 'MILESTONE_LABELS', M.filed)} — {fmt(filed)}",
+        "",
+        *chain_lines(lang, chain or {}, dates),
+    ]
     lines += ["", _forecast_text(lang, case, f), "", t(lang, "disclaimer")]
     rows = [
         [btn(t(lang, "btn_mark"), Nav(to="mark", case_id=case.id))],
@@ -235,30 +265,7 @@ def stats_view(
         voiv=voiv_label(voiv),
         purpose=label(lang, "PURPOSE_LABELS", Purpose(purpose)),
     )
-    lines = [title, ""]
-    for a, b in INTERVAL_PAIRS:
-        agg = aggregates.get((a, b))
-        if agg is None:
-            continue
-        names = dict(
-            from_=label(lang, "MILESTONE_LABELS", a), to=label(lang, "MILESTONE_LABELS", b)
-        )
-        if agg.n >= MIN_WINDOW_N:
-            lines.append(
-                t(
-                    lang,
-                    "stats_row",
-                    p10=round(agg.p10),
-                    p90=round(agg.p90),
-                    median=round(agg.median),
-                    n=agg.n,
-                    **names,
-                )
-            )
-        else:
-            lines.append(t(lang, "stats_row_thin", n=agg.n, **names))
-    if len(lines) == 2:
-        lines.append(t(lang, "stats_no_rows"))
+    lines = [title, "", t(lang, "chain_title"), "", *chain_lines(lang, aggregates)]
     if who_fp:
         lines += ["", t(lang, "who_fp", span=month_span(lang, who_fp))]
     if who_dec:

@@ -73,6 +73,7 @@ class AggregateRow(Base):
     p90: Mapped[float] = mapped_column(Float)
     min: Mapped[int] = mapped_column(Integer)
     max: Mapped[int] = mapped_column(Integer)
+    mean: Mapped[float | None] = mapped_column(Float)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

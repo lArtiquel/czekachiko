@@ -28,11 +28,16 @@ async def feed(env, update):
     await dp.feed_update(bot, update)
 
 
-async def test_start_shows_menu_and_privacy(env):
+async def test_start_shows_menu_without_privacy(env):
     await feed(env, text_update(UID, "/start"))
     texts = env[2].texts()
     assert any("Czekachiko" in t for t in texts)
-    assert any(ru.MESSAGES["privacy"][:20] in t for t in texts)
+    assert not any(ru.MESSAGES["privacy"][:20] in t for t in texts)
+
+
+async def test_help_includes_privacy(env):
+    await feed(env, text_update(UID, ru.MESSAGES["btn_help"]))
+    assert ru.MESSAGES["privacy"] in env[2].last().text
 
 
 FILED = Day(y=2026, m=3, d=6)
@@ -313,7 +318,7 @@ async def test_start_is_one_short_message(env):
     texts = env[2].texts()
     assert len(texts) == 1
     assert len(texts[0]) < 400
-    assert "Czekachiko" in texts[0] and "Telegram ID" in texts[0]
+    assert "Czekachiko" in texts[0] and "Telegram ID" not in texts[0]
 
 
 async def test_reply_menu_share_button(env):

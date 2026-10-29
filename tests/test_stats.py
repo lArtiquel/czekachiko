@@ -16,7 +16,7 @@ def test_percentile_linear():
 def test_aggregate():
     assert aggregate([]) is None
     a = aggregate([100, 120, 140, 160, 180])
-    assert (a.n, a.median, a.min, a.max) == (5, 140, 100, 180)
+    assert (a.n, a.median, a.min, a.max, a.mean) == (5, 140, 100, 180, 140)
 
 
 def test_outlier_detection():

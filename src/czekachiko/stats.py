@@ -32,6 +32,7 @@ class Aggregate:
     p90: float
     min: int
     max: int
+    mean: float
 
 
 def aggregate(values: Sequence[int]) -> Aggregate | None:
@@ -44,6 +45,7 @@ def aggregate(values: Sequence[int]) -> Aggregate | None:
         p90=percentile(values, 0.9),
         min=min(values),
         max=max(values),
+        mean=sum(values) / len(values),
     )
 
 

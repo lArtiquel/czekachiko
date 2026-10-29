@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko.db.models import AggregateRow, CalendarEvent, Case, MilestoneRow, OutboxRow, User
-from czekachiko.domain import INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import CHAIN, INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
 from czekachiko.locales.ru import MILESTONE_LABELS, PURPOSE_LABELS, VOIV_LABELS
 from czekachiko.stats import Aggregate, aggregate
 
@@ -233,7 +233,8 @@ async def get_aggregate(
     )
     if row is None:
         return None
-    return Aggregate(row.n, row.p10, row.median, row.p90, row.min, row.max)
+    mean = row.mean if row.mean is not None else row.median
+    return Aggregate(row.n, row.p10, row.median, row.p90, row.min, row.max, mean)
 
 
 async def _recompute_key(s: AsyncSession, voiv: str | None, purpose: str, a: str, b: str) -> None:
@@ -259,6 +260,7 @@ async def _recompute_key(s: AsyncSession, voiv: str | None, purpose: str, a: str
         "p90": agg.p90,
         "min": agg.min,
         "max": agg.max,
+        "mean": agg.mean,
     }
     await s.execute(
         insert(AggregateRow)
@@ -281,6 +283,12 @@ async def recompute_for(s: AsyncSession, voiv: str, purpose: str) -> None:
         await _recompute_key(s, str(voiv), str(purpose), str(a), str(b))
         await _recompute_key(s, None, str(purpose), str(a), str(b))
     await s.flush()
+
+
+async def chain_aggregates(
+    s: AsyncSession, voiv: Voivodeship | str, purpose: Purpose | str
+) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
+    return {(a, b): await get_aggregate(s, voiv, purpose, a, b) for a, b in CHAIN}
 
 
 async def recompute_all(s: AsyncSession) -> None:

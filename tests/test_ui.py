@@ -64,7 +64,7 @@ def test_date_picker_past_month_has_next_arrow():
 
 def all_screens(lang):
     case = FakeCase()
-    agg = Aggregate(10, 90, 170, 240, 60, 400)
+    agg = Aggregate(10, 90, 170, 240, 60, 400, 165)
     return [
         screens.privacy(lang),
         screens.help_view(lang),
@@ -101,7 +101,7 @@ def test_case_view_no_data():
 
 
 def test_outlier_prompt_mentions_range():
-    agg = Aggregate(10, 90, 170, 240, 60, 400)
+    agg = Aggregate(10, 90, 170, 240, 60, 400, 165)
     text, _ = screens.outlier_prompt("ru", 7, "mazowieckie", M.filed, M.fingerprints, agg, 610)
     assert "90" in text and "240" in text and "610" in text
 
@@ -119,3 +119,22 @@ def test_main_menu_has_share_button():
     q = parse_qs(urlparse(share[0].url).query)
     assert q["url"] == ["https://t.me/czekachiko_bot"]
     assert "karta pobytu" in q["text"][0]
+
+
+def test_case_view_shows_full_chain_with_counts():
+    chain = {
+        (M.filed, M.case_number): Aggregate(1, 195, 195, 195, 195, 195, 195),
+        (M.filed, M.fingerprints): Aggregate(3, 150, 200, 230, 140, 237, 192),
+    }
+    text, _ = screens.case_view("ru", FakeCase(), FORECAST, chain)
+    assert "номер дела" in text and "195" in text and "(дел: 1)" in text
+    assert "в среднем 192 дн." in text and "мин 140" in text and "макс 237" in text
+    assert "wezwanie о brakach" in text and "(дел: 0)" in text
+    assert "карта" in text
+
+
+def test_stats_view_shows_rows_even_with_one_case():
+    aggs = {(M.filed, M.case_number): Aggregate(1, 195, 195, 195, 195, 195, 195)}
+    text, _ = screens.stats_view("ru", "mazowieckie", "jdg", aggs, None, None)
+    assert "в среднем 195 дн." in text and "(дел: 1)" in text
+    assert "decyzja" in text and "(дел: 0)" in text

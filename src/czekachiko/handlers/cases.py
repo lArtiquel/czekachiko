@@ -51,9 +51,14 @@ async def case_forecast(s: AsyncSession, case: Case, today: date) -> Forecast | 
     return forecast(case.dates(), today, lambda sc, a, b: values.get((sc, a, b), []))
 
 
+async def case_screen(s: AsyncSession, lang: str, case: Case, today: date):
+    chain = await repo.chain_aggregates(s, case.voivodeship, case.purpose)
+    return screens.case_view(lang, case, await case_forecast(s, case, today), chain)
+
+
 async def show_case(event, s: AsyncSession, state: FSMContext, lang: str, case: Case, today: date):
     await state.clear()
-    await show(event, screens.case_view(lang, case, await case_forecast(s, case, today)))
+    await show(event, await case_screen(s, lang, case, today))
 
 
 async def show_date_picker(
@@ -298,7 +303,7 @@ async def save_and_return(
         await show(event, screens.wizard_more(lang, case), new=new)
         return
     await state.clear()
-    await show(event, screens.case_view(lang, case, await case_forecast(s, case, today)), new=new)
+    await show(event, await case_screen(s, lang, case, today), new=new)
 
 
 @router.callback_query(MarkDate.picking, Act.filter(F.action == "clear_date"))

@@ -153,3 +153,14 @@ async def test_concurrent_saves_same_purpose_both_counted(session_factory):
     async with session_factory() as s:
         nat = await repo.get_aggregate(s, None, P.jdg, M.filed, M.fingerprints)
     assert nat.n == 2
+
+
+async def test_chain_aggregates_include_mean(session):
+    for i, d in enumerate([date(2026, 6, 4), date(2026, 7, 4)]):
+        c = await make_case(session, 10 + i, f"c{i}")
+        await repo.set_milestone(session, c, M.case_number, d)
+    await session.commit()
+    chain = await repo.chain_aggregates(session, V.mazowieckie, P.jdg)
+    agg = chain[(M.filed, M.case_number)]
+    assert (agg.n, agg.min, agg.max, agg.mean) == (2, 90, 120, 105)
+    assert chain[(M.filed, M.card)] is None

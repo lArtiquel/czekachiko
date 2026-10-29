@@ -57,4 +57,5 @@ def test_enums_and_pairs():
     assert len(Voivodeship) == 16
     assert [p.value for p in Purpose] == ["praca", "jdg", "studia", "rodzina", "inne"]
     assert (M.fingerprints, M.decision) in INTERVAL_PAIRS
-    assert len(INTERVAL_PAIRS) == 6
+    assert len(INTERVAL_PAIRS) == 7
+    assert (M.filed, M.braki) in INTERVAL_PAIRS
