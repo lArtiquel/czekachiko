@@ -26,6 +26,7 @@ Workflows from forked PRs run only after the maintainer approves them.
 
 ```bash
 cp .env.example .env          # fill in your own test bot token from @BotFather
+cp tunnel.env.example tunnel.env  # leave TUNNEL_TOKEN empty unless you run your own tunnel
 docker compose up --build     # bot + Postgres locally
 ```
 
