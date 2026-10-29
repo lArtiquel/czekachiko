@@ -93,11 +93,10 @@ async def show_picker(
     data = await state.get_data()
     if month is not None:
         await state.update_data(pick_y=month[0], pick_m=month[1])
-    y, m = month or (data["pick_y"], data["pick_m"])
-    screen = screens.doc_date_prompt(
-        lang, data["case_id"], data["name"], y, m, today, bool(data.get("can_clear")), error
-    )
-    await show(event, screen)
+    y, m = month or (data.get("pick_y", today.year), data.get("pick_m", today.month))
+    case_id, name = int(data.get("case_id", 0)), data.get("name", "")
+    can_clear = bool(data.get("can_clear"))
+    await show(event, screens.doc_date_prompt(lang, case_id, name, y, m, today, can_clear, error))
 
 
 # --- checklist and items ---------------------------------------------------------------
@@ -172,6 +171,7 @@ async def doc_del(
     if doc is None:
         await to_menu(cq, state, lang)
         return
+    await state.clear()
     await show(cq, screens.confirm_delete_doc(lang, case.id, doc))
 
 

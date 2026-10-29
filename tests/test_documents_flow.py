@@ -382,3 +382,23 @@ async def test_document_flows_leave_the_calendar_outbox_alone(env):
     await tap(env, Day(y=2026, m=4, d=1))
     assert await outbox() == before
     assert "SECRET-XYZ" not in str(before)
+
+
+async def test_opening_delete_drops_a_pending_rename(env):
+    cid = await make_case(env)
+    doc_id = str(await add_custom(env, cid, "Wyciąg"))
+    await tap(env, Act(action="doc_ren", case_id=cid, value=doc_id))
+    await tap(env, Act(action="doc_del", case_id=cid, value=doc_id))
+    await say(env, "Renamed by accident")
+    assert await docs_of(env, cid) == {"Wyciąg": FILED}
+
+
+async def test_limit_rechecked_when_the_new_document_is_saved(env):
+    cid = await make_case(env)
+    await tap(env, Act(action="doc_add", case_id=cid))
+    await say(env, "Szesnasty")
+    for i in range(documents.MAX_CUSTOM):  # filled up meanwhile, e.g. from another device
+        await add_custom(env, cid, f"Dokument {i}")
+    await tap(env, Day(y=2026, m=4, d=1))
+    assert ru.MESSAGES["doc_limit"].format(max=15) in last(env).text
+    assert await all_docs(env) == 15
