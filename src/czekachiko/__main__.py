@@ -34,7 +34,9 @@ async def run(settings: Settings) -> None:
     if settings.calendar_enabled:
         from czekachiko.calendar_sync import start_worker
 
-        tasks.append(start_worker(settings, factory))
+        task = start_worker(settings, factory)
+        if task is not None:
+            tasks.append(task)
     try:
         await dp.start_polling(
             bot, allowed_updates=["message", "callback_query"], tasks_concurrency_limit=CONCURRENCY

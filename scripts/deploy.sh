@@ -39,7 +39,10 @@ fi
 set -euo pipefail
 cd "$1"
 chmod 600 .env
-chmod -R go-rwx secrets
+# The bot runs as uid 10001 inside the container; give it the key, nobody else.
+chown -R 10001:10001 secrets
+chmod 700 secrets
+find secrets -type f -exec chmod 600 {} +
 if [[ ! -f db.env ]]; then
   pw=$(openssl rand -hex 24)
   printf 'POSTGRES_USER=czekachiko\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=czekachiko\nDATABASE_URL=postgresql+asyncpg://czekachiko:%s@db:5432/czekachiko\n' \

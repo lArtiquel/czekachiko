@@ -185,6 +185,11 @@ async def run_calendar_worker(
         await asyncio.sleep(interval)
 
 
-def start_worker(settings, factory: async_sessionmaker) -> asyncio.Task:
-    client = GoogleCalendarClient(settings.google_service_account_json)
+def start_worker(settings, factory: async_sessionmaker) -> asyncio.Task | None:
+    """Start the sync loop; a broken key disables the calendar but never the bot."""
+    try:
+        client = GoogleCalendarClient(settings.google_service_account_json)
+    except Exception:  # noqa: BLE001
+        log.exception("calendar disabled: cannot load service account key")
+        return None
     return asyncio.create_task(run_calendar_worker(factory, client, settings.calendar_id))

@@ -128,3 +128,13 @@ async def test_case_deleted_during_insert_leaves_no_event(session_factory):
     await drain_outbox(session_factory, cal, CAL, NOW)
     await drain_outbox(session_factory, cal, CAL, NOW)
     assert cal.events == {}
+
+
+async def test_start_worker_survives_unreadable_key(session_factory, tmp_path):
+    from czekachiko.calendar_sync import start_worker
+
+    class S:
+        google_service_account_json = str(tmp_path / "missing.json")
+        calendar_id = CAL
+
+    assert start_worker(S(), session_factory) is None  # logged, bot keeps running
