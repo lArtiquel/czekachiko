@@ -94,7 +94,7 @@ MESSAGES = {
     "feedback_limit": "Можно отправить не больше 5 сообщений в час. Попробуй позже.",
     "feedback_too_long": "Слишком длинно: максимум 1000 символов.",
     "feedback_text_only": "Можно отправить только текст.",
-    "feedback_admin_header": "✉️ Обратная связь #{id} · user {tg} · {ulang}\nОтветь реплаем на это сообщение — ответ уйдёт только этому человеку.",
+    "feedback_admin_header": "✉️ Обратная связь #{id} · user {tg} · {ulang}",
     "feedback_reply_header": "💬 Ответ поддержки Czekachiko:",
     "feedback_delivered": "✅ Доставлено",
     "feedback_undelivered": "⚠️ Не доставлено: пользователь заблокировал бота или удалил аккаунт.",

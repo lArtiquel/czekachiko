@@ -70,7 +70,7 @@ MESSAGES = {
     "feedback_limit": "You can send up to 5 messages per hour. Please try later.",
     "feedback_too_long": "Too long: 1000 characters maximum.",
     "feedback_text_only": "Only text messages, please.",
-    "feedback_admin_header": "✉️ Feedback #{id} · user {tg} · {ulang}\nReply to this message to answer this person only.",
+    "feedback_admin_header": "✉️ Feedback #{id} · user {tg} · {ulang}",
     "feedback_reply_header": "💬 Reply from Czekachiko support:",
     "feedback_delivered": "✅ Delivered",
     "feedback_undelivered": "⚠️ Not delivered: the user blocked the bot or deleted the account.",
