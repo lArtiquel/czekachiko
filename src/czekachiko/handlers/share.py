@@ -13,7 +13,6 @@ from aiogram.types import (
     InlineQueryResultsButton,
     InputTextMessageContent,
     Message,
-    SwitchInlineQueryChosenChat,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +21,17 @@ from czekachiko.db import repo
 from czekachiko.domain import Purpose, Voivodeship
 from czekachiko.i18n import label, t, voiv_label
 from czekachiko.render import show
-from czekachiko.ui.keyboards import Act, Nav, Pick, btn, enum_picker, grid, markup, nav_row
+from czekachiko.ui.keyboards import (
+    Act,
+    Nav,
+    Pick,
+    btn,
+    enum_picker,
+    grid,
+    markup,
+    nav_row,
+    send_to_chat,
+)
 
 router = Router(name="share")
 BOT_URL = "https://t.me/czekachiko_bot"
@@ -130,16 +139,7 @@ async def compare_show(
         return
     voivs = [Voivodeship(v) for v in selected]
     text = await build_card(session, lang, purpose, voivs)
-    send = InlineKeyboardButton(
-        text=t(lang, "btn_send_chat"),
-        switch_inline_query_chosen_chat=SwitchInlineQueryChosenChat(
-            query=share.encode(purpose, voivs),
-            allow_user_chats=True,
-            allow_group_chats=True,
-            allow_channel_chats=True,
-            allow_bot_chats=False,
-        ),
-    )
+    send = send_to_chat(lang, share.encode(purpose, voivs))
     rows = [[send], [btn(t(lang, "btn_cmp_edit"), Act(action="cmp_edit"))], nav_row(lang)]
     await show(cq, (text, markup(rows)))
 
@@ -156,6 +156,38 @@ def article(lang: str, purpose: str, voivs: list[Voivodeship], text: str):
         input_message_content=InputTextMessageContent(message_text=text, parse_mode="HTML"),
         reply_markup=open_bot_kb(lang),
     )
+
+
+async def case_article(s: AsyncSession, iq: InlineQuery, lang: str, today) -> list:
+    from czekachiko.handlers.cases import case_screen
+
+    try:
+        case_id = int(iq.query.strip()[2:])
+    except ValueError:
+        return []
+    case = await repo.get_case(s, iq.from_user.id, case_id)  # only the owner can share it
+    if case is None:
+        return []
+    text, _ = await case_screen(s, lang, case, today)
+    text = f"{t(lang, 'case_card_title')}\n\n{text}\n\n<i>{t(lang, 'card_footer')}</i>"
+    title = f"{t(lang, 'case_card_label')} · {voiv_label(case.voivodeship)} · " + label(
+        lang, "PURPOSE_LABELS", Purpose(case.purpose)
+    )
+    return [
+        InlineQueryResultArticle(
+            id=f"c:{case.id}",
+            title=title,
+            description=t(lang, "card_description"),
+            input_message_content=InputTextMessageContent(message_text=text, parse_mode="HTML"),
+            reply_markup=open_bot_kb(lang),
+        )
+    ]
+
+
+@router.inline_query(F.query.startswith("c:"))
+async def inline_case(iq: InlineQuery, session: AsyncSession, lang: str, clock):
+    results = await case_article(session, iq, lang, clock())
+    await iq.answer(results, cache_time=0, is_personal=True)
 
 
 @router.inline_query()

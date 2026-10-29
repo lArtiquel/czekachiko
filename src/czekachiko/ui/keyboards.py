@@ -7,6 +7,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
+    SwitchInlineQueryChosenChat,
 )
 
 from czekachiko.dates import EARLIEST
@@ -144,3 +145,17 @@ def reply_menu(lang: str) -> ReplyKeyboardMarkup:
     """Always-visible menu under the input field."""
     rows = [[KeyboardButton(text=t(lang, key)) for key in row] for row in REPLY_MENU]
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, is_persistent=True)
+
+
+def send_to_chat(lang: str, query: str) -> InlineKeyboardButton:
+    """Opens Telegram's chat picker with our inline card pre-selected."""
+    return InlineKeyboardButton(
+        text=t(lang, "btn_send_chat"),
+        switch_inline_query_chosen_chat=SwitchInlineQueryChosenChat(
+            query=query,
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=True,
+            allow_bot_chats=False,
+        ),
+    )

@@ -88,6 +88,8 @@ MESSAGES = {
     "card_description": "Timelines per milestone: average, min, max",
     "btn_open_bot": "🐕 Open Czekachiko",
     "inline_pick": "🔘 Pick with buttons",
+    "case_card_title": "🐕 <b>My case on Czekachiko</b>",
+    "case_card_label": "My case",
     "btn_help": "❓ How it works",
     "btn_back": "⬅️ Back",
     "btn_menu": "🏠 Menu",

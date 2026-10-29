@@ -8,7 +8,16 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.i18n import label, loc, t, voiv_label
 from czekachiko.stats import Aggregate, Forecast
-from czekachiko.ui.keyboards import Act, Nav, Pick, btn, enum_picker, markup, nav_row
+from czekachiko.ui.keyboards import (
+    Act,
+    Nav,
+    Pick,
+    btn,
+    enum_picker,
+    markup,
+    nav_row,
+    send_to_chat,
+)
 
 Screen = tuple[str, InlineKeyboardMarkup]
 BOT_URL = "https://t.me/czekachiko_bot"
@@ -165,6 +174,7 @@ def case_view(lang: str, case, f: Forecast | None, chain: dict | None = None) ->
     lines += ["", _forecast_text(lang, case, f), "", t(lang, "disclaimer")]
     rows = [
         [btn(t(lang, "btn_mark"), Nav(to="mark", case_id=case.id))],
+        [send_to_chat(lang, f"c:{case.id}")],
         [btn(t(lang, "btn_delete_case"), Act(action="del_case", case_id=case.id))],
         nav_row(lang, Nav(to="cases")),
     ]
@@ -250,6 +260,12 @@ def outlier_prompt(
 # --- stats ---------------------------------------------------------------
 
 
+def encode_stats(purpose: str, voiv: str) -> str:
+    from czekachiko.share import encode
+
+    return encode(str(purpose), [Voivodeship(voiv)])
+
+
 def stats_pick_voiv(lang: str) -> Screen:
     opts = [(str(v), voiv_label(v)) for v in Voivodeship]
     return t(lang, "stats_pick_voiv"), enum_picker(lang, "stats_voiv", opts, cols=2, cancel=False)
@@ -281,6 +297,7 @@ def stats_view(
     if who_dec:
         lines += ["", t(lang, "who_dec", span=month_span(lang, who_dec))]
     rows = [
+        [send_to_chat(lang, encode_stats(purpose, voiv))],
         [btn(t(lang, "btn_compare"), Nav(to="compare"))],
         [
             btn(t(lang, "btn_other_voiv"), Nav(to="stats")),

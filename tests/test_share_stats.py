@@ -125,3 +125,54 @@ async def test_compare_limit(env):
         __import__("aiogram").fsm.storage.base.StorageKey(bot_id=42, chat_id=UID, user_id=UID)
     )
     assert len(data["cmp"]) == share.MAX_COMPARE
+
+
+async def owner_case_id(env):
+    async with env[3]() as s:
+        await repo.ensure_user(s, UID)
+        c = await repo.create_case(
+            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "mine"
+        )
+        await repo.set_milestone(s, c, Milestone.fingerprints, date(2026, 10, 29))
+        await s.commit()
+        return c.id
+
+
+def switch_queries(markup):
+    return [
+        b.switch_inline_query_chosen_chat.query
+        for row in markup.inline_keyboard
+        for b in row
+        if b.switch_inline_query_chosen_chat
+    ]
+
+
+async def test_case_view_has_send_button(env):
+    cid = await owner_case_id(env)
+    await feed(env, callback_update(UID, Nav(to="case", case_id=cid).pack()))
+    assert switch_queries(env[2].last().reply_markup) == [f"c:{cid}"]
+
+
+async def test_inline_case_card_for_owner(env):
+    cid = await owner_case_id(env)
+    await feed(env, inline_update(f"c:{cid}"))
+    (a,) = answers(env[2])
+    text = a.results[0].input_message_content.message_text
+    assert "Mazowieckie" in text and "29.10.2026" in text and str(UID) not in text
+
+
+async def test_inline_case_card_refused_for_others(env):
+    async with env[3]() as s:
+        c = await repo.get_case(s, 1, 1)  # the seeded case belongs to user 1, not UID
+    await feed(env, inline_update(f"c:{c.id}"))
+    (a,) = answers(env[2])
+    assert a.results == []
+
+
+async def test_stats_view_has_send_button(env):
+    await feed(
+        env, callback_update(UID, Pick(field="stats_purpose", value="mazowieckie|jdg").pack())
+    )
+    assert switch_queries(env[2].last().reply_markup) == [
+        share.encode("jdg", [Voivodeship.mazowieckie])
+    ]
