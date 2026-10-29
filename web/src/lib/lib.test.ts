@@ -101,3 +101,24 @@ describe('error copy', () => {
     for (const code of codes) expect(isKey(`err_${code}`), code).toBe(true);
   });
 });
+
+describe('feedback and theme helpers', () => {
+  it('opens the bot with the feedback deep link, then closes the app', async () => {
+    const { openFeedback } = await import('../telegram/webapp');
+    const calls: string[] = [];
+    const tg = {
+      openTelegramLink: (u: string) => calls.push(`link:${u}`),
+      close: () => calls.push('close'),
+    } as unknown as Parameters<typeof openFeedback>[0];
+    openFeedback(tg);
+    expect(calls).toEqual(['link:https://t.me/czekachiko_bot?start=feedback', 'close']);
+  });
+
+  it('applies the Telegram colour scheme to the document root', async () => {
+    const { applyColorScheme } = await import('../telegram/webapp');
+    applyColorScheme('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    applyColorScheme('light');
+    expect(document.documentElement.style.colorScheme).toBe('light');
+  });
+});

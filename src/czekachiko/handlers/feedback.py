@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.dispatcher.event.bases import SkipHandler
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -16,6 +17,8 @@ from czekachiko.ui import screens
 from czekachiko.ui.keyboards import Nav
 
 router = Router(name="feedback")
+# `/start feedback`: the Mini App's «✉️ Написать нам» closes the app and lands here.
+entry = Router(name="feedback_entry")
 admin_replies = Router(name="feedback_admin")
 
 MAX_LEN = 1000
@@ -30,6 +33,11 @@ async def start_feedback(event, state: FSMContext, lang: str) -> None:
     await state.clear()
     await state.set_state(Feedback.writing)
     await show(event, screens.feedback_prompt(lang))
+
+
+@entry.message(CommandStart(deep_link=True, magic=F.args == "feedback"))
+async def feedback_deep_link(msg: Message, state: FSMContext, lang: str):
+    await start_feedback(msg, state, lang)
 
 
 @router.callback_query(Nav.filter(F.to == "feedback"))

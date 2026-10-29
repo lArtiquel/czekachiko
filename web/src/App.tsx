@@ -16,7 +16,7 @@ import { OutsideTelegram } from './screens/OutsideTelegram';
 import { Settings } from './screens/Settings';
 import { Stats } from './screens/Stats';
 import { useBackButton, useColorScheme } from './telegram/hooks';
-import { alertDialog, boot, getWebApp, haptic, type WebApp } from './telegram/webapp';
+import { alertDialog, applyColorScheme, boot, getWebApp, haptic, type WebApp } from './telegram/webapp';
 
 const API_URL = apiBase(import.meta.env.VITE_API_URL);
 
@@ -34,6 +34,7 @@ type BootState =
 
 function TelegramApp({ tg }: { tg: WebApp }) {
   const scheme = useColorScheme(tg);
+  useEffect(() => applyColorScheme(scheme), [scheme]);
   const [authFailed, setAuthFailed] = useState(false);
   const api = useMemo(
     () => new ApiClient({ baseUrl: API_URL, initData: tg.initData, onUnauthorized: () => setAuthFailed(true) }),

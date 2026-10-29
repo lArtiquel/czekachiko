@@ -84,6 +84,17 @@ export function openTelegramLink(tg: WebApp, url: string): void {
   tg.openTelegramLink(url);
 }
 
+/** «Написать нам»: the bot asks for the message in its chat; the app gets out of the way. */
+export function openFeedback(tg: WebApp): void {
+  tg.openTelegramLink(`${BOT_URL}?start=feedback`);
+  tg.close();
+}
+
+/** Native controls (date inputs) follow Telegram's light/dark theme. */
+export function applyColorScheme(scheme: 'light' | 'dark'): void {
+  document.documentElement.style.colorScheme = scheme;
+}
+
 /** External links only over https. */
 export function openExternal(tg: WebApp, url: string): void {
   if (/^https:\/\//i.test(url)) tg.openLink(url);

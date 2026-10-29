@@ -116,3 +116,10 @@ async def test_deleting_data_does_not_reset_feedback_limit(env):
     await send_feedback(env, "ещё одно после удаления")
     assert len(sends_to(env[2], ADMIN)) == 5
     assert ru.MESSAGES["feedback_limit"] in env[2].last().text
+
+
+async def test_start_feedback_deep_link_opens_feedback_prompt(env):
+    await feed(env, text_update(UID, "/start feedback"))
+    assert ru.MESSAGES["feedback_prompt"] in env[2].last().text
+    await feed(env, text_update(UID, "Привет из мини-приложения"))
+    assert any("Привет из мини-приложения" in m.text for m in sends_to(env[2], ADMIN))

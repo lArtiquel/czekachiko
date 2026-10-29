@@ -7,7 +7,7 @@ import type { TFn } from '../i18n';
 import { formatDate } from '../lib/dates';
 import { useLoad } from '../lib/useLoad';
 import { navigate } from '../router';
-import { BOT_URL, SHARE_BOT_URL, openTelegramLink } from '../telegram/webapp';
+import { SHARE_BOT_URL, openFeedback, openTelegramLink } from '../telegram/webapp';
 
 export function forecastLine(t: TFn, labels: Labels, detail: CaseDetail | undefined): string | null {
   if (!detail) return null;
@@ -66,7 +66,7 @@ export function Home() {
       </Section>
 
       <Section>
-        <ButtonCell onClick={() => openTelegramLink(tg, BOT_URL)}>{t('btn_feedback')}</ButtonCell>
+        <ButtonCell onClick={() => openFeedback(tg)}>{t('btn_feedback')}</ButtonCell>
         <ButtonCell onClick={() => openTelegramLink(tg, SHARE_BOT_URL)}>{t('btn_share')}</ButtonCell>
       </Section>
     </List>

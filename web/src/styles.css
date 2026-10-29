@@ -170,4 +170,8 @@ p.section-text + p.section-text {
 
 input[type='date'] {
   min-height: 24px;
+  /* Follow Telegram's theme; without this the empty field renders dark-on-dark. */
+  color: var(--tg-theme-text-color, inherit);
+  background: transparent;
+  color-scheme: inherit;
 }

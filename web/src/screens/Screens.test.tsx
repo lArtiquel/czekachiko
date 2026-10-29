@@ -21,7 +21,8 @@ describe('Home', () => {
     expect(screen.getByText(/📋 Документы: 2\/4/)).toBeInTheDocument();
     expect(tg.webApp.BackButton.show).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: '✉️ Написать нам' }));
-    expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith('https://t.me/czekachiko_bot');
+    expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith('https://t.me/czekachiko_bot?start=feedback');
+    expect(tg.webApp.close).toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: '📣 Поделиться ботом' }));
     expect(tg.webApp.openTelegramLink).toHaveBeenCalledWith(
       'https://t.me/share/url?url=https%3A%2F%2Ft.me%2Fczekachiko_bot',

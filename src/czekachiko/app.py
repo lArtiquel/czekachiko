@@ -48,6 +48,7 @@ def build_dispatcher(
         observer.middleware(DbMiddleware(factory))
     routers = [
         feedback.admin_replies,
+        feedback.entry,
         admin.router,
         share.router,
         common.router,
