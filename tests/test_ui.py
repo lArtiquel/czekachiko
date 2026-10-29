@@ -117,8 +117,8 @@ def test_main_menu_has_share_button():
     share = [b for b in buttons(kb) if b.url and b.url.startswith("https://t.me/share/url")]
     assert len(share) == 1
     q = parse_qs(urlparse(share[0].url).query)
-    assert q["url"] == ["https://t.me/czekachiko_bot"]
-    assert "karta pobytu" in q["text"][0]
+    assert q == {"url": ["https://t.me/czekachiko_bot"]}  # just the link, no pre-filled text
+    assert "+" not in share[0].url
 
 
 def test_case_view_shows_full_chain_with_counts():

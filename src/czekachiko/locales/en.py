@@ -59,7 +59,6 @@ MESSAGES = {
     "btn_calendar": "📅 Calendar",
     "btn_settings": "⚙️ Settings",
     "btn_share": "📣 Share the bot",
-    "share_text": "When will my karta pobytu arrive? 🐕 Czekachiko forecasts timelines by voivodeship from people's anonymous data. Add your case to make it better for everyone.",
     "share_prompt": "Send Czekachiko to friends or a chat 👇",
     "chain_line": "typically: on average {mean} d (min {min}, max {max}) (cases: {n})",
     "chain_none": "no data yet (cases: 0)",

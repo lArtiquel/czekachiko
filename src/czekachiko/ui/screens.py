@@ -1,7 +1,7 @@
 """Pure screen renderers: data in, (text, keyboard) out."""
 
 from datetime import date
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -52,8 +52,8 @@ def main_menu(lang: str) -> Screen:
 
 
 def share_url(lang: str) -> str:
-    """Telegram's native "forward to a chat" picker, pre-filled with the bot link."""
-    return "https://t.me/share/url?" + urlencode({"url": BOT_URL, "text": t(lang, "share_text")})
+    """Telegram's native "forward to a chat" picker with just the bot link."""
+    return "https://t.me/share/url?" + urlencode({"url": BOT_URL}, quote_via=quote)
 
 
 def privacy(lang: str) -> Screen:
