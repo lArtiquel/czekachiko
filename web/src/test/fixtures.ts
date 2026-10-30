@@ -110,10 +110,10 @@ export const caseDetail: CaseDetail = {
   docs_done: 2,
   docs_total: 4,
   chain: [
-    { milestone: 'case_number', own_days: 50, agg: { n: 23, mean: 61.4, min: 12, max: 140 } },
-    { milestone: 'braki', own_days: null, agg: { n: 9, mean: 98.2, min: 40, max: 201 } },
-    { milestone: 'fingerprints', own_days: 130, agg: { n: 17, mean: 150.6, min: 70, max: 260 } },
-    { milestone: 'decision', own_days: null, agg: { n: 6, mean: 301, min: 180, max: 420 } },
+    { milestone: 'case_number', own_days: 50, agg: { n: 23, mean: 61, median: 55, min: 12, max: 140 } },
+    { milestone: 'braki', own_days: null, agg: { n: 9, mean: 98, median: 90, min: 40, max: 201 } },
+    { milestone: 'fingerprints', own_days: 130, agg: { n: 17, mean: 151, median: 145, min: 70, max: 260 } },
+    { milestone: 'decision', own_days: null, agg: { n: 6, mean: 301, median: 290, min: 180, max: 420 } },
     { milestone: 'card', own_days: null, agg: null },
   ],
   forecast: {

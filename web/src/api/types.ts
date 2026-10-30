@@ -85,7 +85,10 @@ export interface CaseSummary {
 
 export interface Agg {
   n: number;
+  /** Whole days. Kept for older clients; the app shows the median. */
   mean: number;
+  /** Whole days. Absent from servers before 2026-10-30: the bar then has no median tick. */
+  median?: number;
   min: number;
   max: number;
 }

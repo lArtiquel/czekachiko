@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { en } from './en';
-import { MONTHS, guessLang, translate } from './index';
+import { MONTHS, guessLang, pluralForm, translate } from './index';
 import { ru } from './ru';
 
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -33,5 +33,16 @@ describe('i18n', () => {
     expect(guessLang('ru')).toBe('ru');
     expect(guessLang('uk')).toBe('ru');
     expect(guessLang(undefined)).toBe('ru');
+  });
+});
+
+describe('pluralForm', () => {
+  it('follows Russian rules', () => {
+    const forms = [1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map((n) => pluralForm('ru', n));
+    expect(forms).toEqual(['one', 'few', 'few', 'many', 'many', 'many', 'many', 'one', 'few', 'many', 'one', 'many']);
+  });
+
+  it('has one and many in English', () => {
+    expect([1, 2, 5, 21].map((n) => pluralForm('en', n))).toEqual(['one', 'many', 'many', 'many']);
   });
 });

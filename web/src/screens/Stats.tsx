@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ALL_POLAND, type Agg, type StatsResponse, type StatsSelection } from '../api/types';
 import { useApp } from '../app/context';
 import { FieldError, Loading, PageTitle } from '../components/common';
+import { BarLegend, StageStats } from '../components/StageBar';
 import { Button, Chip, Group, Page, RowButton, Segmented, SelectField } from '../components/ui';
+import { sharedScale, type Scale } from '../lib/bars';
 import { CHANNELS, channelShort, defaultChannel, hasChannels, pathOf, type Channel } from '../lib/channels';
 import { monthSpan } from '../lib/dates';
 import { errorMessage } from '../lib/errors';
@@ -245,12 +247,18 @@ export function Stats() {
         </Group>
       ) : null}
 
-      {ready.length ? <p className="note">{t('cmp_legend')}</p> : null}
+      {ready.length ? (
+        <div className="stack-tight">
+          <p className="note">{t('cmp_legend')}</p>
+          <BarLegend />
+        </div>
+      ) : null}
 
       {ready.length
         ? steps.map(({ milestone: m, optional, atFiling }) => {
             const rows = ready.map(({ voiv, data }) => ({ voiv, agg: data.chain.find((c) => c.milestone === m)?.agg ?? null }));
-            const axis = Math.max(1, ...rows.map((r) => r.agg?.max ?? 0));
+            // One scale for every place, so their bars compare.
+            const scale = sharedScale(rows.map((r) => r.agg));
             const title = (
               <>
                 <span className="cap">{labels.milestone(m)}</span>
@@ -262,7 +270,7 @@ export function Stats() {
             return (
               <Group key={m} title={title}>
                 {rows.map(({ voiv, agg }) => (
-                  <CompareRow key={voiv} name={placeName(voiv)} agg={agg} axis={axis} />
+                  <CompareRow key={voiv} name={placeName(voiv)} agg={agg} scale={scale} />
                 ))}
               </Group>
             );
@@ -294,27 +302,12 @@ export function Stats() {
   );
 }
 
-/** One voivodeship's average for a step, with the fastest-to-slowest range on a shared axis. */
-function CompareRow({ name, agg, axis }: { name: string; agg: Agg | null; axis: number }) {
-  const { t } = useApp();
-  const pct = (days: number) => `${Math.min(100, Math.max(0, (days / axis) * 100))}%`;
+/** One place's days to a step: the bar on the step's shared scale, or why there is none. */
+function CompareRow({ name, agg, scale }: { name: string; agg: Agg | null; scale: Scale | null }) {
   return (
     <div className="cmp-row">
-      <div className="cmp-head">
-        <span className="cmp-name">{name}</span>
-        {agg ? <span className="cmp-value">{t('days_n', { n: Math.round(agg.mean) })}</span> : null}
-      </div>
-      {agg ? (
-        <>
-          <span className="range" aria-hidden="true">
-            <span className="range-span" style={{ left: pct(agg.min), width: `calc(${pct(agg.max)} - ${pct(agg.min)})` }} />
-            <span className="range-mean" style={{ left: pct(agg.mean) }} />
-          </span>
-          <span className="cmp-sub">{t('range_line', { min: agg.min, max: agg.max, n: agg.n })}</span>
-        </>
-      ) : (
-        <span className="cmp-sub">{t('chain_none')}</span>
-      )}
+      <span className="cmp-name">{name}</span>
+      <StageStats agg={agg} scale={scale} />
     </div>
   );
 }

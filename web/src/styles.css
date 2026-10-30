@@ -44,6 +44,10 @@
   --accent-mid: rgba(64, 140, 240, 0.34);
   --danger-soft: rgba(255, 69, 58, 0.12);
   --wash: var(--surface);
+  /* The person's own marker on stage bars: a warm accent no Telegram theme provides. Its text
+     is pulled towards --text so it stays readable on light and dark surfaces. */
+  --you: #f2a33a;
+  --you-text: #b8691a;
 
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', system-ui, sans-serif;
   --r-card: 16px;
@@ -62,6 +66,7 @@
     --accent-mid: color-mix(in srgb, var(--button) 36%, transparent);
     --danger-soft: color-mix(in srgb, var(--danger) 13%, transparent);
     --wash: color-mix(in srgb, var(--button) 9%, var(--surface));
+    --you-text: color-mix(in srgb, var(--you) 65%, var(--text));
   }
 }
 
@@ -887,16 +892,49 @@ p {
   background: var(--button);
 }
 
-.range {
+/* A stage's days from filing (case timeline, stats): the range from the fastest case to the
+   slowest, the median tick, and the person's own day or today. Labels sit in rows of their own
+   above and below the track, so they never collide with the numbers under it. */
+.bar {
+  display: block;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-top,
+.bar-under {
+  position: relative;
+  display: block;
+  height: 16px;
+}
+
+.bar-label {
+  position: absolute;
+  top: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.bar-median-label {
+  color: var(--text);
+}
+
+.bar-marker-label {
+  color: var(--you-text);
+}
+
+.bar-track {
   position: relative;
   display: block;
   height: 6px;
-  margin: 7px 0 3px;
+  margin: 5px 0;
   border-radius: 3px;
   background: var(--fill);
 }
 
-.range-span {
+.bar-range {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -905,25 +943,92 @@ p {
   background: var(--accent-mid);
 }
 
-.range-mean {
+.bar-median {
   position: absolute;
-  top: -3px;
+  top: -5px;
   width: 2px;
-  height: 12px;
+  height: 16px;
   margin-left: -1px;
   border-radius: 1px;
-  background: var(--accent);
+  background: var(--text);
 }
 
-.range-own {
+.bar-you,
+.bar-today {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  box-sizing: border-box;
   border-radius: 50%;
-  background: var(--button);
-  box-shadow: 0 0 0 2.5px var(--surface);
+}
+
+.bar-you {
+  background: var(--you);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.bar-today {
+  border: 2px dashed var(--you);
+}
+
+.bar-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+  color: var(--hint);
+  font-size: 12px;
+}
+
+.bar-note {
+  color: var(--hint);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0 4px;
+  list-style: none;
+  color: var(--hint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.card > .bar-legend {
+  padding: 12px 16px 0;
+}
+
+.bar-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-range {
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent-mid);
+}
+
+.legend-median {
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--text);
+}
+
+.legend-you {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--you);
 }
 
 /* --- home ------------------------------------------------------------------ */
@@ -1272,11 +1377,22 @@ p {
   color: var(--hint);
 }
 
-.tl-typical {
+/* The forecast's estimate on the step it waits for. */
+.tl-eta {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.tl-eta b {
+  font-weight: 600;
+}
+
+.tl-eta-window {
   color: var(--hint);
   font-size: 13px;
-  line-height: 1.35;
-  font-variant-numeric: tabular-nums;
 }
 
 /* --- editors (timeline step, document) ------------------------------------- */
@@ -1394,31 +1510,11 @@ p {
   gap: 2px;
 }
 
-.cmp-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .cmp-name {
   min-width: 0;
   font-size: 15px;
   font-weight: 500;
   overflow-wrap: anywhere;
-}
-
-.cmp-value {
-  font-size: 16px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.cmp-sub {
-  color: var(--hint);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
 }
 
 .who-name {

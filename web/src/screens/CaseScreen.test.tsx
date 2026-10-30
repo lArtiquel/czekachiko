@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import type { CaseDetail } from '../api/types';
+import { at, stageScale } from '../lib/bars';
 import { daysBetween, todayIso } from '../lib/dates';
 import { mockApi } from '../test/api';
 import { caseDetail } from '../test/fixtures';
@@ -13,6 +14,12 @@ const withDecision: CaseDetail = {
   dates: { ...caseDetail.dates, decision: '2025-09-01' },
   forecast: { ...caseDetail.forecast!, target: 'card' },
 };
+
+/** The timeline step titled `title`. */
+const step = (title: string) =>
+  [...document.querySelectorAll<HTMLElement>('.tl-item')].find((li) => li.querySelector('.tl-title')?.textContent === title)!;
+
+const leftOf = (el: Element | null) => parseFloat((el as HTMLElement).style.left);
 
 async function openCase(overrides: Parameters<typeof mockApi>[0] = {}, popupChoice: string | null = 'ok') {
   window.history.replaceState(null, '', '/#/case/7');
@@ -28,8 +35,6 @@ describe('Case screen', () => {
     await openCase();
     expect(screen.getByText('Mazowieckie · работа')).toBeInTheDocument();
     expect(screen.getByText('01.03.2025 · 50 дн.')).toBeInTheDocument();
-    expect(screen.getByText('обычно 61 дн., разброс 12–140, дел: 23')).toBeInTheDocument();
-    expect(screen.getByText('обычно 301 дн., разброс 180–420, дел: 6')).toBeInTheDocument();
     expect(screen.getByText('данных пока нет (дел: 0)')).toBeInTheDocument();
     expect(screen.getByText('день ' + daysBetween('2025-01-10', todayIso()))).toBeInTheDocument();
     // Done steps and the furthest one reached are marked on the timeline.
@@ -38,11 +43,90 @@ describe('Case screen', () => {
     expect(steps[4]).toHaveClass('is-next');
   });
 
+  it('draws each stage as a bar from the fastest to the slowest case, with the median', async () => {
+    await openCase();
+    const number = step('номер дела');
+    expect(within(number).getByText('медиана 55 дн.')).toBeInTheDocument();
+    expect(within(number).getByText('12 дн.')).toBeInTheDocument();
+    expect(within(number).getByText('23 дела')).toBeInTheDocument();
+    expect(within(number).getByText('140 дн.')).toBeInTheDocument();
+    expect(within(number).getByText('ты 50')).toBeInTheDocument();
+    // Scaled to the stage, not from zero.
+    const scale = stageScale(12, 140, [50]);
+    expect(leftOf(number.querySelector('.bar-range'))).toBeCloseTo(at(scale, 12));
+    expect(leftOf(number.querySelector('.bar-median'))).toBeCloseTo(at(scale, 55));
+    expect(leftOf(number.querySelector('.bar-you'))).toBeCloseTo(at(scale, 50));
+    expect(within(step('отпечатки сданы')).getByText('17 дел')).toBeInTheDocument();
+    expect(within(step('отпечатки сданы')).getByText('ты 130')).toBeInTheDocument();
+    expect(screen.queryByText(/обычно \d|средн/)).not.toBeInTheDocument();
+  });
+
+  it('the forecast target shows today and the estimate; other open stages only the bar', async () => {
+    await openCase();
+    const elapsed = daysBetween('2025-01-10', todayIso());
+    const decision = step('decyzja');
+    expect(within(decision).getByText(`сегодня ${elapsed}`)).toBeInTheDocument();
+    expect(decision.querySelector('.bar-today')).toBeInTheDocument();
+    expect(decision.querySelector('.bar-you')).toBeNull();
+    // Today is past the slowest case here: the scale widens to show it.
+    expect(leftOf(decision.querySelector('.bar-today'))).toBeCloseTo(at(stageScale(180, 420, [elapsed]), elapsed));
+    expect(leftOf(decision.querySelector('.bar-today'))).toBeLessThan(100);
+    expect(decision).toHaveTextContent('скорее всего около 15.01.2026');
+    expect(within(decision).getByText('окно 02.11.2025 – 30.04.2026, по 11 делам')).toBeInTheDocument();
+    expect(within(decision).getByText('медиана 290 дн.')).toBeInTheDocument();
+
+    const call = step('вызов на отпечатки пальцев');
+    expect(within(call).getByText('медиана 90 дн.')).toBeInTheDocument();
+    expect(call.querySelector('.bar-you, .bar-today')).toBeNull();
+    expect(call).not.toHaveTextContent('скорее всего');
+  });
+
+  it('says there is too little data instead of drawing a bar for fewer than five cases', async () => {
+    const few: CaseDetail = {
+      ...caseDetail,
+      chain: caseDetail.chain.map((c) =>
+        c.milestone === 'decision'
+          ? { ...c, agg: { n: 1, mean: 238, median: 238, min: 238, max: 238 } }
+          : c.milestone === 'braki'
+            ? { ...c, agg: { n: 3, mean: 100, median: 98, min: 60, max: 150 } }
+            : c,
+      ),
+    };
+    await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: few } });
+    const decision = step('decyzja');
+    expect(within(decision).getByText('мало данных: 1 дело, 238 дн.')).toBeInTheDocument();
+    expect(decision.querySelector('.bar')).toBeNull();
+    // The estimate comes from the forecast, which may draw on a wider group.
+    expect(decision).toHaveTextContent('скорее всего около 15.01.2026');
+    expect(within(step('вызов на отпечатки пальцев')).getByText('мало данных: 3 дела')).toBeInTheDocument();
+    expect(screen.queryByText('медиана 98 дн.')).not.toBeInTheDocument();
+  });
+
+  it('explains the bars in a legend above the timeline', async () => {
+    await openCase();
+    const legend = screen.getByRole('list', { name: 'Легенда' });
+    expect(legend.compareDocumentPosition(document.querySelector('.timeline')!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(within(legend).getByText('от самого быстрого до самого долгого')).toBeInTheDocument();
+    expect(within(legend).getByText('медиана — половина дел быстрее')).toBeInTheDocument();
+    expect(within(legend).getByText('ты')).toBeInTheDocument();
+  });
+
+  it('a server without medians: the bar has no median tick', async () => {
+    const old: CaseDetail = {
+      ...caseDetail,
+      chain: caseDetail.chain.map((c) => (c.agg ? { ...c, agg: { n: c.agg.n, mean: c.agg.mean, min: c.agg.min, max: c.agg.max } } : c)),
+    };
+    await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: old } });
+    expect(within(step('номер дела')).getByText('23 дела')).toBeInTheDocument();
+    expect(screen.queryByText(/^медиана \d/)).not.toBeInTheDocument();
+    expect(document.querySelector('.bar-median')).toBeNull();
+  });
+
   it('renders the forecast with its disclaimer', async () => {
     await openCase();
     expect(screen.getByText('Прогноз: decyzja')).toBeInTheDocument();
     expect(screen.getByText('Чаще всего около')).toBeInTheDocument();
-    expect(screen.getByText('15.01.2026')).toBeInTheDocument();
+    expect(within(document.querySelector<HTMLElement>('.forecast')!).getByText('15.01.2026')).toBeInTheDocument();
     expect(
       screen.getByRole('img', { name: 'обычно между 02.11.2025 и 30.04.2026, чаще всего около 15.01.2026' }),
     ).toBeInTheDocument();
@@ -98,7 +182,7 @@ describe('Case screen', () => {
       channel: 'in_person',
       dates: { filed: '2025-01-10', fingerprints: '2025-01-10' },
       chain: [
-        { milestone: 'fingerprints', own_days: 0, agg: { n: 9, mean: 0.4, min: 0, max: 3 } },
+        { milestone: 'fingerprints', own_days: 0, agg: { n: 9, mean: 0, median: 0, min: 0, max: 3 } },
         ...caseDetail.chain.filter((c) => c.milestone !== 'fingerprints').map((c) => ({ ...c, own_days: null })),
       ],
     };

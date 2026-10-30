@@ -46,3 +46,15 @@ export function useT(): TFn {
   const lang = useContext(LangContext);
   return (key, params) => translate(lang, key, params);
 }
+
+export type PluralForm = 'one' | 'few' | 'many';
+
+/** Which plural form a count takes: Russian 1 дело · 2 дела · 5 дел; English one and many. */
+export function pluralForm(lang: Lang, n: number): PluralForm {
+  if (lang === 'en') return n === 1 ? 'one' : 'many';
+  const ones = n % 10;
+  const tens = n % 100;
+  if (ones === 1 && tens !== 11) return 'one';
+  if (ones >= 2 && ones <= 4 && (tens < 12 || tens > 14)) return 'few';
+  return 'many';
+}

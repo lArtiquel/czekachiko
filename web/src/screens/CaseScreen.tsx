@@ -12,8 +12,9 @@ import { useApp } from '../app/context';
 import { DateField } from '../components/DateField';
 import { FieldError, LoadError, Loading, PageTitle } from '../components/common';
 import { Icon } from '../components/icons';
+import { BarLegend, StageStats, type Marker } from '../components/StageBar';
 import { Button, Check, Group, Page, Progress, RadioRow, RowButton, TextField } from '../components/ui';
-import { isKey, type Key, type Params } from '../i18n';
+import { isKey, pluralForm, type Key, type Params } from '../i18n';
 import { channelInText, hasChannels, pathOf } from '../lib/channels';
 import { EARLIEST, clampDate, daysBetween, formatDate, todayIso, validateMilestones } from '../lib/dates';
 import { DOC_MARGIN_DAYS, cleanDocName, docDateError, earliestDocDate } from '../lib/docs';
@@ -346,6 +347,7 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
       </p>
 
       <Group title={t('chain_title')} footer={t('timeline_hint')}>
+        <BarLegend you />
         <Timeline
           detail={detail}
           today={today}
@@ -602,8 +604,9 @@ function WindowStrip({ start, likely, end, label }: { start: IsoDate; likely: Is
 }
 
 /**
- * Milestones as a vertical timeline. Each step's typical range sits on one shared axis of days
- * since filing, so later steps sit further right and the person's own day count is marked.
+ * Milestones as a vertical timeline. Each step shows how long cases took from filing to it, on
+ * that step's own scale. A done step marks the person's day; the step the forecast waits for
+ * marks today and gives the forecast's estimate.
  */
 function Timeline({
   detail,
@@ -618,18 +621,15 @@ function Timeline({
   onToggle: (m: Milestone) => void;
   renderEditor: (m: Milestone) => ReactNode;
 }) {
-  const { t, labels } = useApp();
+  const { t, lang, labels } = useApp();
   const filed = detail.dates.filed ?? today;
+  const elapsed = Math.max(0, daysBetween(filed, today));
+  const f = detail.forecast;
   // Steps in the order the case's channel goes through them.
   const steps = pathOf(detail.channel);
   const lastDone = steps.reduce((last, s, i) => (detail.dates[s.milestone] ? i : last), -1);
   // An optional step may never come, so it is never the one to wait for.
   const next = steps.findIndex((s, i) => i > lastDone && !s.optional && !detail.dates[s.milestone]);
-  const axis = Math.max(
-    1,
-    ...detail.chain.flatMap((c) => [c.agg?.max ?? 0, c.own_days ?? 0]),
-  );
-  const pct = (days: number) => `${Math.min(100, Math.max(0, (days / axis) * 100))}%`;
 
   return (
     <ol className="timeline">
@@ -637,7 +637,13 @@ function Timeline({
         const date = detail.dates[m];
         const item = detail.chain.find((c) => c.milestone === m);
         const own = date && m !== 'filed' ? (item?.own_days ?? daysBetween(filed, date)) : null;
-        const agg = item?.agg;
+        const waitedFor = !date && f?.target === m;
+        const marker: Marker | undefined =
+          own !== null ? { kind: 'you', days: own } : waitedFor ? { kind: 'today', days: elapsed } : undefined;
+        const win =
+          waitedFor && f.kind === 'window' && f.start && f.likely && f.end
+            ? { start: f.start, likely: f.likely, end: f.end, n: f.n }
+            : null;
         const state = date ? 'done' : i === next ? 'next' : 'todo';
         const upto = i <= lastDone;
         const reached = i < lastDone;
@@ -664,20 +670,21 @@ function Timeline({
               {date || editingMilestone !== m ? (
                 <span className={date ? 'tl-when' : 'tl-when is-empty'}>{when}</span>
               ) : null}
-              {m !== 'filed' && agg ? (
-                <span className="range" aria-hidden="true">
-                  <span className="range-span" style={{ left: pct(agg.min), width: `calc(${pct(agg.max)} - ${pct(agg.min)})` }} />
-                  <span className="range-mean" style={{ left: pct(agg.mean) }} />
-                  {own !== null ? <span className="range-own" style={{ left: pct(own) }} /> : null}
+              {win ? (
+                <span className="tl-eta">
+                  <span>
+                    {t('bar_likely')} <b>{formatDate(win.likely)}</b>
+                  </span>
+                  <span className="tl-eta-window">
+                    {t(`bar_window_${pluralForm(lang, win.n)}`, {
+                      start: formatDate(win.start),
+                      end: formatDate(win.end),
+                      n: win.n,
+                    })}
+                  </span>
                 </span>
               ) : null}
-              {m !== 'filed' ? (
-                <span className="tl-typical">
-                  {agg
-                    ? t('chain_line', { mean: Math.round(agg.mean), min: agg.min, max: agg.max, n: agg.n })
-                    : t('chain_none')}
-                </span>
-              ) : null}
+              {m !== 'filed' ? <StageStats agg={item?.agg} marker={marker} /> : null}
             </button>
             {renderEditor(m)}
           </li>

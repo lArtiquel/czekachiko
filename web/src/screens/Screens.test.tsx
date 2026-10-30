@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { scrubLaunchHash } from '../router';
+import { at, sharedScale } from '../lib/bars';
 import { mockApi } from '../test/api';
 import { legacyMeta, meta, stats } from '../test/fixtures';
 import { installTelegram } from '../test/telegram';
@@ -84,8 +85,12 @@ describe('Stats', () => {
     const group = (await screen.findByRole('heading', { name: 'номер дела' })).closest('section')!;
     expect(within(group).getByText('Mazowieckie')).toBeInTheDocument();
     expect(within(group).getByText('Małopolskie')).toBeInTheDocument();
-    expect(within(group).getAllByText('61 дн.')).toHaveLength(2);
-    expect(within(group).getAllByText('разброс 12–140 дн., дел: 23')).toHaveLength(2);
+    expect(within(group).getAllByText('медиана 55 дн.')).toHaveLength(2);
+    expect(within(group).getAllByText('12 дн.')).toHaveLength(2);
+    expect(within(group).getAllByText('23 дела')).toHaveLength(2);
+    expect(within(group).getAllByText('140 дн.')).toHaveLength(2);
+    expect(within(group).queryByText(/^ты/)).not.toBeInTheDocument();
+    expect(group.querySelector('.bar-you, .bar-today')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Кого вызывают сейчас' })).toBeInTheDocument();
     expect(screen.getAllByText('На отпечатки сейчас вызывают подавшихся ≈ март 2025 – апрель 2025.')).toHaveLength(2);
     expect(screen.getAllByText('данных пока нет (дел: 0)')).toHaveLength(2);
@@ -105,6 +110,37 @@ describe('Stats', () => {
     for (const v of meta.voivodeships.slice(0, 5)) await user.click(screen.getByLabelText(v.label));
     expect(screen.getByText('Можно выбрать не больше 6')).toBeInTheDocument();
     expect(screen.getByLabelText('Zachodniopomorskie')).toBeDisabled();
+  });
+});
+
+describe('Stats bars', () => {
+  it('puts the places of one stage on one scale, with the legend instead of the old line', async () => {
+    const slow = {
+      ...stats,
+      chain: stats.chain.map((c) =>
+        c.milestone === 'case_number' ? { ...c, agg: { n: 8, mean: 120, median: 110, min: 30, max: 200 } } : c,
+      ),
+    };
+    const { user } = open('#/stats', {
+      'GET /api/stats': (call) => ({
+        body: new URL(call.url).searchParams.get('voivodeship') === 'malopolskie' ? slow : stats,
+      }),
+    });
+    await user.click(await screen.findByLabelText('Mazowieckie'));
+    await user.click(screen.getByLabelText('Małopolskie'));
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+    const group = (await screen.findByRole('heading', { name: 'номер дела' })).closest('section')!;
+    await within(group).findByText('медиана 110 дн.');
+    const scale = sharedScale([stats.chain[0]!.agg, slow.chain[0]!.agg])!;
+    const ranges = [...group.querySelectorAll<HTMLElement>('.bar-range')];
+    expect(ranges.map((r) => parseFloat(r.style.left))).toEqual([at(scale, 12), at(scale, 30)].map((x) => expect.closeTo(x)));
+    expect(within(group).getByText('8 дел')).toBeInTheDocument();
+
+    expect(screen.queryByText(/Число — среднее/)).not.toBeInTheDocument();
+    const legend = screen.getByRole('list', { name: 'Легенда' });
+    expect(within(legend).getByText('медиана — половина дел быстрее')).toBeInTheDocument();
+    expect(within(legend).getByText('от самого быстрого до самого долгого')).toBeInTheDocument();
+    expect(within(legend).queryByText('ты')).not.toBeInTheDocument();
   });
 });
 
