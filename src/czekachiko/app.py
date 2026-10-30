@@ -41,6 +41,7 @@ def build_dispatcher(
         inline.router,
         start.router,
         feedback.router,
+        feedback.admin_hint,
         start.fallback,
     ]
     for r in routers:

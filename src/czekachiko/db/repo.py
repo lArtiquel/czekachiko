@@ -534,9 +534,18 @@ async def admin_recent(s: AsyncSession, limit: int = 10) -> list[Case]:
 # --- feedback --------------------------------------------------------------
 
 
-async def add_feedback(s: AsyncSession, tg_id: int, direction: str, text_: str) -> Feedback:
+async def add_feedback(
+    s: AsyncSession,
+    tg_id: int,
+    direction: str,
+    text_: str,
+    media: str | None = None,
+    admin_msg_id: int | None = None,
+) -> Feedback:
     await ensure_user(s, tg_id)
-    row = Feedback(tg_id=tg_id, direction=direction, text=text_[:1000])
+    row = Feedback(
+        tg_id=tg_id, direction=direction, text=text_[:1000], media=media, admin_msg_id=admin_msg_id
+    )
     s.add(row)
     await s.flush()
     return row
@@ -561,9 +570,16 @@ async def log_feedback_send(s: AsyncSession, tg_id: int) -> None:
 
 
 async def feedback_by_admin_msg(s: AsyncSession, admin_msg_id: int) -> Feedback | None:
-    return await s.scalar(
-        select(Feedback).where(Feedback.admin_msg_id == admin_msg_id, Feedback.direction == "in")
+    """The thread message behind a message in the admin's chat: a user's or a reply."""
+    return await s.scalar(select(Feedback).where(Feedback.admin_msg_id == admin_msg_id).limit(1))
+
+
+async def feedback_history(s: AsyncSession, tg_id: int, limit: int = 30) -> list[Feedback]:
+    """The latest messages with one user, oldest first."""
+    query = (
+        select(Feedback).where(Feedback.tg_id == tg_id).order_by(Feedback.id.desc()).limit(limit)
     )
+    return list(reversed((await s.scalars(query)).all()))
 
 
 # --- documents -------------------------------------------------------------

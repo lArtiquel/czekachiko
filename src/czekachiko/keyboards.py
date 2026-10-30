@@ -32,7 +32,8 @@ def launcher(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
 
 
 def feedback_cancel(lang: str) -> InlineKeyboardMarkup:
-    button = InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data=FEEDBACK_CANCEL)
+    """Closes the support chat (the callback data predates the chat: old prompts still work)."""
+    button = InlineKeyboardButton(text=t(lang, "btn_close_support"), callback_data=FEEDBACK_CANCEL)
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
 

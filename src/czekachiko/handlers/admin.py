@@ -34,3 +34,26 @@ async def admin(
             else f"#{c.id}"
         )
     await msg.answer("\n".join(lines))
+
+
+@router.message(Command("history"))
+async def history(
+    msg: Message, command: CommandObject, session: AsyncSession, admin_tg_id: int | None
+):
+    """`/history <user id>`: the support thread with one user, for the maintainer only."""
+    if admin_tg_id is None or msg.from_user.id != admin_tg_id:
+        raise SkipHandler
+    arg = (command.args or "").strip()
+    if not arg.isdigit():
+        await msg.answer("/history <user id>", parse_mode=None)
+        return
+    rows = await repo.feedback_history(session, int(arg))
+    if not rows:
+        await msg.answer(t("ru", "history_empty"), parse_mode=None)
+        return
+    lines = []
+    for r in rows:
+        arrow = "←" if r.direction == "in" else "→"
+        media = f"[{r.media}] " if r.media else ""
+        lines.append(f"{arrow} {r.created_at:%d.%m %H:%M} UTC · {media}{r.text}")
+    await msg.answer("\n\n".join(lines)[-4000:], parse_mode=None)

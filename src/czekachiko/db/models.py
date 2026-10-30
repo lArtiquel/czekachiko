@@ -114,7 +114,10 @@ class Feedback(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tg_id: Mapped[int] = mapped_column(ForeignKey("users.tg_id", ondelete="CASCADE"), index=True)
     direction: Mapped[str] = mapped_column(String(3))  # in | out
-    text: Mapped[str] = mapped_column(String(1000))
+    text: Mapped[str] = mapped_column(String(1000))  # the text, or a media caption ("" if none)
+    media: Mapped[str | None] = mapped_column(String(16))  # photo | document | video
+    # "in": the copy in the admin's chat; "out": the admin's own reply. A reply to either
+    # finds the thread.
     admin_msg_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

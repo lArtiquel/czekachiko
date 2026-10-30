@@ -84,6 +84,7 @@ def test_launcher_is_one_web_app_button():
     assert button.web_app.url == "https://example.org/"
 
 
-def test_feedback_prompt_has_only_cancel():
+def test_feedback_prompt_has_only_close():
     ((button,),) = keyboards.feedback_cancel("ru").inline_keyboard
-    assert button.text == "✖️ Отмена" and button.callback_data == keyboards.FEEDBACK_CANCEL
+    assert button.text == "✖️ Закрыть чат поддержки"
+    assert button.callback_data == keyboards.FEEDBACK_CANCEL

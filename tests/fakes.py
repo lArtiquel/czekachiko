@@ -5,8 +5,14 @@ from datetime import UTC, datetime
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage, TelegramMethod
-from aiogram.types import CallbackQuery, Chat, Message, Update, User
+from aiogram.methods import (
+    AnswerCallbackQuery,
+    CopyMessage,
+    EditMessageText,
+    SendMessage,
+    TelegramMethod,
+)
+from aiogram.types import CallbackQuery, Chat, Message, MessageId, PhotoSize, Update, User
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=UTC)
 _ids = itertools.count(1)
@@ -18,6 +24,7 @@ class FakeSession(BaseSession):
         self.calls: list[TelegramMethod] = []
         self.fail_answer = False
         self.sent_ids: dict[int, int] = {}  # call index -> message_id of sent messages
+        self.blocked: set[int] = set()  # chats that blocked the bot
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
@@ -25,6 +32,12 @@ class FakeSession(BaseSession):
             from aiogram.exceptions import TelegramBadRequest
 
             raise TelegramBadRequest(method=method, message="query is too old")
+        if getattr(method, "chat_id", None) in self.blocked:
+            from aiogram.exceptions import TelegramForbiddenError
+
+            raise TelegramForbiddenError(method=method, message="bot was blocked by the user")
+        if isinstance(method, CopyMessage):
+            return MessageId(message_id=next(_ids))
         if isinstance(method, SendMessage | EditMessageText):
             chat_id = getattr(method, "chat_id", None) or 1
             mid = next(_ids) if isinstance(method, SendMessage) else (method.message_id or 0)
@@ -73,6 +86,19 @@ def text_update(uid: int, text: str) -> Update:
         chat=Chat(id=uid, type="private"),
         from_user=_user(uid),
         text=text,
+    )
+    return Update(update_id=next(_ids), message=msg)
+
+
+def photo_update(uid: int, caption: str | None = None, reply_to: Message | None = None) -> Update:
+    msg = Message(
+        message_id=next(_ids),
+        date=NOW,
+        chat=Chat(id=uid, type="private"),
+        from_user=_user(uid),
+        photo=[PhotoSize(file_id="f", file_unique_id="u", width=10, height=10)],
+        caption=caption,
+        reply_to_message=reply_to,
     )
     return Update(update_id=next(_ids), message=msg)
 
