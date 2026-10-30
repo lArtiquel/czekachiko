@@ -56,14 +56,14 @@ def test_parses_the_real_bundle():
         "post": 103,
         "basis": "jdg",
         "method": "mos2",
-        "submitted": "2026-04-27",
+        "submitted": "2026-03-17",
         "call": None,
         "fingerprints": None,
         "decision": None,
         "card": None,
         "approx": False,
         "source": "parser",
-        "reported": "2026-06-22",
+        "reported": "2026-05-12",
         "contacts": [],
         "planned": [],
     }
@@ -326,7 +326,7 @@ async def test_update_path(session_factory):
             await s.scalars(select(OutboxRow.milestone).where(
                 OutboxRow.case_id == before["105"].id, OutboxRow.op == "delete"))
         ).all()  # fmt: skip
-    assert (agg.n, agg.min) == (1, (date(2026, 7, 1) - date(2026, 4, 27)).days) and gone is None
+    assert (agg.n, agg.min) == (1, (date(2026, 7, 1) - date(2026, 3, 17)).days) and gone is None
     assert sorted(deletes) == sorted(before["105"].dates())
 
 
