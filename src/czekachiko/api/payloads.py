@@ -8,13 +8,15 @@ from enum import StrEnum
 from czekachiko import documents
 from czekachiko.dates import parse_date
 from czekachiko.domain import (
-    CHAIN,
     PERMIT_GROUPS,
     PERMIT_TYPE,
+    USER_CHANNELS,
+    Channel,
     Milestone,
     PermitType,
     Purpose,
     canonical,
+    channel_path,
 )
 from czekachiko.stats import Aggregate, Forecast
 
@@ -37,6 +39,12 @@ def parse_enum[E: StrEnum](enum: type[E], value) -> E | None:
         return enum(value)
     except ValueError:
         return None
+
+
+def parse_channel(value) -> Channel | None:
+    """One of the channels people pick; `unknown` belongs to imported cases only."""
+    channel = parse_enum(Channel, value)
+    return channel if channel in USER_CHANNELS else None
 
 
 def parse_purposes(query: Mapping[str, str]) -> tuple[tuple[Purpose, ...] | None, dict[str, str]]:
@@ -86,17 +94,23 @@ def agg_json(agg: Aggregate | None) -> dict | None:
     return {"n": agg.n, "mean": round(agg.mean), "min": agg.min, "max": agg.max}
 
 
-def chain_json(chain: dict[tuple[M, M], Aggregate | None], dates: dict | None = None) -> list:
-    """Each milestone from filing: the case's own days (if any) and the typical span."""
+def chain_json(
+    chain: dict[tuple[M, M], Aggregate | None],
+    dates: dict | None = None,
+    channel: Channel | str | None = None,
+) -> list:
+    """Each milestone from filing, in the channel's path order (no channel: the milestone
+    order): the case's own days (if any) and the typical span."""
     dates = dates or {}
     filed = dates.get(M.filed)
+    steps = [st.milestone for st in channel_path(channel or Channel.post)][1:]
     return [
         {
             "milestone": b.value,
             "own_days": (dates[b] - filed).days if filed is not None and b in dates else None,
-            "agg": agg_json(chain.get((a, b))),
+            "agg": agg_json(chain.get((M.filed, b))),
         }
-        for a, b in CHAIN
+        for b in steps
     ]
 
 

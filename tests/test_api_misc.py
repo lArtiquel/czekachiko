@@ -7,7 +7,15 @@ from sqlalchemy import func, select
 from czekachiko import share
 from czekachiko.db import repo
 from czekachiko.db.models import Case, CaseDocument, Feedback, User
-from czekachiko.domain import PERMIT_GROUPS, Channel, Milestone, PermitType, Purpose, Voivodeship
+from czekachiko.domain import (
+    PERMIT_GROUPS,
+    USER_CHANNELS,
+    Channel,
+    Milestone,
+    PermitType,
+    Purpose,
+    Voivodeship,
+)
 from czekachiko.locales import en, ru
 from tests.test_api_cases import OTHER, create, seed_typical
 
@@ -56,7 +64,9 @@ async def test_meta_follows_requested_language(api):
         "button": en.PURPOSE_BUTTONS[Purpose.praca],
         "permit_type": "temporary",
     }
-    assert meta["channels"] == [{"code": c.value, "label": en.CHANNEL_LABELS[c]} for c in Channel]
+    assert meta["channels"] == [
+        {"code": c.value, "label": en.CHANNEL_LABELS[c]} for c in USER_CHANNELS
+    ]
     assert meta["milestones"][3] == {
         "code": "fingerprints",
         "label": en.MILESTONE_LABELS[Milestone.fingerprints],

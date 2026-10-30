@@ -17,6 +17,7 @@ from czekachiko.api.payloads import (
     chain_json,
     documents_json,
     forecast_json,
+    parse_channel,
     parse_day,
     parse_enum,
     parse_purposes,
@@ -29,12 +30,19 @@ from czekachiko.domain import (
     PERMIT_GROUPS,
     PERMIT_TYPE,
     PURPOSE_ORDER,
+    USER_CHANNELS,
     Channel,
     Milestone,
     Purpose,
     Voivodeship,
 )
-from czekachiko.forecasting import case_forecast, find_outlier, stats_chain, who_now_spans
+from czekachiko.forecasting import (
+    case_channel,
+    case_forecast,
+    find_outlier,
+    stats_chain,
+    who_now_spans,
+)
 from czekachiko.i18n import LOCALES, loc, voiv_label
 
 routes = web.RouteTableDef()
@@ -69,10 +77,11 @@ async def owned_case(request: web.Request) -> Case:
 
 async def case_detail(s: AsyncSession, case: Case, day: date) -> dict:
     docs = await repo.list_docs(s, case)
-    chain = await repo.chain_aggregates(s, case.voivodeship, case.purpose)
+    channel = case_channel(case)
+    chain = await repo.chain_aggregates(s, case.voivodeship, case.purpose, channel)
     return {
         **case_json(case, docs),
-        "chain": chain_json(chain, case.dates()),
+        "chain": chain_json(chain, case.dates(), channel),
         "forecast": forecast_json(await case_forecast(s, case, day)),
         "documents": documents_json(case, docs),
     }
@@ -148,7 +157,7 @@ async def meta(request: web.Request) -> web.Response:
                 }
                 for t, ps in PERMIT_GROUPS.items()
             ],
-            "channels": [{"code": c.value, "label": L.CHANNEL_LABELS[c]} for c in Channel],
+            "channels": [{"code": c.value, "label": L.CHANNEL_LABELS[c]} for c in USER_CHANNELS],
             "milestones": [
                 {"code": m.value, "label": L.MILESTONE_LABELS[m], "hint": L.MILESTONE_HINTS[m]}
                 for m in M
@@ -184,10 +193,15 @@ async def create_case(request: web.Request) -> web.Response:
     errors: dict[str, str] = {}
     voiv = parse_enum(Voivodeship, body.get("voivodeship"))
     purpose = parse_enum(Purpose, body.get("purpose"))
-    channel = parse_enum(Channel, body.get("channel"))
+    channel = parse_channel(body.get("channel"))
     for name, value in (("voivodeship", voiv), ("purpose", purpose), ("channel", channel)):
         if value is None:
             errors[name] = "invalid"
+    # In person, fingerprints are usually taken at the counter: the form saves them with the
+    # filing date in the same request.
+    at_filing = body.get("fingerprints_at_filing", False)
+    if not isinstance(at_filing, bool) or (at_filing and channel not in (None, Channel.in_person)):
+        errors["fingerprints_at_filing"] = "invalid"
     filed = parse_day(body.get("filed"), today(request))
     if filed is None:
         errors["filed"] = "not_date"
@@ -205,12 +219,26 @@ async def create_case(request: web.Request) -> web.Response:
         raise ApiError(409, "too_many_cases") from None
     except repo.TokenConflict:
         raise invalid(client_token="taken") from None
+    if at_filing and M.fingerprints not in case.dates():  # a retried request already has it
+        await repo.set_milestone(s, case, M.fingerprints, filed)
     return respond(case_json(case, await repo.list_docs(s, case)), 201)
 
 
 @routes.get(CASE)
 async def get_case(request: web.Request) -> web.Response:
     return await detail_response(request, await owned_case(request))
+
+
+@routes.patch(CASE)
+async def patch_case(request: web.Request) -> web.Response:
+    """The owner changes how the case was filed; its statistics move with it."""
+    case = await owned_case(request)
+    body = await read_json(request)
+    channel = parse_channel(body.get("channel"))
+    if channel is None:
+        raise invalid(channel="invalid")
+    await repo.set_channel(request[SESSION], case, channel)
+    return await detail_response(request, case)
 
 
 @routes.delete(CASE)
@@ -357,20 +385,25 @@ async def delete_own_doc(request: web.Request) -> web.Response:
 
 @routes.get("/api/stats")
 async def stats(request: web.Request) -> web.Response:
-    """One place (a voivodeship, or all of Poland without one) for one or more purposes."""
+    """One place (a voivodeship, or all of Poland without one) for one or more purposes, filed
+    one way (`channel`) or, without it, every way."""
     raw_voiv = request.query.get("voivodeship")
     voiv = parse_enum(Voivodeship, raw_voiv) if raw_voiv is not None else None
     errors = {"voivodeship": "invalid"} if raw_voiv is not None and voiv is None else {}
     purposes, purpose_errors = parse_purposes(request.query)
     errors |= purpose_errors  # voivodeship first, as before
+    raw_channel = request.query.get("channel")
+    channel = parse_channel(raw_channel) if raw_channel is not None else None
+    if raw_channel is not None and channel is None:
+        errors["channel"] = "invalid"
     if errors:
         raise invalid(**errors)
     s = request[SESSION]
-    chain = await stats_chain(s, voiv, purposes)
-    fp, dec = await who_now_spans(s, voiv, purposes, today(request))
+    chain = await stats_chain(s, voiv, purposes, channel)
+    fp, dec = await who_now_spans(s, voiv, purposes, today(request), channel)
     return respond(
         {
-            "chain": chain_json(chain),
+            "chain": chain_json(chain, channel=channel),
             "who_now": {"fingerprints": span_json(fp), "decision": span_json(dec)},
         }
     )
