@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { isApiError } from '../api/client';
-import {
-  MILESTONES,
-  type CaseDetail,
-  type CaseDocument,
-  type Forecast,
-  type IsoDate,
-  type Milestone,
-  type OutlierInfo,
+import type {
+  CaseDetail,
+  CaseDocument,
+  ForecastScope,
+  IsoDate,
+  Milestone,
+  OutlierInfo,
 } from '../api/types';
 import { useApp } from '../app/context';
 import { DateField } from '../components/DateField';
 import { FieldError, LoadError, Loading, PageTitle } from '../components/common';
 import { Icon } from '../components/icons';
-import { Button, Check, Group, Page, Progress, RowButton, TextField } from '../components/ui';
-import type { Params } from '../i18n';
+import { Button, Check, Group, Page, Progress, RadioRow, RowButton, TextField } from '../components/ui';
+import { isKey, type Key, type Params } from '../i18n';
+import { channelInText, hasChannels, pathOf } from '../lib/channels';
 import { EARLIEST, clampDate, daysBetween, formatDate, todayIso, validateMilestones } from '../lib/dates';
 import { DOC_MARGIN_DAYS, cleanDocName, docDateError, earliestDocDate } from '../lib/docs';
 import { codeMessage } from '../lib/errors';
@@ -53,6 +53,7 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
   const { api, tg, t, meta, labels, cache, inline, fail } = useApp();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pickingChannel, setPickingChannel] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const today = todayIso();
@@ -263,6 +264,19 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
       }
     });
 
+  /** How the case was filed: its chain, forecast and steps follow the channel. */
+  const changeChannel = (channel: string) =>
+    exclusive(async () => {
+      if (channel === detail.channel) return setPickingChannel(false);
+      try {
+        applied(await api.setChannel(id, channel));
+        cache.list = null;
+        setPickingChannel(false);
+      } catch (err) {
+        fail(err);
+      }
+    });
+
   const submit = () => {
     if (!editing) return;
     if (editing.kind === 'milestone') void saveMilestone(editing.m, editing.date);
@@ -288,11 +302,42 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
   return (
     <Page>
       <PageTitle
-        sub={labels.channel(detail.channel)}
+        sub={
+          hasChannels(meta) ? (
+            <button
+              type="button"
+              className="text-button"
+              aria-expanded={pickingChannel}
+              onClick={() => setPickingChannel((v) => !v)}
+            >
+              {labels.channel(detail.channel)} · <span className="sub-link-action">{t('change')}</span>
+            </button>
+          ) : (
+            labels.channel(detail.channel)
+          )
+        }
         aside={<span className="pill">{t('case_day', { n: Math.max(0, daysBetween(filed, today)) })}</span>}
       >
         {labels.voiv(detail.voivodeship)} · {labels.purpose(detail.purpose)}
       </PageTitle>
+
+      {pickingChannel ? (
+        <Group title={t('channel_title')} plain>
+          <div className="card" role="radiogroup" aria-label={t('channel_title')}>
+            {meta.channels.map((c) => (
+              <RadioRow
+                key={c.code}
+                name="case-channel"
+                value={c.code}
+                checked={detail.channel === c.code}
+                disabled={busy}
+                onChange={() => void changeChannel(c.code)}
+                label={c.label}
+              />
+            ))}
+          </div>
+        </Group>
+      ) : null}
 
       <ForecastCard detail={detail} today={today} />
       <p className="note note-attached">
@@ -311,7 +356,12 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
               : open({
                   kind: 'milestone',
                   m,
-                  date: detail.dates[m] ?? clampDate(today, m === 'filed' ? EARLIEST : filed, today),
+                  // A step that usually happens at filing starts at the filing date.
+                  date:
+                    detail.dates[m] ??
+                    (pathOf(detail.channel).find((s) => s.milestone === m)?.atFiling
+                      ? filed
+                      : clampDate(today, m === 'filed' ? EARLIEST : filed, today)),
                 })
           }
           renderEditor={(m) =>
@@ -468,13 +518,11 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
   );
 }
 
-const SCOPE_KEYS = {
-  voiv: 'fc_scope_voiv',
-  voiv_filed: 'fc_scope_voiv_filed',
-  voiv_group: 'fc_scope_voiv_group',
-  national: 'fc_scope_national',
-  national_group: 'fc_scope_national_group',
-} as const satisfies Record<NonNullable<Forecast['scope']>, string>;
+/** `fc_scope_<scope>`: the case's own channel, or with `_any` every channel. */
+const scopeKey = (scope: ForecastScope | `${ForecastScope}_any` | null): Key => {
+  const key = `fc_scope_${scope ?? 'voiv'}`;
+  return isKey(key) ? key : 'fc_scope_voiv';
+};
 
 function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate }) {
   const { t, labels } = useApp();
@@ -501,7 +549,8 @@ function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate })
 
   let body: ReactNode;
   if (win) {
-    const scope = t(SCOPE_KEYS[f.scope ?? 'voiv'] ?? 'fc_scope_voiv', { voiv, purpose, group });
+    const channel = channelInText(t, detail.channel, labels.channel(detail.channel));
+    const scope = t(scopeKey(f.scope), { voiv, purpose, group, channel });
     const inDays = daysBetween(today, win.likely);
     body = (
       <>
@@ -571,8 +620,11 @@ function Timeline({
 }) {
   const { t, labels } = useApp();
   const filed = detail.dates.filed ?? today;
-  const lastDone = MILESTONES.reduce((last, m, i) => (detail.dates[m] ? i : last), -1);
-  const next = MILESTONES.findIndex((m, i) => i > lastDone && !detail.dates[m]);
+  // Steps in the order the case's channel goes through them.
+  const steps = pathOf(detail.channel);
+  const lastDone = steps.reduce((last, s, i) => (detail.dates[s.milestone] ? i : last), -1);
+  // An optional step may never come, so it is never the one to wait for.
+  const next = steps.findIndex((s, i) => i > lastDone && !s.optional && !detail.dates[s.milestone]);
   const axis = Math.max(
     1,
     ...detail.chain.flatMap((c) => [c.agg?.max ?? 0, c.own_days ?? 0]),
@@ -581,7 +633,7 @@ function Timeline({
 
   return (
     <ol className="timeline">
-      {MILESTONES.map((m, i) => {
+      {steps.map(({ milestone: m, optional, atFiling }, i) => {
         const date = detail.dates[m];
         const item = detail.chain.find((c) => c.milestone === m);
         const own = date && m !== 'filed' ? (item?.own_days ?? daysBetween(filed, date)) : null;
@@ -603,7 +655,12 @@ function Timeline({
               {date ? <Icon name="check" size={14} /> : null}
             </span>
             <button type="button" className="tl-row" aria-expanded={editingMilestone === m} onClick={() => onToggle(m)}>
-              <span className="tl-title cap">{labels.milestone(m)}</span>
+              <span className="tl-head">
+                <span className="tl-title cap">{labels.milestone(m)}</span>
+                {atFiling || optional ? (
+                  <span className="tl-tag">{t(atFiling ? 'step_at_filing' : 'step_optional')}</span>
+                ) : null}
+              </span>
               {date || editingMilestone !== m ? (
                 <span className={date ? 'tl-when' : 'tl-when is-empty'}>{when}</span>
               ) : null}

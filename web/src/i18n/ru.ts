@@ -67,6 +67,8 @@ export const ru = {
   field_basis: 'Основание',
   field_channel: 'Как подавал?',
   field_filed: 'Дата подачи wniosku',
+  fp_at_filing: 'Отпечатки сдал(а) при подаче',
+  fp_at_filing_hint: 'Дата подачи сохранится и как дата отпечатков. Если сдавал(а) позже, выключи.',
   voiv_search: 'Поиск воеводства',
   voiv_search_empty: 'Ничего не нашёл. Попробуй написать иначе.',
 
@@ -78,6 +80,12 @@ export const ru = {
   chain_line: 'обычно {mean}\u00a0дн., разброс {min}–{max}, дел:\u00a0{n}',
   chain_none: 'данных пока нет (дел: 0)',
   tap_to_set: 'нажми, чтобы указать дату',
+  step_at_filing: 'обычно при подаче',
+  step_optional: 'если был',
+  channel_title: 'Способ подачи',
+  ch_short_in_person: 'Лично',
+  ch_short_post: 'Почта/e-Doręczenia',
+  ch_short_mos: 'MOS',
   btn_clear_date: 'Очистить дату',
   btn_remove_date: 'Убрать дату',
   date_pick: 'Выбрать дату',
@@ -86,12 +94,23 @@ export const ru = {
   fc_in_days: 'через {n}\u00a0дн.',
   fc_window: 'обычно между {start} и {end}, чаще всего около {likely}',
   fc_basis: 'по {n} завершённым делам ({scope}), которые ждали не меньше тебя',
-  fc_scope_voiv: '{voiv}, {purpose}',
-  fc_scope_voiv_filed: '{voiv}, {purpose}, от даты подачи',
-  fc_scope_national: 'вся Польша, {purpose} — по твоему воеводству пока мало данных',
-  fc_scope_voiv_group: '{voiv}, {group}, все основания — по основанию «{purpose}» пока мало данных',
+  fc_scope_voiv: '{voiv}, {purpose}, {channel}',
+  fc_scope_voiv_filed: '{voiv}, {purpose}, {channel}, от даты подачи',
+  fc_scope_national: 'вся Польша, {purpose}, {channel} — по твоему воеводству пока мало данных',
+  fc_scope_voiv_group:
+    '{voiv}, {group}, все основания, {channel} — по основанию «{purpose}» пока мало данных',
   fc_scope_national_group:
-    'вся Польша, {group}, все основания — по твоему воеводству и основанию пока мало данных',
+    'вся Польша, {group}, все основания, {channel} — по твоему воеводству и основанию пока мало данных',
+  // Fallbacks over every filing channel, after the case's own channel had too little data.
+  fc_scope_voiv_any: '{voiv}, {purpose}, все способы подачи — по способу «{channel}» пока мало данных',
+  fc_scope_voiv_filed_any:
+    '{voiv}, {purpose}, все способы подачи, от даты подачи — по способу «{channel}» пока мало данных',
+  fc_scope_voiv_group_any:
+    '{voiv}, {group}, все основания и способы подачи — по способу «{channel}» пока мало данных',
+  fc_scope_national_any:
+    'вся Польша, {purpose}, все способы подачи — по способу «{channel}» пока мало данных',
+  fc_scope_national_group_any:
+    'вся Польша, {group}, все основания и способы подачи — по способу «{channel}» пока мало данных',
   fc_waited_longer:
     'ты уже ждёшь дольше, чем {x} из {y} завершённых дел в этой группе. Окно посчитать не из чего — держись 🐾',
   fc_no_data: 'Пока мало данных для прогноза. Позови знакомых добавить свои дела 🙏',
@@ -127,6 +146,7 @@ export const ru = {
   stats_permit_type: 'Тип разрешения',
   stats_bases: 'Основания',
   stats_all_bases: 'Все основания',
+  stats_channel: 'Как подавали',
   all_poland: 'Вся Польша',
   stats_voivs: 'Воеводства, до {max}',
   stats_places: 'Где: вся Польша или воеводства, до {max}',

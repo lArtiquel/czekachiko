@@ -89,6 +89,46 @@ describe('Add case', () => {
     expect(tg.webApp.HapticFeedback.notificationOccurred).toHaveBeenCalledWith('success');
   });
 
+  it('offers three filing channels; in person, fingerprints at filing start switched on', async () => {
+    const { api, tg, user } = await openForm({ 'POST /api/cases': { status: 201, body: cases[0] } });
+    const channels = screen.getByRole('radiogroup', { name: 'Как подавал?' });
+    expect(within(channels).getAllByRole('radio').map((r) => (r as HTMLInputElement).value)).toEqual([
+      'in_person',
+      'post',
+      'mos',
+    ]);
+    expect(screen.queryByLabelText('Отпечатки сдал(а) при подаче')).not.toBeInTheDocument();
+
+    await fillValid(user);
+    await user.click(screen.getByLabelText('Лично в urzędzie'));
+    const toggle = screen.getByLabelText('Отпечатки сдал(а) при подаче');
+    expect(toggle).toBeChecked();
+    await tg.clickMain();
+    await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));
+    expect(api.callsTo('POST', '/api/cases')[0]!.body).toMatchObject({
+      channel: 'in_person',
+      fingerprints_at_filing: true,
+    });
+  });
+
+  it('the fingerprints toggle can be switched off, and leaves with the channel', async () => {
+    const { api, tg, user } = await openForm({ 'POST /api/cases': { status: 201, body: cases[0] } });
+    await fillValid(user);
+    await user.click(screen.getByLabelText('Лично в urzędzie'));
+    await user.click(screen.getByLabelText('Отпечатки сдал(а) при подаче'));
+    expect(screen.getByLabelText('Отпечатки сдал(а) при подаче')).not.toBeChecked();
+    await user.click(screen.getByLabelText('Почта или e-Doręczenia'));
+    expect(screen.queryByLabelText('Отпечатки сдал(а) при подаче')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Лично в urzędzie'));
+    await user.click(screen.getByLabelText('Отпечатки сдал(а) при подаче')); // on again → off
+    await tg.clickMain();
+    await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));
+    expect(api.callsTo('POST', '/api/cases')[0]!.body).toMatchObject({
+      channel: 'in_person',
+      fingerprints_at_filing: false,
+    });
+  });
+
   it('a double tap sends one request, and a retry reuses the same token', async () => {
     let release: (() => void) | undefined;
     let n = 0;
@@ -156,7 +196,7 @@ describe('Add case', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Основание' })).not.toBeInTheDocument();
     await user.click(screen.getByLabelText('Поиск воеводства'));
     await user.click(screen.getByLabelText('Mazowieckie'));
-    await user.click(screen.getByLabelText('Лично / почтой'));
+    await user.click(screen.getByLabelText('Почта или e-Doręczenia'));
     fireEvent.change(screen.getByLabelText('Дата подачи wniosku'), { target: { value: '2025-03-14' } });
     await tg.clickMain();
     await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));

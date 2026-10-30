@@ -103,13 +103,18 @@ export interface Forecast {
   likely: IsoDate | null;
   end: IsoDate | null;
   n: number;
-  /** Where the numbers come from; `_group` means every basis of the case's permit type. */
-  scope: 'voiv' | 'voiv_filed' | 'voiv_group' | 'national' | 'national_group' | null;
+  /**
+   * Where the numbers come from; `_group` means every basis of the case's permit type. Plain
+   * scopes are the case's filing channel; `_any` means it fell back to every channel.
+   */
+  scope: ForecastScope | `${ForecastScope}_any` | null;
   waited_longer_than: number | null;
   total: number | null;
   fastest: number | null;
   slowest: number | null;
 }
+
+export type ForecastScope = 'voiv' | 'voiv_filed' | 'voiv_group' | 'national' | 'national_group';
 
 export interface CaseDocument {
   /** Null for a standard item that was never ticked. */
@@ -134,6 +139,8 @@ export interface NewCase {
   channel: string;
   filed: IsoDate;
   client_token: string;
+  /** In person only: also saves fingerprints on the filing date. */
+  fingerprints_at_filing?: boolean;
 }
 
 export interface StatsResponse {

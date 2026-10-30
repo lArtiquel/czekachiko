@@ -73,9 +73,14 @@ const purposeList = [
   { code: 'nieznane', label: 'другое основание / не указано', button: 'Другое основание / не указано' },
 ];
 
-/** /api/meta with permit types (current servers). */
+/** /api/meta with permit types and the three filing channels (current servers). */
 export const meta: Meta = {
   ...legacyMeta,
+  channels: [
+    { code: 'in_person', label: 'Лично в urzędzie' },
+    { code: 'post', label: 'Почта или e-Doręczenia' },
+    { code: 'mos', label: 'MOS (онлайн)' },
+  ],
   purposes: purposeList.map((p) => ({ ...p, permit_type: typeOf(p.code) })),
   permit_types: [
     { code: 'temporary', label: 'временный побыт', button: 'Временный побыт (pobyt czasowy)', purposes: TEMPORARY },

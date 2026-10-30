@@ -231,6 +231,9 @@ export class ApiClient {
   deleteCase(id: number) {
     return this.request<void>('DELETE', `/api/cases/${seg(id)}`);
   }
+  setChannel(id: number, channel: string) {
+    return this.request<CaseDetail>('PATCH', `/api/cases/${seg(id)}`, { channel });
+  }
   setMilestone(id: number, m: Milestone, date: IsoDate, confirmOutlier = false) {
     const body = confirmOutlier ? { date, confirm_outlier: true } : { date };
     return this.request<CaseDetail>('PUT', `/api/cases/${seg(id)}/milestones/${seg(m)}`, body);
@@ -252,10 +255,11 @@ export class ApiClient {
   deleteDocument(id: number, docId: number) {
     return this.request<CaseDetail>('DELETE', `/api/cases/${seg(id)}/documents/${seg(docId)}`);
   }
-  /** `voivodeship` null means all of Poland. */
-  stats(voivodeship: string | null, selection: StatsSelection) {
+  /** `voivodeship` null means all of Poland; no `channel` means every filing channel. */
+  stats(voivodeship: string | null, selection: StatsSelection, channel?: string) {
     const q = selectionParams(selection);
     if (voivodeship !== null) q.set('voivodeship', voivodeship);
+    if (channel) q.set('channel', channel);
     return this.request<StatsResponse>('GET', `/api/stats?${q}`);
   }
   calendars() {

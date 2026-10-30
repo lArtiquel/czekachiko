@@ -44,6 +44,15 @@ describe('ApiClient requests', () => {
     expect(JSON.parse(init!.body as string)).toEqual({ date: '2025-06-01', confirm_outlier: true });
   });
 
+  it('changes a case’s channel with PATCH', async () => {
+    const { api, fetchImpl } = client(json(200, {}));
+    await api.setChannel(7, 'mos');
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(url).toBe('https://api.example/api/cases/7');
+    expect(init!.method).toBe('PATCH');
+    expect(JSON.parse(init!.body as string)).toEqual({ channel: 'mos' });
+  });
+
   it('omits confirm_outlier unless confirming', async () => {
     const { api, fetchImpl } = client(json(200, {}));
     await api.setMilestone(7, 'card', '2025-06-01');
@@ -56,6 +65,7 @@ describe('ApiClient requests', () => {
     await api.stats('mazowieckie', { purposes: ['praca'] });
     await api.stats(null, { group: 'temporary' });
     await api.stats('slaskie', { purposes: ['praca', 'jdg'] });
+    await api.stats('slaskie', { group: 'temporary' }, 'in_person');
     await api.shareStats({ purposes: ['jdg'] }, ['slaskie', 'pomorskie']);
     await api.shareStats({ group: 'temporary' }, ['all', 'slaskie']);
     const urls = fetchImpl.mock.calls.map((c) => String(c[0]));
@@ -64,6 +74,7 @@ describe('ApiClient requests', () => {
       'https://api.example/api/stats?purpose=praca&voivodeship=mazowieckie',
       'https://api.example/api/stats?group=temporary',
       'https://api.example/api/stats?purpose=praca%2Cjdg&voivodeship=slaskie',
+      'https://api.example/api/stats?group=temporary&voivodeship=slaskie&channel=in_person',
       'https://api.example/api/share/stats?purpose=jdg&voivodeships=slaskie%2Cpomorskie',
       'https://api.example/api/share/stats?group=temporary&voivodeships=all%2Cslaskie',
     ]);

@@ -3,7 +3,7 @@ import { isApiError } from '../api/client';
 import { useApp } from '../app/context';
 import { DateField } from '../components/DateField';
 import { FieldError, PageTitle } from '../components/common';
-import { Group, Page, RadioRow, RowButton, Segmented, TextField } from '../components/ui';
+import { Check, Group, Page, RadioRow, RowButton, TextField } from '../components/ui';
 import { EARLIEST, todayIso } from '../lib/dates';
 import { codeMessage } from '../lib/errors';
 import { newClientToken, validateNewCase } from '../lib/validation';
@@ -27,6 +27,9 @@ export function AddCase() {
   const [purpose, setPurpose] = useState<string | null>(null);
   const bases = permitTypes?.find((g) => g.code === permitType)?.purposes ?? [];
   const [channel, setChannel] = useState<string | null>(null);
+  // In person, fingerprints are usually taken at the counter on the filing day.
+  const [fpAtFiling, setFpAtFiling] = useState(true);
+  const inPerson = channel === 'in_person';
   const [filed, setFiled] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -94,6 +97,7 @@ export function AddCase() {
         channel: channel!,
         filed,
         client_token: clientToken,
+        ...(inPerson ? { fingerprints_at_filing: fpAtFiling } : {}),
       });
       cache.list = null;
       haptic(tg, 'success');
@@ -206,16 +210,38 @@ export function AddCase() {
       )}
 
       <Group title={t('field_channel')} plain>
-        <Segmented
-          name="channel"
-          label={t('field_channel')}
-          options={meta.channels.map((c) => ({ value: c.code, label: c.label }))}
-          value={channel}
-          onChange={(code) => {
-            setChannel(code);
-            clearError('channel');
-          }}
-        />
+        <div className="card" role="radiogroup" aria-label={t('field_channel')}>
+          {meta.channels.map((c) => (
+            <RadioRow
+              key={c.code}
+              name="channel"
+              value={c.code}
+              checked={channel === c.code}
+              onChange={() => {
+                selectionHaptic(tg);
+                setChannel(c.code);
+                setFpAtFiling(true);
+                clearError('channel');
+              }}
+              label={c.label}
+            />
+          ))}
+        </div>
+        {inPerson ? (
+          <div className="card">
+            <label className="row choice">
+              <Check
+                aria-label={t('fp_at_filing')}
+                checked={fpAtFiling}
+                onChange={(e) => setFpAtFiling(e.target.checked)}
+              />
+              <span className="row-main">
+                <span className="row-title">{t('fp_at_filing')}</span>
+                <span className="row-detail">{t('fp_at_filing_hint')}</span>
+              </span>
+            </label>
+          </div>
+        ) : null}
         <FieldError message={errors.channel} />
       </Group>
 

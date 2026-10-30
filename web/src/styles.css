@@ -544,6 +544,11 @@ p {
   border-radius: 4px;
 }
 
+/* The case's filing channel under its title, tappable to change it. */
+.sub-link-action {
+  color: var(--accent);
+}
+
 /* --- fields ---------------------------------------------------------------- */
 
 .field {
@@ -1237,6 +1242,19 @@ p {
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
+}
+
+.tl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+/* "usually at filing", "if there was one": how the step fits this filing channel. */
+.tl-tag {
+  color: var(--hint);
+  font-size: 13px;
 }
 
 .tl-when {

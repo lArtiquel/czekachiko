@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
@@ -46,7 +46,9 @@ describe('Case screen', () => {
     expect(
       screen.getByRole('img', { name: 'обычно между 02.11.2025 и 30.04.2026, чаще всего около 15.01.2026' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('по 11 завершённым делам (Mazowieckie, работа), которые ждали не меньше тебя')).toBeInTheDocument();
+    expect(
+      screen.getByText('по 11 завершённым делам (Mazowieckie, работа, MOS), которые ждали не меньше тебя'),
+    ).toBeInTheDocument();
     expect(screen.getByText('быстрее всех: 120 дн. · дольше всех: 410 дн.')).toBeInTheDocument();
     expect(screen.getByText(/^Дата в письме urzędu — не прогноз/)).toBeInTheDocument();
   });
@@ -75,9 +77,54 @@ describe('Case screen', () => {
     await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: grouped } });
     expect(
       screen.getByText(
-        'по 11 завершённым делам (Mazowieckie, временный побыт, все основания — по основанию «работа» пока мало данных), которые ждали не меньше тебя',
+        'по 11 завершённым делам (Mazowieckie, временный побыт, все основания, MOS — по основанию «работа» пока мало данных), которые ждали не меньше тебя',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('says when the forecast fell back to every filing channel', async () => {
+    const any: CaseDetail = { ...caseDetail, forecast: { ...caseDetail.forecast!, scope: 'national_group_any' } };
+    await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: any } });
+    expect(
+      screen.getByText(
+        'по 11 завершённым делам (вся Польша, временный побыт, все основания и способы подачи — по способу «MOS» пока мало данных), которые ждали не меньше тебя',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('in person: fingerprints come right after filing, the call is optional', async () => {
+    const inPerson: CaseDetail = {
+      ...caseDetail,
+      channel: 'in_person',
+      dates: { filed: '2025-01-10', fingerprints: '2025-01-10' },
+      chain: [
+        { milestone: 'fingerprints', own_days: 0, agg: { n: 9, mean: 0.4, min: 0, max: 3 } },
+        ...caseDetail.chain.filter((c) => c.milestone !== 'fingerprints').map((c) => ({ ...c, own_days: null })),
+      ],
+    };
+    await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: inPerson } });
+    const titles = [...document.querySelectorAll('.tl-item .tl-title')].map((el) => el.textContent);
+    expect(titles).toEqual(['подача', 'отпечатки сданы', 'номер дела', 'вызов на отпечатки пальцев', 'decyzja', 'карта']);
+    const steps = [...document.querySelectorAll('.tl-item')];
+    expect(steps[1]).toHaveTextContent('обычно при подаче');
+    expect(steps[3]).toHaveTextContent('если был');
+    // An optional step is never "next": the case number is.
+    expect(steps[2]).toHaveClass('is-next');
+    expect(screen.getByRole('button', { name: 'Лично в urzędzie · изменить' })).toBeInTheDocument();
+  });
+
+  it('the owner changes the channel from the case screen', async () => {
+    const changed: CaseDetail = { ...caseDetail, channel: 'post' };
+    const { api, tg, user } = await openCase({ 'PATCH /api/cases/7': { body: changed } });
+    await user.click(screen.getByRole('button', { name: /MOS \(онлайн\)/ }));
+    const picker = screen.getByRole('radiogroup', { name: 'Способ подачи' });
+    expect(within(picker).getByLabelText('MOS (онлайн)')).toBeChecked();
+    await user.click(within(picker).getByLabelText('Почта или e-Doręczenia'));
+    await waitFor(() => expect(api.callsTo('PATCH', '/api/cases/7')).toHaveLength(1));
+    expect(api.callsTo('PATCH', '/api/cases/7')[0]!.body).toEqual({ channel: 'post' });
+    expect(await screen.findByRole('button', { name: /Почта или e-Doręczenia/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Способ подачи' })).not.toBeInTheDocument();
+    expect(tg.webApp.HapticFeedback.notificationOccurred).toHaveBeenCalledWith('success');
   });
 
   it('renders documents, with the owner’s names as plain text', async () => {
