@@ -177,8 +177,9 @@ def test_maps_bases_methods_and_dates():
     }
     for basis, purpose in expected.items():
         assert pt.map_case(case_dict(basis=basis), TODAY).purpose == purpose
-    for method, channel in [("mos2", "mos"), ("personal", "paper"), ("post", "paper"),
-                            ("edor", "paper"), ("unk", "paper"), (None, "paper")]:  # fmt: skip
+    for method, channel in [("mos2", "mos"), ("personal", "in_person"), ("post", "post"),
+                            ("edor", "post"), ("unk", "unknown"), (None, "unknown"),
+                            ("carrier-pigeon", "unknown")]:  # fmt: skip
         assert pt.map_case(case_dict(method=method), TODAY).channel == channel
     row = pt.map_case(
         case_dict(call="2026-02-01", fingerprints="2026-03-01", decision="2026-06-01"), TODAY
@@ -191,6 +192,24 @@ def test_maps_bases_methods_and_dates():
         {M.filed: date(2026, 1, 10), M.braki: date(2026, 2, 1),
          M.fingerprints: date(2026, 3, 1), M.decision: date(2026, 6, 1)},
     )  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("method", "fingerprints", "channel"),
+    [
+        # Fingerprints on the filing day happen only at the counter.
+        ("unk", "2026-01-10", Channel.in_person),
+        (None, "2026-01-10", Channel.in_person),
+        ("unk", "2026-04-02", Channel.unknown),
+        ("unk", None, Channel.unknown),
+        # A stated method wins, even with fingerprints on the filing day.
+        ("post", "2026-01-10", Channel.post),
+        ("mos2", "2026-01-10", Channel.mos),
+    ],
+)
+def test_unstated_method_with_fingerprints_at_filing_is_in_person(method, fingerprints, channel):
+    row = pt.map_case(case_dict(method=method, fingerprints=fingerprints), TODAY)
+    assert row.channel == channel
 
 
 @pytest.mark.parametrize(
@@ -316,7 +335,7 @@ async def test_update_path(session_factory):
     report = await run_import(session_factory, edited(change))
     assert (report.new, report.updated, report.deleted, report.unchanged) == (0, 2, 0, 17)
     after = await imported(session_factory)
-    assert after["103"].id == before["103"].id and after["103"].channel == "paper"
+    assert after["103"].id == before["103"].id and after["103"].channel == "post"
     assert after["103"].dates()[M.fingerprints] == date(2026, 7, 1)
     assert after["105"].purpose == "praca" and after["105"].id != before["105"].id
     # 103's key, and both the old and new keys of 105.
@@ -330,6 +349,31 @@ async def test_update_path(session_factory):
         ).all()  # fmt: skip
     assert (agg.n, agg.min) == (1, (date(2026, 7, 1) - date(2026, 3, 17)).days) and gone is None
     assert sorted(deletes) == sorted(before["105"].dates())
+
+
+async def test_reimport_reclassifies_channels_and_their_stats(session_factory):
+    # A small invented dataset; 0010 left these cases "unknown" until the next run.
+    data = {
+        "generated": "2026-10-30",
+        "lastPost": 9003,
+        "cases": [
+            case_dict(post=9001, method="unk", fingerprints="2026-03-01"),
+            case_dict(post=9002, method="unk", fingerprints="2026-04-01"),
+        ],
+    }
+    await run_import(session_factory, data)
+    assert {c.channel for c in (await imported(session_factory)).values()} == {"unknown"}
+
+    for c in data["cases"]:
+        c["method"] = "personal"
+    report = await run_import(session_factory, data)
+    assert (report.updated, report.unchanged, report.recomputed) == (2, 0, 1)
+    assert {c.channel for c in (await imported(session_factory)).values()} == {"in_person"}
+    async with session_factory() as s:
+        agg = await repo.get_aggregate(
+            s, "mazowieckie", "praca", M.filed, M.fingerprints, Channel.in_person
+        )
+    assert agg.n == 2
 
 
 async def test_removed_dates_are_dropped(session_factory):

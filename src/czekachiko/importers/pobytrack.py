@@ -67,6 +67,13 @@ BASES: dict[str, Purpose] = {
     # The permit type is unknown too: its own type, never pooled into the others.
     "other": Purpose.nieznane,
 }
+# Filing method. Anything else, `unk` included, is unknown unless the dates tell (channel_of).
+METHODS: dict[str, Channel] = {
+    "personal": Channel.in_person,
+    "post": Channel.post,
+    "edor": Channel.post,  # e-Doręczenia: same path as post
+    "mos2": Channel.mos,
+}
 FIELDS: dict[str, Milestone] = {
     "submitted": M.filed,
     "call": M.braki,
@@ -307,6 +314,16 @@ def post_of(raw) -> int | None:
     return post if type(post) is int and 0 < post < MAX_POST else None
 
 
+def channel_of(method, dates: dict[Milestone, date]) -> Channel:
+    """The stated method; without one, fingerprints on the filing day mean in person (only the
+    counter takes them that day), and anything else stays unknown."""
+    if isinstance(method, str) and method in METHODS:
+        return METHODS[method]
+    if M.fingerprints in dates and dates[M.fingerprints] == dates.get(M.filed):
+        return Channel.in_person
+    return Channel.unknown
+
+
 def map_case(raw, today: date) -> Row | str:
     """A case as our Row (keyed by its post alone), or the reason it is skipped."""
     if not isinstance(raw, dict):
@@ -333,8 +350,7 @@ def map_case(raw, today: date) -> Row | str:
             return "date_malformed"
     if codes := validate_milestones(dates, today):
         return f"dates_{codes[0]}"
-    channel = Channel.mos if raw.get("method") == "mos2" else Channel.paper
-    return Row(str(post), voiv, BASES[basis], channel, dates)
+    return Row(str(post), voiv, BASES[basis], channel_of(raw.get("method"), dates), dates)
 
 
 def map_cases(cases: list, today: date) -> tuple[dict[str, Row], Counter]:
@@ -437,7 +453,9 @@ async def import_dataset(
             continue
         changed = case.channel != row.channel
         if changed:
+            # Statistics are split by channel, so the key is recomputed for this alone.
             case.channel = row.channel
+            touched.add(key)
         if await repo.write_dates(s, case, row.dates):
             touched.add(key)
             changed = True
