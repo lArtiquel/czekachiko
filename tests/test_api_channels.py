@@ -56,6 +56,37 @@ async def test_in_person_can_record_fingerprints_at_filing(api):
     assert off["dates"] == {"filed": "2026-03-06"}
 
 
+async def test_a_retried_token_never_writes_fingerprints_onto_the_existing_case(api):
+    # Same client token, different filing date: the existing case comes back untouched.
+    first = await create(api, channel="in_person", client_token="tok-retry-001")
+    assert first["dates"] == {"filed": "2026-03-06"}
+    again = await create(
+        api,
+        channel="in_person",
+        filed="2026-05-01",
+        fingerprints_at_filing=True,
+        client_token="tok-retry-001",
+    )
+    assert again["id"] == first["id"]
+    assert again["dates"] == {"filed": "2026-03-06"}
+    detail = await api.json("GET", f"/api/cases/{first['id']}")
+    assert detail["dates"] == {"filed": "2026-03-06"}
+
+
+async def test_a_retried_token_keeps_the_fingerprints_it_created(api):
+    first = await create(
+        api, channel="in_person", fingerprints_at_filing=True, client_token="tok-retry-002"
+    )
+    again = await create(
+        api,
+        channel="in_person",
+        filed="2026-05-01",
+        fingerprints_at_filing=True,
+        client_token="tok-retry-002",
+    )
+    assert again["dates"] == first["dates"] == {"filed": "2026-03-06", "fingerprints": "2026-03-06"}
+
+
 async def test_fingerprints_at_filing_is_only_for_in_person(api):
     for over in (
         {"channel": "post", "fingerprints_at_filing": True},

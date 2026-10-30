@@ -157,6 +157,27 @@ async def test_outliers_are_judged_within_the_channel(session):
     assert await find_outlier(session, mine, dates, M.fingerprints) is not None
 
 
+async def test_create_case_writes_fingerprints_at_filing_only_for_a_new_in_person_case(session):
+    import pytest
+
+    await repo.ensure_user(session, 1)
+    new = await repo.create_case(
+        session, 1, V.mazowieckie, P.jdg, C.in_person, FILED, "fp-new", fingerprints_at_filing=True
+    )
+    assert new.dates() == {M.filed: FILED, M.fingerprints: FILED}
+    plain = await repo.create_case(session, 1, V.mazowieckie, P.jdg, C.in_person, FILED, "plain")
+    # The same token again, with a later filing date: the existing case is returned as is.
+    again = await repo.create_case(
+        session, 1, V.mazowieckie, P.jdg, C.in_person, FILED + timedelta(days=9), "plain",
+        fingerprints_at_filing=True,
+    )  # fmt: skip
+    assert again.id == plain.id and again.dates() == {M.filed: FILED}
+    with pytest.raises(ValueError):
+        await repo.create_case(
+            session, 1, V.mazowieckie, P.jdg, C.post, FILED, "fp-post", fingerprints_at_filing=True
+        )
+
+
 async def test_set_channel_moves_the_case_between_channels(session):
     cases = await seed(session)
     post_case = cases[2]

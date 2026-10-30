@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from czekachiko import documents
+from czekachiko.dates import validate_milestones
 from czekachiko.db.models import (
     AggregateRow,
     CalendarEvent,
@@ -93,7 +94,15 @@ async def create_case(
     channel: Channel,
     filed: date,
     client_token: str,
+    fingerprints_at_filing: bool = False,
 ) -> Case:
+    """A new case, or the caller's existing one with this token, returned unchanged.
+
+    `fingerprints_at_filing` (in person only) also dates fingerprints on the filing day, and
+    only when this call creates the case: a retried token never writes onto an existing one.
+    """
+    if fingerprints_at_filing and channel != Channel.in_person:
+        raise ValueError("fingerprints at filing are only taken in person")
     existing = await s.scalar(select(Case).where(Case.client_token == client_token))
     if existing is not None:
         if existing.tg_id != tg_id:
@@ -101,12 +110,18 @@ async def create_case(
         return existing
     if await count_cases(s, tg_id) >= MAX_CASES:
         raise TooManyCases
+    if fingerprints_at_filing and (
+        codes := validate_milestones({Milestone.filed: filed, Milestone.fingerprints: filed}, filed)
+    ):
+        raise ValueError(f"invalid dates: {codes}")
     case = Case(
         tg_id=tg_id, voivodeship=voiv, purpose=purpose, channel=channel, client_token=client_token
     )
     s.add(case)
     await s.flush()
-    await set_milestone(s, case, Milestone.filed, filed)
+    if fingerprints_at_filing:
+        await _upsert_milestone(s, case.id, Milestone.fingerprints, filed)
+    await set_milestone(s, case, Milestone.filed, filed)  # queues every date, recomputes once
     return case
 
 

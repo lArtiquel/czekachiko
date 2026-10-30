@@ -214,13 +214,21 @@ async def create_case(request: web.Request) -> web.Response:
         raise invalid(**errors)
     s = request[SESSION]
     try:
-        case = await repo.create_case(s, request[TG_ID], voiv, purpose, channel, filed, token)
+        # A retried token returns the existing case as it is, fingerprints included.
+        case = await repo.create_case(
+            s,
+            request[TG_ID],
+            voiv,
+            purpose,
+            channel,
+            filed,
+            token,
+            fingerprints_at_filing=at_filing,
+        )
     except repo.TooManyCases:
         raise ApiError(409, "too_many_cases") from None
     except repo.TokenConflict:
         raise invalid(client_token="taken") from None
-    if at_filing and M.fingerprints not in case.dates():  # a retried request already has it
-        await repo.set_milestone(s, case, M.fingerprints, filed)
     return respond(case_json(case, await repo.list_docs(s, case)), 201)
 
 
