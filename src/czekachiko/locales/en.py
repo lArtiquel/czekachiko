@@ -120,6 +120,7 @@ MESSAGES = {
     ),
     "admin_title": "🛠 <b>Admin</b>",
     "admin_recomputed": "Recomputed.",
+    "admin_calendar_queued": "Calendar events queued: {n}.",
     "cmd_start": "🚀 Open Czekachiko",
     "stale_button": "This button is outdated. Open the app 🚀",
     "unknown_message": "🐕 Everything is in the app now 👇 A question or an idea? Tap «✉️ Contact us».",

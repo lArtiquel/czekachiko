@@ -64,6 +64,12 @@ CHANNEL_LABELS = {
     Channel.mos: "MOS (онлайн)",
     Channel.unknown: "Способ не указан",
 }
+# Public calendar event descriptions (calendars are in Russian only); unknown gets no label.
+CALENDAR_CHANNEL_LABELS = {
+    Channel.in_person: "лично",
+    Channel.post: "почта/e-Doręczenia",
+    Channel.mos: "MOS",
+}
 # Inline share cards keep the wording from before channels were split: their statistics
 # cover every channel, and their text is pinned (tests/golden).
 CARD_CHANNEL_LABELS = {
@@ -145,6 +151,7 @@ MESSAGES = {
     ),
     "admin_title": "🛠 <b>Admin</b>",
     "admin_recomputed": "Пересчитано.",
+    "admin_calendar_queued": "В очередь календаря поставлено событий: {n}.",
     "cmd_start": "🚀 Открыть Czekachiko",
     "stale_button": "Эта кнопка устарела. Открой приложение 🚀",
     "unknown_message": "🐕 Всё теперь в приложении 👇 Вопрос или идея? Нажми «✉️ Написать нам».",

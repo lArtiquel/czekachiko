@@ -2,7 +2,10 @@
 
 from datetime import date, timedelta
 
+from sqlalchemy import select
+
 from czekachiko.db import repo
+from czekachiko.db.models import OutboxRow
 from czekachiko.domain import USER_CHANNELS, Channel, Milestone, Purpose, Voivodeship
 from czekachiko.locales import ru
 from tests.test_api_cases import OTHER, create
@@ -108,6 +111,12 @@ async def test_owner_changes_the_channel(api, session_factory):
     async with session_factory() as s:
         mos = await repo.get_aggregate(s, "mazowieckie", "jdg", M.filed, M.fingerprints, C.mos)
     assert mos.n == 2
+    # Calendar events name the channel, so they are rewritten.
+    async with session_factory() as s:
+        payloads = (
+            await s.scalars(select(OutboxRow.payload).where(OutboxRow.case_id == case["id"]))
+        ).all()
+    assert payloads and all(" · MOS\n" in p["description"] for p in payloads)
 
     for bad in ({"channel": "unknown"}, {"channel": "paper"}, {}, {"channel": None}):
         got = await api.json("PATCH", url, status=422, json=bad)

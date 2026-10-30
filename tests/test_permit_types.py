@@ -68,8 +68,8 @@ def test_existing_labels_keep_their_words():
 
 
 class _Case:
-    def __init__(self, purpose):
-        self.voivodeship, self.purpose = "mazowieckie", purpose
+    def __init__(self, purpose, channel="unknown"):
+        self.voivodeship, self.purpose, self.channel = "mazowieckie", purpose, channel
 
     def dates(self):
         return {"filed": date(2026, 3, 6), "fingerprints": date(2026, 6, 1)}
@@ -82,6 +82,21 @@ def test_calendar_titles():
     payload = calendar_payload(_Case("rezydent_ue"), Milestone.fingerprints, date(2026, 6, 1))
     assert payload["title"] == "Mazowieckie · резидент ЕС · отпечатки сданы"
     assert payload["description"].startswith("Mazowieckie · резидент ЕС\n")
+
+
+@pytest.mark.parametrize(
+    ("channel", "first_line"),
+    [
+        ("in_person", "Mazowieckie · бизнес (JDG) · лично"),
+        ("post", "Mazowieckie · бизнес (JDG) · почта/e-Doręczenia"),
+        ("mos", "Mazowieckie · бизнес (JDG) · MOS"),
+        ("unknown", "Mazowieckie · бизнес (JDG)"),
+    ],
+)
+def test_calendar_description_names_the_filing_channel(channel, first_line):
+    payload = calendar_payload(_Case("jdg", channel), "fingerprints", date(2026, 6, 1))
+    assert payload["description"].split("\n")[0] == first_line
+    assert payload["title"] == "Mazowieckie · бизнес (JDG) · отпечатки сданы"  # unchanged
 
 
 @pytest.mark.parametrize(

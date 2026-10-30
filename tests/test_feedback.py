@@ -327,3 +327,22 @@ async def test_history_shows_the_thread_to_the_admin_only(env):
     assert history.index("вопрос") < history.index("ответ")
     await feed(env, text_update(999, f"/history {UID}"))
     assert "вопрос" not in env[2].last().text
+
+
+async def test_user_id_in_the_admin_header_opens_the_user(env):
+    await send_feedback(env, "привет")
+    (to_admin,) = sends_to(env[2], ADMIN)
+    (mention,) = to_admin.entities
+    assert mention.type == "text_mention" and mention.user.id == UID
+    # Offsets count UTF-16 code units, as Telegram does (✉️ is two of them).
+    units = to_admin.text.encode("utf-16-le")
+    shown = units[mention.offset * 2 : (mention.offset + mention.length) * 2]
+    assert shown.decode("utf-16-le") == str(UID)
+
+
+async def test_user_id_in_a_media_caption_opens_the_user(env):
+    await open_chat(env)
+    await feed(env, photo_update(UID, caption="скрин"))
+    (copy,) = copies_to(env[2], ADMIN)
+    (mention,) = copy.caption_entities
+    assert mention.type == "text_mention" and mention.user.id == UID

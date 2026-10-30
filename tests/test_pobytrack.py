@@ -370,6 +370,9 @@ async def test_reimport_reclassifies_channels_and_their_stats(session_factory):
     assert (report.updated, report.unchanged, report.recomputed) == (2, 0, 1)
     assert {c.channel for c in (await imported(session_factory)).values()} == {"in_person"}
     async with session_factory() as s:
+        payloads = (await s.scalars(select(OutboxRow.payload))).all()
+    assert payloads and all(" · лично\n" in p["description"] for p in payloads)
+    async with session_factory() as s:
         agg = await repo.get_aggregate(
             s, "mazowieckie", "praca", M.filed, M.fingerprints, Channel.in_person
         )

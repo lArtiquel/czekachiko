@@ -456,6 +456,7 @@ async def import_dataset(
             # Statistics are split by channel, so the key is recomputed for this alone.
             case.channel = row.channel
             touched.add(key)
+            await repo.enqueue_calendar(s, case)  # events name the channel
         if await repo.write_dates(s, case, row.dates):
             touched.add(key)
             changed = True

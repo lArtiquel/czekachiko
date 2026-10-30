@@ -25,7 +25,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    MessageEntity,
     ReactionTypeEmoji,
+    User,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,13 +88,37 @@ async def _react(msg: Message) -> None:
         log.info("reaction failed: %s", e)
 
 
+def _utf16(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def mention_in(header: str, user: User) -> list[MessageEntity] | None:
+    """Makes the user id in `header` open the user's profile; a bare number would be taken
+    for a phone number. Offsets are in UTF-16 code units, as Telegram counts them."""
+    at = header.find(str(user.id))
+    if at < 0:
+        return None
+    entity = MessageEntity(
+        type="text_mention", offset=_utf16(header[:at]), length=_utf16(str(user.id)), user=user
+    )
+    return [entity]
+
+
 async def _relay(
-    bot: Bot, msg: Message, to: int, header: str, kb: InlineKeyboardMarkup | None = None
+    bot: Bot,
+    msg: Message,
+    to: int,
+    header: str,
+    kb: InlineKeyboardMarkup | None = None,
+    entities: list[MessageEntity] | None = None,
 ) -> int:
-    """Send `msg` to `to` under `header`: text as a new message, media as a copy."""
+    """Send `msg` to `to` under `header`: text as a new message, media as a copy.
+    `entities` format the header, which always comes first."""
     body = body_of(msg)
     if media_of(msg) is None:
-        sent = await bot.send_message(to, f"{header}\n\n{body}", reply_markup=kb, parse_mode=None)
+        sent = await bot.send_message(
+            to, f"{header}\n\n{body}", reply_markup=kb, parse_mode=None, entities=entities
+        )
         return sent.message_id
     caption = f"{header}\n\n{body}" if body else header
     copied = await bot.copy_message(
@@ -101,6 +127,7 @@ async def _relay(
         message_id=msg.message_id,
         caption=caption[:CAPTION_MAX],
         parse_mode=None,
+        caption_entities=entities,
         reply_markup=kb,
     )
     return copied.message_id
@@ -176,7 +203,9 @@ async def user_message(
     await state.update_data(since=_now())
     if admin_tg_id is not None:
         header = t("ru", "feedback_admin_header", id=row.id, tg=uid, ulang=lang)
-        row.admin_msg_id = await _relay(msg.bot, msg, admin_tg_id, header)
+        row.admin_msg_id = await _relay(
+            msg.bot, msg, admin_tg_id, header, entities=mention_in(header, msg.from_user)
+        )
     log.info("support in id=%s user=%s media=%s", row.id, uid, media)
     await _react(msg)
 

@@ -31,7 +31,12 @@ from czekachiko.domain import (
     Purpose,
     Voivodeship,
 )
-from czekachiko.locales.ru import MILESTONE_LABELS, PURPOSE_LABELS, VOIV_LABELS
+from czekachiko.locales.ru import (
+    CALENDAR_CHANNEL_LABELS,
+    MILESTONE_LABELS,
+    PURPOSE_LABELS,
+    VOIV_LABELS,
+)
 from czekachiko.stats import Aggregate, aggregate
 
 MAX_CASES = 5
@@ -145,12 +150,13 @@ async def delete_case(s: AsyncSession, case: Case, recompute: bool = True) -> No
 
 
 async def set_channel(s: AsyncSession, case: Case, channel: Channel) -> None:
-    """The owner corrects how the case was filed. Calendar events carry no channel."""
+    """The owner corrects how the case was filed: statistics and calendar events follow."""
     if channel == case.channel:
         return
     case.channel = channel
     await s.flush()
     await recompute_for(s, case.voivodeship, case.purpose)
+    await enqueue_calendar(s, case)
 
 
 # --- milestones ----------------------------------------------------------
@@ -269,7 +275,10 @@ def calendar_payload(case: Case, milestone: str, d: date) -> dict:
     voiv = VOIV_LABELS[Voivodeship(case.voivodeship)]
     purpose = PURPOSE_LABELS[Purpose(case.purpose)]
     title = " · ".join([voiv, purpose, MILESTONE_LABELS[Milestone(milestone)]])
-    lines = [f"{voiv} · {purpose}"]
+    head = [voiv, purpose]
+    if channel := CALENDAR_CHANNEL_LABELS.get(getattr(case, "channel", None)):
+        head.append(channel)
+    lines = [" · ".join(head)]
     for m in Milestone:
         if m not in dates:
             continue
@@ -282,6 +291,20 @@ def calendar_payload(case: Case, milestone: str, d: date) -> dict:
         lines.append(source_line)
     lines.append("Анонимные данные из @czekachiko_bot")
     return {"title": title, "date": d.isoformat(), "description": "\n".join(lines)}
+
+
+async def enqueue_calendar(s: AsyncSession, case: Case) -> None:
+    """Rewrite every calendar event of the case, e.g. after its channel changed."""
+    await _enqueue_case_upserts(s, case)
+
+
+async def enqueue_all_calendar(s: AsyncSession) -> int:
+    """Queue a rewrite of every event of every case; returns how many were queued."""
+    n = 0
+    for case in (await s.scalars(select(Case).order_by(Case.id))).all():
+        await _enqueue_case_upserts(s, case)
+        n += len(case.milestones)
+    return n
 
 
 async def _enqueue_case_upserts(s: AsyncSession, case: Case) -> None:

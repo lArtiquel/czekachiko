@@ -16,6 +16,10 @@ async def admin(
 ):
     if admin_tg_id is None or msg.from_user.id != admin_tg_id:
         raise SkipHandler  # everyone else gets the usual fallback
+    if (command.args or "").strip() == "calendar":
+        n = await repo.enqueue_all_calendar(session)
+        await msg.answer(t(lang, "admin_calendar_queued", n=n))
+        return
     if (command.args or "").strip() == "recompute":
         await repo.recompute_all(session)
         await msg.answer(t(lang, "admin_recomputed"))
