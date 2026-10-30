@@ -200,6 +200,7 @@ def test_maps_bases_methods_and_dates():
         ({"region": "bawaria"}, "region_unknown"),
         ({"post": 0}, "post_invalid"),
         ({"post": "12"}, "post_invalid"),
+        ({"post": 10**60}, "post_invalid"),  # would overflow the client token
         ({"decision": "01.06.2026"}, "date_malformed"),
         ({"decision": "2026-02-30"}, "date_malformed"),
         ({"submitted": None, "decision": "2026-06-01"}, "dates_filed_missing"),
@@ -376,6 +377,13 @@ async def test_aggregates_and_stats_include_imported_cases(session_factory):
     async with session_factory() as s:
         nat = await repo.get_aggregate(s, None, "praca", M.filed, M.fingerprints)
     assert expected and nat.n == len(expected) and (nat.min, nat.max) == (expected[0], expected[-1])
+
+
+async def test_one_bad_record_does_not_block_the_import(session_factory):
+    data = sample()
+    data["cases"].append(case_dict(post=10**60))
+    report = await run_import(session_factory, data)
+    assert report.new == 14 and report.skipped["post_invalid"] == 1
 
 
 async def test_shrinking_dataset_is_refused(session_factory):

@@ -233,6 +233,8 @@ async def test_stats_validation(api):
     ]:
         got = await api.json("GET", f"/api/stats?{query}", status=422)
         assert got == {"error": "invalid", "fields": fields}, query
+    got = await api.json("GET", "/api/stats?voivodeship=nope&purpose=nope", status=422)
+    assert list(got["fields"]) == ["voivodeship", "purpose"]  # same order as before
 
 
 async def test_share_codes_for_new_selections(api):

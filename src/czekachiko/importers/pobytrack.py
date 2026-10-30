@@ -44,8 +44,12 @@ TOKEN_PREFIX = "pobytrack:"
 MAX_BYTES = 10 * 1024 * 1024
 TIMEOUT = 30.0
 USER_AGENT = "czekachiko-importer (+https://t.me/czekachiko_bot)"
-# A dataset that keeps less than this share of the posts we hold is treated as broken.
-MIN_KEEP_RATIO = 0.5
+# Upstream rarely removes posts. A run that would delete more than this many imported cases
+# (or this share of them, if larger) is treated as a broken source and changes nothing.
+MAX_DELETIONS = 10
+MAX_DELETE_SHARE = 0.1
+# Keeps `pobytrack:<post>/<n>` inside the 64-character client token.
+MAX_POST = 10**12
 DAILY_HOUR = 4  # Europe/Warsaw
 
 M = Milestone
@@ -298,7 +302,7 @@ def post_of(raw) -> int | None:
     post = raw.get("post") if isinstance(raw, dict) else None
     if isinstance(post, float) and post.is_integer():
         post = int(post)  # 1e3 read by a JSON parser
-    return post if type(post) is int and post > 0 else None
+    return post if type(post) is int and 0 < post < MAX_POST else None
 
 
 def map_case(raw, today: date) -> Row | str:
@@ -392,8 +396,9 @@ async def import_dataset(
 ) -> Report:
     """Upsert the dataset into the session's transaction. The caller commits or rolls back.
 
-    Raises DatasetError, before writing anything, when the dataset would drop more than half
-    of the posts already imported (unless `allow_shrink`): a broken source must not empty us.
+    Raises DatasetError, before writing anything, when the run would delete more than
+    MAX_DELETIONS imported cases and more than MAX_DELETE_SHARE of them (unless
+    `allow_shrink`): a broken source must not empty us.
     """
     rows, skipped = map_cases(check_dataset(data)["cases"], today)
     report = Report(skipped=skipped)
@@ -402,8 +407,10 @@ async def import_dataset(
         for case in await repo.list_cases(s, repo.SYSTEM_TG_ID)
         if (key := key_of(case.client_token)) is not None
     }
-    if held and not allow_shrink and len(rows) < MIN_KEEP_RATIO * len(held):
-        raise DatasetError(f"only {len(rows)} usable cases against {len(held)} imported")
+    gone = [key for key in held if key not in rows]
+    limit = max(MAX_DELETIONS, MAX_DELETE_SHARE * len(held))
+    if not allow_shrink and len(gone) > limit:
+        raise DatasetError(f"would delete {len(gone)} of {len(held)} imported cases")
     await repo.ensure_user(s, repo.SYSTEM_TG_ID)
     touched: set[tuple[str, str]] = set()
 
@@ -570,7 +577,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--allow-shrink",
         action="store_true",
-        help="accept a dataset that drops more than half of the imported posts",
+        help="accept a run that deletes many imported cases (see MAX_DELETIONS)",
     )
     return asyncio.run(_main(parser.parse_args(argv)))
 

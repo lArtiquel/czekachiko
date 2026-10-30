@@ -360,9 +360,9 @@ async def stats(request: web.Request) -> web.Response:
     """One place (a voivodeship, or all of Poland without one) for one or more purposes."""
     raw_voiv = request.query.get("voivodeship")
     voiv = parse_enum(Voivodeship, raw_voiv) if raw_voiv is not None else None
-    purposes, errors = parse_purposes(request.query)
-    if raw_voiv is not None and voiv is None:
-        errors["voivodeship"] = "invalid"
+    errors = {"voivodeship": "invalid"} if raw_voiv is not None and voiv is None else {}
+    purposes, purpose_errors = parse_purposes(request.query)
+    errors |= purpose_errors  # voivodeship first, as before
     if errors:
         raise invalid(**errors)
     s = request[SESSION]
