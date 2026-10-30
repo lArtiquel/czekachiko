@@ -49,6 +49,7 @@ CHECKLISTS: dict[Purpose, tuple[str, ...]] = {
     P.staly: (*CORE, "podstawa_staly", "dochod"),
     # Health insurance, also required here, is already in the core.
     P.rezydent_ue: (*CORE, "pobyt_5lat", "dochod", "jezyk_polski"),
+    P.nieznane: CORE,  # basis unknown: only what every application needs
 }
 
 

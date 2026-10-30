@@ -173,6 +173,7 @@ def test_maps_bases_methods_and_dates():
         "temp": P.inne,
         "res": P.rezydent_ue,
         "perm": P.staly,
+        "other": P.nieznane,
     }
     for basis, purpose in expected.items():
         assert pt.map_case(case_dict(basis=basis), TODAY).purpose == purpose
@@ -195,7 +196,6 @@ def test_maps_bases_methods_and_dates():
 @pytest.mark.parametrize(
     ("change", "reason"),
     [
-        ({"basis": "other"}, "basis_other"),
         ({"basis": "visa"}, "basis_unknown"),
         ({"region": "bawaria"}, "region_unknown"),
         ({"post": 0}, "post_invalid"),
@@ -224,8 +224,9 @@ def test_ignores_contacts_and_planned_and_reads_float_posts():
 
 def test_sample_mapping_and_cases_sharing_a_post():
     rows, skipped = pt.map_cases(sample()["cases"], TODAY)
-    assert dict(skipped) == {"basis_other": 5, "dates_filed_missing": 1, "dates_order": 1}
-    assert len(rows) == 14
+    assert dict(skipped) == {"dates_filed_missing": 1, "dates_order": 1}
+    assert len(rows) == 19
+    assert sum(r.purpose == P.nieznane for r in rows.values()) == 5  # basis "other"
     # Post 204 reports two cases: both kept, the second with an ordinal.
     assert rows["204"].purpose == P.rodzina and rows["204/2"].purpose == P.jdg
 
@@ -253,10 +254,10 @@ async def count(session_factory, model, *where) -> int:
 
 async def test_first_import(session_factory):
     report = await run_import(session_factory)
-    assert (report.new, report.updated, report.unchanged, report.deleted) == (14, 0, 0, 0)
-    assert sum(report.skipped.values()) == 7
+    assert (report.new, report.updated, report.unchanged, report.deleted) == (19, 0, 0, 0)
+    assert sum(report.skipped.values()) == 2
     cases = await imported(session_factory)
-    assert len(cases) == 14
+    assert len(cases) == 19
     assert all(c.tg_id == repo.SYSTEM_TG_ID for c in cases.values())
     assert {c.source for c in cases.values()} == {"pobytrack"}
     assert cases["204/2"].client_token == "pobytrack:204/2"
@@ -289,7 +290,7 @@ async def test_reimport_changes_nothing(session_factory):
         await s.execute(OutboxRow.__table__.delete())  # as if the calendar worker drained it
         await s.commit()
     again = await run_import(session_factory)
-    assert (again.new, again.updated, again.deleted, again.unchanged) == (0, 0, 0, 14)
+    assert (again.new, again.updated, again.deleted, again.unchanged) == (0, 0, 0, 19)
     assert again.changes == 0 and again.recomputed == 0
     assert await count(session_factory, OutboxRow) == 0
 
@@ -313,7 +314,7 @@ async def test_update_path(session_factory):
             c["basis"] = "work"  # bc → praca: a different aggregate key
 
     report = await run_import(session_factory, edited(change))
-    assert (report.new, report.updated, report.deleted, report.unchanged) == (0, 2, 0, 12)
+    assert (report.new, report.updated, report.deleted, report.unchanged) == (0, 2, 0, 17)
     after = await imported(session_factory)
     assert after["103"].id == before["103"].id and after["103"].channel == "paper"
     assert after["103"].dates()[M.fingerprints] == date(2026, 7, 1)
@@ -384,7 +385,7 @@ async def test_one_bad_record_does_not_block_the_import(session_factory):
     data = sample()
     data["cases"].append(case_dict(post=10**60))
     report = await run_import(session_factory, data)
-    assert report.new == 14 and report.skipped["post_invalid"] == 1
+    assert report.new == 19 and report.skipped["post_invalid"] == 1
 
 
 async def test_shrinking_dataset_is_refused(session_factory):
@@ -393,7 +394,7 @@ async def test_shrinking_dataset_is_refused(session_factory):
     data["cases"] = data["cases"][:3]
     with pytest.raises(pt.DatasetError):
         await run_import(session_factory, data)
-    assert len(await imported(session_factory)) == 14
+    assert len(await imported(session_factory)) == 19
     report = await run_import(session_factory, data, allow_shrink=True)
     assert report.deleted > 0
 
@@ -402,7 +403,7 @@ async def test_shrinking_dataset_is_refused(session_factory):
 
 
 async def test_a_failed_import_changes_nothing(session_factory, monkeypatch):
-    assert (await pt.sync(session_factory, sample(), TODAY)).new == 14
+    assert (await pt.sync(session_factory, sample(), TODAY)).new == 19
     snapshot = {k: (c.id, c.dates()) for k, c in (await imported(session_factory)).items()}
 
     for broken in ({"cases": "nope"}, {"generated": "x", "cases": []}):
@@ -429,7 +430,7 @@ async def test_a_failed_import_changes_nothing(session_factory, monkeypatch):
 
 async def test_dry_run_saves_nothing(session_factory):
     report = await pt.sync(session_factory, sample(), TODAY, dry_run=True)
-    assert report.new == 14 and await imported(session_factory) == {}
+    assert report.new == 19 and await imported(session_factory) == {}
 
 
 # --- who may see and touch imported cases -----------------------------------------------
@@ -442,8 +443,8 @@ async def test_imported_cases_stay_out_of_people_paths(session_factory, api):
         await repo.create_case(s, 5, V.mazowieckie, P.jdg, Channel.mos, date(2026, 3, 6), "own")
         await s.commit()
         assert await repo.admin_counts(s) == [("mazowieckie", 1)]
-        assert sum(n for _, n in await repo.case_counts(s)) == 15
-        assert await repo.source_counts(s) == [("pobytrack", 14), ("user", 1)]
+        assert sum(n for _, n in await repo.case_counts(s)) == 20
+        assert await repo.source_counts(s) == [("pobytrack", 19), ("user", 1)]
         own = await repo.list_cases(s, 5)
         assert own[0].source == "user"
         assert all(c.tg_id != repo.SYSTEM_TG_ID for c in await repo.admin_recent(s))
@@ -474,7 +475,7 @@ async def test_admin_lists_imported_apart(session_factory):
     dp = build_dispatcher(session_factory, clock=lambda: TODAY, admin_tg_id=777, throttle=False)
     await dp.feed_update(bot, text_update(777, "/admin"))
     text = tg.last().text
-    assert "pobytrack: 14" in text and "#" not in text  # no imported case among recent ones
+    assert "pobytrack: 19" in text and "#" not in text  # no imported case among recent ones
 
 
 # --- command line ----------------------------------------------------------------------
@@ -485,7 +486,7 @@ def test_cli_dry_run_reads_a_file(db_url, monkeypatch, capsys):
     monkeypatch.setenv("BOT_TOKEN", "42:TEST")
     assert pt.main(["--file", str(FIXTURE), "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "new: 14" in out and "basis_other: 5" in out and "dry run" in out
+    assert "new: 19" in out and "dates_order: 1" in out and "dry run" in out
     assert pt.main(["--file", str(FIXTURE.with_suffix(".missing"))]) == 1
     assert "nothing changed" in capsys.readouterr().err
 
@@ -509,8 +510,8 @@ def test_no_scheduled_import():
 
 
 def test_reports_render():
-    report = pt.Report(new=1, skipped=copy.copy(pt.Counter({"basis_other": 2})))
-    assert report.lines()[0] == "new: 1" and "  basis_other: 2" in report.lines()
+    report = pt.Report(new=1, skipped=copy.copy(pt.Counter({"dates_order": 2})))
+    assert report.lines()[0] == "new: 1" and "  dates_order: 2" in report.lines()
 
 
 async def test_inline_lists_imported_data_cheaply(session_factory):
@@ -533,6 +534,8 @@ async def test_inline_lists_imported_data_cheaply(session_factory):
     (answer,) = [c for c in tg.calls if isinstance(c, AnswerInlineQuery)]
     rows, _ = pt.map_cases(sample()["cases"], TODAY)
     with_intervals = {(r.voivodeship, r.purpose) for r in rows.values() if len(r.dates) > 1}
-    assert len(answer.results) == len(with_intervals) == 11  # every key with a chain
+    # Every key with a chain, plus one card for each voivodeship whose cases have none yet.
+    bare = {r.voivodeship for r in rows.values()} - {v for v, _ in with_intervals}
+    assert len(answer.results) == len(with_intervals) + len(bare) == 14
     assert {r.id for r in answer.results} >= {"s:jdg:13", "s:studia:1", "s:rodzina:5"}
     assert len(queries) <= 5 * len(answer.results) + 10  # five per card, not per pair tried

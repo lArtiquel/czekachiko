@@ -64,9 +64,9 @@ BASES: dict[str, Purpose] = {
     "temp": Purpose.inne,
     "res": Purpose.rezydent_ue,
     "perm": Purpose.staly,
+    # The permit type is unknown too: its own type, never pooled into the others.
+    "other": Purpose.nieznane,
 }
-# "other" leaves the permit type unknown: it would blur every group it landed in.
-SKIPPED_BASES = {"other"}
 FIELDS: dict[str, Milestone] = {
     "submitted": M.filed,
     "call": M.braki,
@@ -315,8 +315,6 @@ def map_case(raw, today: date) -> Row | str:
     if post is None:
         return "post_invalid"
     basis = raw.get("basis")
-    if basis in SKIPPED_BASES:
-        return "basis_other"
     if basis not in BASES:
         return "basis_unknown"
     voiv = region_of(raw.get("region"))

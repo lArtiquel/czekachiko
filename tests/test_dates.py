@@ -64,6 +64,7 @@ def test_enums_and_pairs():
         "blue_card",
         "staly",
         "rezydent_ue",
+        "nieznane",
     ]
     assert (M.fingerprints, M.decision) in INTERVAL_PAIRS
     assert len(INTERVAL_PAIRS) == 7

@@ -38,7 +38,7 @@ Bot buttons round-trip to the server on every tap. Date picking is slow, and scr
 | `GET /api/me` | — | `{"tg_id", "lang", "reminders"}` |
 | `PATCH /api/me` | `{"lang"?: "ru"\|"en"}` | same as GET |
 | `DELETE /api/me` | — | `204`. Deletes all the user's data (cases, documents, feedback). |
-| `GET /api/meta?lang=` | — | `{"voivodeships":[{code,label}], "purposes":[{code,label,button,permit_type}], "permit_types":[{code,label,button,purposes:[code]}], "channels":[{code,label}], "milestones":[{code,label,hint}], "checklists":{purpose:[{code,name}]}, "limits":{"max_cases":5,"max_custom_docs":15,"max_doc_name":60}}`. `purposes` stays flat (picker order); `permit_types` groups them: temporary, permanent, eu_resident |
+| `GET /api/meta?lang=` | — | `{"voivodeships":[{code,label}], "purposes":[{code,label,button,permit_type}], "permit_types":[{code,label,button,purposes:[code]}], "channels":[{code,label}], "milestones":[{code,label,hint}], "checklists":{purpose:[{code,name}]}, "limits":{"max_cases":5,"max_custom_docs":15,"max_doc_name":60}}`. `purposes` stays flat (picker order); `permit_types` groups them: temporary, permanent, eu_resident, and unknown (`nieznane`, basis not given; never pooled into the others) |
 | `GET /api/cases` | — | `[{"id","voivodeship","purpose","channel","dates":{milestone:date},"docs_done","docs_total"}]` |
 | `POST /api/cases` | `{"voivodeship","purpose","channel","filed","client_token"}` | `201` case. `409 {"error":"too_many_cases"}`. `422 {"error":"invalid","fields":{...}}` |
 | `GET /api/cases/{id}` | — | case plus `"chain":[{"milestone","own_days"\|null,"agg":{n,mean,min,max}\|null}]`, `"forecast":{kind,target,start,likely,end,n,scope,waited_longer_than,total,fastest,slowest}\|null`, `"documents":[{"id"\|null,"code"\|null,"name","date"\|null,"custom":bool}]` |
@@ -49,7 +49,7 @@ Bot buttons round-trip to the server on every tap. Date picking is slow, and scr
 | `POST /api/cases/{id}/documents` | `{"name","date"\|null}` | `201` case detail. `422` for name/date. `409` at the limit. |
 | `PATCH /api/cases/{id}/documents/{doc_id}` | `{"name"?,"date"?}` | `200` case detail |
 | `DELETE /api/cases/{id}/documents/{doc_id}` | — | `200` case detail |
-| `GET /api/stats?voivodeship=&purpose=` or `…&group=` | — | `{"chain":[…as above, own_days null…], "who_now":{"fingerprints":[from,to]\|null,"decision":[from,to]\|null}}`. `purpose=a,b` takes bases of one permit type (else `mixed`); `group=temporary\|permanent\|eu_resident` takes all its bases (not both: `exclusive`); no `voivodeship` means all of Poland. Several purposes are pooled from intervals, never averaged |
+| `GET /api/stats?voivodeship=&purpose=` or `…&group=` | — | `{"chain":[…as above, own_days null…], "who_now":{"fingerprints":[from,to]\|null,"decision":[from,to]\|null}}`. `purpose=a,b` takes bases of one permit type (else `mixed`); `group=temporary\|permanent\|eu_resident\|unknown` takes all its bases (not both: `exclusive`); no `voivodeship` means all of Poland. Several purposes are pooled from intervals, never averaged |
 | `GET /api/calendars` | — | `[{"voivodeship","label","url"}]` |
 | `GET /api/share/case/{id}` | — | `{"query":"c:{id}"}` (owner only) |
 | `GET /api/share/stats?purpose=&voivodeships=a,b` or `group=` | — | `{"query":"s:…"}` (validated, max 6; `all` in `voivodeships` is all of Poland). Codes: `s:<selector>:<places>`, selector `jdg`, `praca+jdg` or `temporary`, places voivodeship indexes or `all`; old `s:<purpose>:<indexes>` codes decode as before |

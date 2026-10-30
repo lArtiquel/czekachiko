@@ -34,12 +34,14 @@ class Purpose(StrEnum):
     blue_card = "blue_card"
     staly = "staly"
     rezydent_ue = "rezydent_ue"
+    nieznane = "nieznane"  # basis not given, so the permit type is unknown too
 
 
 class PermitType(StrEnum):
     temporary = "temporary"  # pobyt czasowy
     permanent = "permanent"  # pobyt stały
     eu_resident = "eu_resident"  # rezydent długoterminowy UE
+    unknown = "unknown"  # not given: never pooled with the types above
 
 
 P, T = Purpose, PermitType
@@ -48,6 +50,7 @@ PERMIT_GROUPS: dict[PermitType, tuple[Purpose, ...]] = {
     T.temporary: (P.praca, P.jdg, P.blue_card, P.studia, P.rodzina, P.inne),
     T.permanent: (P.staly,),
     T.eu_resident: (P.rezydent_ue,),
+    T.unknown: (P.nieznane,),
 }
 PERMIT_TYPE: dict[Purpose, PermitType] = {p: t for t, ps in PERMIT_GROUPS.items() for p in ps}
 # Every purpose in picker order: the permit types one after another.

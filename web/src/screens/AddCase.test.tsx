@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
@@ -161,6 +161,19 @@ describe('Add case', () => {
     await tg.clickMain();
     await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));
     expect((api.callsTo('POST', '/api/cases')[0]!.body as { purpose: string }).purpose).toBe('staly');
+  });
+
+  it('offers the unknown basis under its own heading', async () => {
+    const { api, tg, user } = await openForm({ 'POST /api/cases': { status: 201, body: cases[0] } });
+    const types = screen.getByRole('radiogroup', { name: 'Тип разрешения' });
+    await user.click(within(types).getByLabelText('Другое основание / не указано'));
+    expect(screen.queryByRole('radiogroup', { name: 'Основание' })).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Mazowieckie'));
+    await user.click(screen.getByLabelText('MOS (онлайн)'));
+    fireEvent.change(screen.getByLabelText('Дата подачи wniosku'), { target: { value: '2025-03-14' } });
+    await tg.clickMain();
+    await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));
+    expect((api.callsTo('POST', '/api/cases')[0]!.body as { purpose: string }).purpose).toBe('nieznane');
   });
 
   it('switching back to temporary clears the basis', async () => {

@@ -240,3 +240,49 @@ async def test_inline_search_finds_new_bases(session_factory):
     answer = await inline_answer(session_factory, "резидент варшава")
     assert [r.id for r in answer.results] == ["s:rezydent_ue:6"]
     assert answer.results[0].title == "Mazowieckie · резидент ЕС"
+
+
+# --- the unknown basis -------------------------------------------------------------------
+
+
+async def test_group_stats_leave_out_the_unknown_basis(session_factory):
+    filed = date(2026, 1, 1)
+    await seed(
+        session_factory,
+        [
+            (V.mazowieckie, P.praca, filed, filed + timedelta(days=100)),
+            (V.mazowieckie, P.nieznane, filed, filed + timedelta(days=300)),
+            (V.slaskie, P.nieznane, filed, filed + timedelta(days=200)),
+        ],
+    )
+    temporary = PERMIT_GROUPS[PermitType.temporary]
+    async with session_factory() as s:
+        chain = await stats_chain(s, V.mazowieckie, temporary)
+        assert chain[(M.filed, M.fingerprints)].n == 1  # praca only
+        unknown = await stats_chain(s, None, PERMIT_GROUPS[PermitType.unknown])
+        assert unknown[(M.filed, M.fingerprints)].n == 2
+
+
+async def test_unknown_basis_forecast_skips_the_group_levels(session_factory):
+    filed = date(2026, 1, 1)
+    rows = [(V.slaskie, P.nieznane, filed, filed + timedelta(days=200 + i)) for i in range(5)]
+    rows += [(V.mazowieckie, P.praca, filed, filed + timedelta(days=100 + i)) for i in range(5)]
+    (mine, *_) = await seed(
+        session_factory, [(V.mazowieckie, P.nieznane, date(2026, 6, 1), None), *rows]
+    )
+    async with session_factory() as s:
+        case = await repo.get_case(s, 4000, mine)
+        with count_queries(session_factory) as queries:
+            f = await case_forecast(s, case, TODAY)
+    # Mazowieckie has five praca cases, but they are never pooled with an unknown basis.
+    assert (f.kind, f.scope, f.n) == ("window", "national", 5)
+    assert len(queries) == 2  # voivodeship + purpose, then Poland + purpose
+    assert "вся Польша, другое основание / не указано" in cards.forecast_text("ru", case, f)
+
+
+def test_unknown_basis_share_codes():
+    assert share.selector([P.nieznane]) == "nieznane"
+    assert share.decode("s:unknown:6") == ("nieznane", [V.mazowieckie])
+    assert share.decode("s:praca+nieznane:6") is None  # two permit types
+    assert P.nieznane not in share.parse_selector("temporary")
+    assert share.match_purposes("не указано") == [P.nieznane]

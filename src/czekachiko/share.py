@@ -47,6 +47,7 @@ PURPOSE_ALIASES: dict[Purpose, tuple[str, ...]] = {
     Purpose.blue_card: ("blue", "блю", "niebiesk", "голуб"),
     Purpose.staly: ("staly", "постоян", "permanent"),
     Purpose.rezydent_ue: ("rezyden", "резидент", "resident"),
+    Purpose.nieznane: ("nieznan", "unknown", "неизвест", "указан"),
 }
 
 

@@ -32,18 +32,21 @@ PURPOSE_LABELS = {
     P.blue_card: "Blue Card",
     P.staly: "постоянный побыт",
     P.rezydent_ue: "резидент ЕС",
+    P.nieznane: "другое основание / не указано",
 }
 
 PERMIT_TYPE_LABELS = {
     T.temporary: "временный побыт",
     T.permanent: "постоянный побыт",
     T.eu_resident: "резидент ЕС",
+    T.unknown: "другое основание / не указано",
 }
 
 PERMIT_TYPE_BUTTONS = {
     T.temporary: "Временный побыт (pobyt czasowy)",
     T.permanent: "Постоянный побыт (pobyt stały)",
     T.eu_resident: "Резидент ЕС (rezydent długoterminowy UE)",
+    T.unknown: "Другое основание / не указано",
 }
 
 MILESTONE_LABELS = {
@@ -66,6 +69,7 @@ PURPOSE_BUTTONS = {
     P.blue_card: "Blue Card (Niebieska Karta UE)",
     P.staly: "Постоянный побыт (pobyt stały)",
     P.rezydent_ue: "Резидент ЕС (rezydent długoterminowy UE)",
+    P.nieznane: "Другое основание / не указано",
 }
 
 MILESTONE_HINTS = {

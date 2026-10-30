@@ -97,3 +97,14 @@ def test_new_checklists(purpose, specific):
     assert codes == (*documents.CORE, *specific)
     assert "ubezpieczenie" in codes
     assert all(len(c) <= 32 for c in codes)  # case_documents.code is VARCHAR(32)
+
+
+def test_unknown_basis_has_its_own_type():
+    assert PERMIT_TYPE[P.nieznane] == T.unknown == "unknown"
+    assert PERMIT_GROUPS[T.unknown] == (P.nieznane,)
+    for t in (T.temporary, T.permanent, T.eu_resident):
+        assert P.nieznane not in PERMIT_GROUPS[t]
+    assert group_of([P.nieznane]) == T.unknown
+    assert documents.checklist(P.nieznane) == documents.CORE
+    assert ru.PURPOSE_LABELS[P.nieznane] == "другое основание / не указано"
+    assert en.PURPOSE_LABELS[P.nieznane] == "other / not specified"

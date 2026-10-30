@@ -30,7 +30,7 @@ export interface Option {
 export interface PurposeOption extends Option {
   /** Longer label for pickers, e.g. "Работа (art. 114)". */
   button: string;
-  /** `temporary`, `permanent` or `eu_resident`. Absent from servers older than permit types. */
+  /** `temporary`, `permanent`, `eu_resident` or `unknown`. Absent from servers older than permit types. */
   permit_type?: string;
 }
 

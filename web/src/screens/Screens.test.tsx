@@ -165,6 +165,24 @@ describe('Stats by permit type', () => {
     );
   });
 
+  it('the unknown basis is its own type, never inside "all bases"', async () => {
+    const { api, user } = open('#/stats', { 'GET /api/stats': { body: stats } });
+    const types = within(await screen.findByLabelText('Тип разрешения'));
+    expect(types.getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual([
+      'temporary',
+      'permanent',
+      'eu_resident',
+      'unknown',
+    ]);
+    expect(screen.queryByLabelText('Другое основание / не указано')).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Тип разрешения'), 'unknown');
+    expect(screen.queryByLabelText('Все основания')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Вся Польша'));
+    await waitFor(() =>
+      expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toContainEqual({ group: 'unknown' }),
+    );
+  });
+
   it('opens on the first case’s basis', async () => {
     const { api, user } = open('#/', { 'GET /api/stats': { body: stats } });
     await user.click(await screen.findByRole('button', { name: 'Сроки по воеводствам' }));

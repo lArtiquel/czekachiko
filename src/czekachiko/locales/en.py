@@ -13,6 +13,7 @@ PURPOSE_LABELS = {
     P.blue_card: "Blue Card",
     P.staly: "permanent residence",
     P.rezydent_ue: "EU long-term resident",
+    P.nieznane: "other / not specified",
 }
 PURPOSE_BUTTONS = {
     P.praca: "Work (art. 114)",
@@ -23,16 +24,19 @@ PURPOSE_BUTTONS = {
     P.blue_card: "Blue Card (Niebieska Karta UE)",
     P.staly: "Permanent residence (pobyt stały)",
     P.rezydent_ue: "EU long-term resident (rezydent długoterminowy UE)",
+    P.nieznane: "Other / not specified",
 }
 PERMIT_TYPE_LABELS = {
     T.temporary: "temporary residence",
     T.permanent: "permanent residence",
     T.eu_resident: "EU long-term resident",
+    T.unknown: "other / not specified",
 }
 PERMIT_TYPE_BUTTONS = {
     T.temporary: "Temporary residence (pobyt czasowy)",
     T.permanent: "Permanent residence (pobyt stały)",
     T.eu_resident: "EU long-term resident (rezydent długoterminowy UE)",
+    T.unknown: "Other / not specified",
 }
 MILESTONE_LABELS = {
     M.filed: "filed",

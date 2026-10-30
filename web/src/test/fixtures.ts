@@ -62,14 +62,15 @@ export const legacyMeta: Meta = {
 };
 
 const TEMPORARY = ['praca', 'jdg', 'blue_card', 'studia', 'rodzina', 'inne'];
-const typeOf = (code: string) =>
-  TEMPORARY.includes(code) ? 'temporary' : code === 'staly' ? 'permanent' : 'eu_resident';
+const SINGLE: Record<string, string> = { staly: 'permanent', rezydent_ue: 'eu_resident', nieznane: 'unknown' };
+const typeOf = (code: string) => (TEMPORARY.includes(code) ? 'temporary' : SINGLE[code]!);
 const purposeList = [
   ...legacyMeta.purposes.slice(0, 2),
   { code: 'blue_card', label: 'Blue Card', button: 'Blue Card (Niebieska Karta UE)' },
   ...legacyMeta.purposes.slice(2),
   { code: 'staly', label: 'постоянный побыт', button: 'Постоянный побыт (pobyt stały)' },
   { code: 'rezydent_ue', label: 'резидент ЕС', button: 'Резидент ЕС (rezydent długoterminowy UE)' },
+  { code: 'nieznane', label: 'другое основание / не указано', button: 'Другое основание / не указано' },
 ];
 
 /** /api/meta with permit types (current servers). */
@@ -85,8 +86,14 @@ export const meta: Meta = {
       button: 'Резидент ЕС (rezydent długoterminowy UE)',
       purposes: ['rezydent_ue'],
     },
+    {
+      code: 'unknown',
+      label: 'другое основание / не указано',
+      button: 'Другое основание / не указано',
+      purposes: ['nieznane'],
+    },
   ],
-  checklists: { ...legacyMeta.checklists, blue_card: CORE, staly: CORE, rezydent_ue: CORE },
+  checklists: { ...legacyMeta.checklists, blue_card: CORE, staly: CORE, rezydent_ue: CORE, nieznane: CORE },
 };
 
 export const caseDetail: CaseDetail = {

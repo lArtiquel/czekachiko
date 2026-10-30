@@ -148,6 +148,7 @@ async def test_meta_groups_purposes_by_permit_type(api):
     meta = await api.json("GET", "/api/meta?lang=ru")
     assert [p["code"] for p in meta["purposes"]] == [
         "praca", "jdg", "blue_card", "studia", "rodzina", "inne", "staly", "rezydent_ue",
+        "nieznane",
     ]  # fmt: skip
     assert meta["permit_types"] == [
         {
@@ -168,7 +169,14 @@ async def test_meta_groups_purposes_by_permit_type(api):
             "button": "Резидент ЕС (rezydent długoterminowy UE)",
             "purposes": ["rezydent_ue"],
         },
+        {
+            "code": "unknown",
+            "label": "другое основание / не указано",
+            "button": "Другое основание / не указано",
+            "purposes": ["nieznane"],
+        },
     ]
+    assert meta["checklists"]["nieznane"] == meta["checklists"]["praca"][:6]  # the core only
     assert meta["checklists"]["blue_card"][-1] == {
         "code": "dyplom",
         "name": "Dyplom ukończenia studiów wyższych",
@@ -227,6 +235,7 @@ async def test_stats_validation(api):
         ("purpose=praca,visa", {"purpose": "invalid"}),
         ("purpose=praca,,jdg", {"purpose": "invalid"}),
         ("purpose=praca,staly", {"purpose": "mixed"}),
+        ("purpose=praca,nieznane", {"purpose": "mixed"}),
         ("group=forever", {"group": "invalid"}),
         ("group=temporary&purpose=praca", {"group": "exclusive"}),
         ("voivodeship=mars&group=", {"voivodeship": "invalid", "group": "invalid"}),
