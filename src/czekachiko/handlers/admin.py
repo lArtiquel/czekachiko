@@ -24,8 +24,7 @@ async def admin(
     recent = await repo.admin_recent(session)
     lines = [t(lang, "admin_title"), ""]
     lines += [f"{voiv_label(v)}: {n}" for v, n in counts] or ["—"]
-    if imported := await repo.count_imported(session):
-        lines += ["", f"pobytrack: {imported}"]
+    lines += ["", *(f"{source}: {n}" for source, n in await repo.source_counts(session))]
     lines.append("")
     for c in recent:
         filed = c.dates().get("filed")

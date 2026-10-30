@@ -29,8 +29,8 @@ MAX_CASES = 5
 # Owns cases imported from community datasets. Telegram user ids are positive and the API
 # rejects anything else, so no request can act as this user.
 SYSTEM_TG_ID = -1
-# Added to calendar descriptions of imported cases; set to None to drop it.
-IMPORT_SOURCE_LINE: str | None = "Источник: t.me/pobytrack"
+# Added to calendar descriptions of cases from these sources; remove an entry to drop it.
+IMPORT_SOURCE_LINES: dict[str, str] = {"pobytrack": "Источник: t.me/pobytrack"}
 
 
 class TooManyCases(Exception):
@@ -185,15 +185,19 @@ async def import_case(
     purpose: Purpose,
     channel: Channel,
     dates: dict[Milestone, date],
+    source: str,
 ) -> Case:
     if Milestone.filed not in dates:
         raise ValueError("an imported case needs a filing date")
+    if source == "user":
+        raise ValueError("imported cases name their source")
     case = Case(
         tg_id=SYSTEM_TG_ID,
         voivodeship=voiv,
         purpose=purpose,
         channel=channel,
         client_token=client_token,
+        source=source,
     )
     s.add(case)
     await s.flush()
@@ -242,8 +246,8 @@ def calendar_payload(case: Case, milestone: str, d: date) -> dict:
             line += f" (+{(dates[m] - filed).days} дн.)"
         lines.append(line)
     lines.append("")
-    if IMPORT_SOURCE_LINE and getattr(case, "tg_id", None) == SYSTEM_TG_ID:
-        lines.append(IMPORT_SOURCE_LINE)
+    if source_line := IMPORT_SOURCE_LINES.get(getattr(case, "source", None)):
+        lines.append(source_line)
     lines.append("Анонимные данные из @czekachiko_bot")
     return {"title": title, "date": d.isoformat(), "description": "\n".join(lines)}
 
@@ -514,8 +518,12 @@ async def admin_counts(s: AsyncSession) -> list[tuple[str, int]]:
     return await case_counts(s, users_only=True)
 
 
-async def count_imported(s: AsyncSession) -> int:
-    return await s.scalar(select(func.count()).select_from(Case).where(Case.tg_id == SYSTEM_TG_ID))
+async def source_counts(s: AsyncSession) -> list[tuple[str, int]]:
+    """Cases by source ("user", "pobytrack", ...), most first."""
+    rows = await s.execute(
+        select(Case.source, func.count()).group_by(Case.source).order_by(func.count().desc())
+    )
+    return [(src, n) for src, n in rows.all()]
 
 
 async def admin_recent(s: AsyncSession, limit: int = 10) -> list[Case]:

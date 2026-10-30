@@ -39,6 +39,11 @@ class Case(Base):
     purpose: Mapped[str] = mapped_column(String(16))
     channel: Mapped[str] = mapped_column(String(16))
     client_token: Mapped[str] = mapped_column(String(64), unique=True)
+    # "user" for cases people add; an importer's name (e.g. "pobytrack") for imported ones.
+    # Internal: never in API responses or cards.
+    source: Mapped[str] = mapped_column(
+        String(32), default="user", server_default="user", index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     milestones: Mapped[list["MilestoneRow"]] = relationship(
         lazy="selectin", cascade="all, delete-orphan", passive_deletes=True

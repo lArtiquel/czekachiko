@@ -258,6 +258,7 @@ async def test_first_import(session_factory):
     cases = await imported(session_factory)
     assert len(cases) == 14
     assert all(c.tg_id == repo.SYSTEM_TG_ID for c in cases.values())
+    assert {c.source for c in cases.values()} == {"pobytrack"}
     assert cases["204/2"].client_token == "pobytrack:204/2"
     assert cases["103"].client_token == "pobytrack:103"
     assert cases["103"].voivodeship == "dolnoslaskie" and cases["103"].channel == "mos"
@@ -275,7 +276,7 @@ async def test_first_import(session_factory):
 
 
 async def test_source_line_is_one_constant(session_factory, monkeypatch):
-    monkeypatch.setattr(repo, "IMPORT_SOURCE_LINE", None)
+    monkeypatch.setattr(repo, "IMPORT_SOURCE_LINES", {})
     await run_import(session_factory)
     async with session_factory() as s:
         payloads = (await s.scalars(select(OutboxRow.payload))).all()
@@ -442,10 +443,22 @@ async def test_imported_cases_stay_out_of_people_paths(session_factory, api):
         await s.commit()
         assert await repo.admin_counts(s) == [("mazowieckie", 1)]
         assert sum(n for _, n in await repo.case_counts(s)) == 15
-        assert await repo.count_imported(s) == 14
+        assert await repo.source_counts(s) == [("pobytrack", 14), ("user", 1)]
+        own = await repo.list_cases(s, 5)
+        assert own[0].source == "user"
         assert all(c.tg_id != repo.SYSTEM_TG_ID for c in await repo.admin_recent(s))
     some = next(iter((await imported(session_factory)).values()))
     assert (await api.call("GET", f"/api/cases/{some.id}")).status == 404
+    mine = await api.json(
+        "POST",
+        "/api/cases",
+        status=201,
+        json={"voivodeship": "mazowieckie", "purpose": "jdg", "channel": "mos",
+              "filed": "2026-03-06", "client_token": "tok-source-1"},
+    )  # fmt: skip
+    detail = await api.json("GET", f"/api/cases/{mine['id']}")
+    assert "source" not in mine and "source" not in detail  # internal only
+    await api.json("DELETE", f"/api/cases/{mine['id']}", status=204)
     assert await api.json("GET", "/api/cases") == []
     signed = sign_init_data(user={"id": -1, "first_name": "S"}, auth_date=int(api.time.t))
     r = await api.call("GET", "/api/me", signed=False, headers={"Authorization": f"tma {signed}"})

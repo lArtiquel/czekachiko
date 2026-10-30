@@ -139,3 +139,59 @@ def test_upgrade_from_0006_keeps_existing_cases():
         command.upgrade(cfg, "head")  # and back again
     finally:
         asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))
+
+
+async def _seed_0007(url: str) -> None:
+    """Cases as 0007 stored them: people's, and imported ones known only by their token."""
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        await conn.execute("INSERT INTO users (tg_id) VALUES (21), (-1)")
+        for tg, token in [
+            (21, "user-token-1"),
+            (21, "tok-pobytrack-lookalike"),
+            (-1, "pobytrack:103"),
+            (-1, "pobytrack:204/2"),
+        ]:
+            await conn.execute(
+                "INSERT INTO cases (tg_id, voivodeship, purpose, channel, client_token) "
+                "VALUES ($1, 'mazowieckie', 'praca', 'paper', $2)",
+                tg,
+                token,
+            )
+    finally:
+        await conn.close()
+
+
+async def _sources(url: str) -> dict[str, str]:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch("SELECT client_token, source FROM cases")
+        return {r["client_token"]: r["source"] for r in rows}
+    finally:
+        await conn.close()
+
+
+def test_0008_backfills_the_source_of_existing_cases():
+    name = f"t_mig_{uuid.uuid4().hex[:10]}"
+    asyncio.run(_admin(f"CREATE DATABASE {name}"))
+    url = TEST_URL.rsplit("/", 1)[0] + "/" + name
+    cfg = Config()
+    cfg.set_main_option("script_location", str(MIGRATIONS))
+    cfg.set_main_option("sqlalchemy.url", url)
+    try:
+        command.upgrade(cfg, "0007")
+        asyncio.run(_seed_0007(url))
+        command.upgrade(cfg, "head")
+        assert asyncio.run(_sources(url)) == {
+            "user-token-1": "user",
+            "tok-pobytrack-lookalike": "user",
+            "pobytrack:103": "pobytrack",
+            "pobytrack:204/2": "pobytrack",
+        }
+        assert "ix_cases_source" in asyncio.run(_indexes(url))
+        command.downgrade(cfg, "0007")
+        assert "ix_cases_source" not in asyncio.run(_indexes(url))
+        command.upgrade(cfg, "head")
+        assert set(asyncio.run(_sources(url)).values()) == {"user", "pobytrack"}
+    finally:
+        asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))

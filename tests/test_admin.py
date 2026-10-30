@@ -37,6 +37,7 @@ async def test_admin_shows_counts(session_factory):
     dp, bot, tg = await setup(session_factory)
     await dp.feed_update(bot, text_update(ADMIN, "/admin"))
     assert "Admin" in tg.last().text and "Mazowieckie: 1" in tg.last().text
+    assert "\nuser: 1\n" in tg.last().text  # cases by source
 
 
 async def test_admin_recompute(session_factory):

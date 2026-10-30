@@ -42,7 +42,8 @@ from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.share import normalize
 
 SITE_URL = "https://pobyt-tracker.pages.dev/ru/"
-TOKEN_PREFIX = "pobytrack:"
+SOURCE = "pobytrack"  # cases.source
+TOKEN_PREFIX = f"{SOURCE}:"
 MAX_BYTES = 10 * 1024 * 1024
 TIMEOUT = 30.0
 USER_AGENT = "czekachiko-importer (+https://t.me/czekachiko_bot)"
@@ -420,7 +421,9 @@ async def import_dataset(
         key = (row.voivodeship.value, row.purpose.value)
         if case is None:
             token = f"{TOKEN_PREFIX}{row_key}"
-            await repo.import_case(s, token, row.voivodeship, row.purpose, row.channel, row.dates)
+            await repo.import_case(
+                s, token, row.voivodeship, row.purpose, row.channel, row.dates, SOURCE
+            )
             report.new += 1
             touched.add(key)
             continue
@@ -429,7 +432,7 @@ async def import_dataset(
             touched.add((case.voivodeship, case.purpose))
             await repo.delete_case(s, case, recompute=False)
             await repo.import_case(
-                s, case.client_token, row.voivodeship, row.purpose, row.channel, row.dates
+                s, case.client_token, row.voivodeship, row.purpose, row.channel, row.dates, SOURCE
             )
             report.updated += 1
             touched.add(key)
