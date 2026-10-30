@@ -222,18 +222,18 @@ async def test_stats_for_bases_groups_and_all_of_poland(api, session_factory):
         return body["chain"][2]["agg"]
 
     single = await api.json("GET", "/api/stats?voivodeship=mazowieckie&purpose=praca")
-    assert fp(single) == {"n": 2, "mean": 110, "min": 100, "max": 120}
+    assert fp(single) == {"n": 2, "mean": 110, "median": 110, "min": 100, "max": 120}
     # Several bases: pooled from intervals, not an average of medians.
     two = await api.json("GET", "/api/stats?voivodeship=mazowieckie&purpose=jdg,praca")
-    assert fp(two) == {"n": 3, "mean": 140, "min": 100, "max": 200}
+    assert fp(two) == {"n": 3, "mean": 140, "median": 120, "min": 100, "max": 200}
     group = await api.json("GET", "/api/stats?voivodeship=mazowieckie&group=temporary")
-    assert fp(group) == {"n": 4, "mean": 120, "min": 60, "max": 200}
+    assert fp(group) == {"n": 4, "mean": 120, "median": 110, "min": 60, "max": 200}
     poland = await api.json("GET", "/api/stats?group=temporary")
-    assert fp(poland) == {"n": 5, "mean": 156, "min": 60, "max": 300}
+    assert fp(poland) == {"n": 5, "mean": 156, "median": 120, "min": 60, "max": 300}
     poland_praca = await api.json("GET", "/api/stats?purpose=praca")
-    assert fp(poland_praca) == {"n": 3, "mean": 173, "min": 100, "max": 300}
+    assert fp(poland_praca) == {"n": 3, "mean": 173, "median": 120, "min": 100, "max": 300}
     permanent = await api.json("GET", "/api/stats?group=permanent")
-    assert fp(permanent) == {"n": 1, "mean": 400, "min": 400, "max": 400}
+    assert fp(permanent) == {"n": 1, "mean": 400, "median": 400, "min": 400, "max": 400}
     assert permanent == await api.json("GET", "/api/stats?purpose=staly")
     assert set(group) == {"chain", "who_now"}
 

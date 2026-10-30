@@ -133,7 +133,7 @@ async def test_case_detail_follows_its_channel(api, session_factory):
     case = await create(api, channel="in_person", filed="2026-10-01")
     detail = await api.json("GET", f"/api/cases/{case['id']}")
     assert [c["milestone"] for c in detail["chain"]] == IN_PERSON_PATH
-    assert detail["chain"][0]["agg"] == {"n": 3, "mean": 0, "min": 0, "max": 1}
+    assert detail["chain"][0]["agg"] == {"n": 3, "mean": 0, "median": 0, "min": 0, "max": 1}
     # Three in-person cases are too few: the forecast uses every channel and says so. Four
     # weeks in, the three in-person cases already gave fingerprints sooner.
     f = detail["forecast"]
@@ -166,7 +166,7 @@ async def test_stats_by_channel(api, session_factory):
     assert fp(post)["n"] == 3
     in_person = await api.json("GET", base + "&channel=in_person")
     assert [c["milestone"] for c in in_person["chain"]] == IN_PERSON_PATH
-    assert fp(in_person) == {"n": 2, "mean": 0, "min": 0, "max": 0}
+    assert fp(in_person) == {"n": 2, "mean": 0, "median": 0, "min": 0, "max": 0}
     assert in_person["who_now"]["fingerprints"] is None
     # Without a channel: every one, unknown included, in the milestone order.
     everything = await api.json("GET", base)

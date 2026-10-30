@@ -91,7 +91,14 @@ def case_json(case, docs: list) -> dict:
 def agg_json(agg: Aggregate | None) -> dict | None:
     if agg is None:
         return None
-    return {"n": agg.n, "mean": round(agg.mean), "min": agg.min, "max": agg.max}
+    # Whole days, like the mean; `mean` stays for clients that read it.
+    return {
+        "n": agg.n,
+        "mean": round(agg.mean),
+        "median": round(agg.median),
+        "min": agg.min,
+        "max": agg.max,
+    }
 
 
 def chain_json(

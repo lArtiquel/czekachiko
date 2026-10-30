@@ -160,7 +160,13 @@ async def test_set_and_clear_milestone(api, session_factory):
     assert detail["dates"] == {"filed": "2026-03-06", "fingerprints": "2026-08-01"}
     fp = next(c for c in detail["chain"] if c["milestone"] == "fingerprints")
     assert fp["own_days"] == 148
-    assert fp["agg"] == {"n": 1, "mean": 148, "min": 148, "max": 148}  # aggregates recomputed
+    assert fp["agg"] == {
+        "n": 1,
+        "mean": 148,
+        "median": 148,
+        "min": 148,
+        "max": 148,
+    }  # aggregates recomputed
     async with session_factory() as s:
         ops = (await s.scalars(select(OutboxRow.op).where(OutboxRow.case_id == case["id"]))).all()
     assert sorted(ops) == ["upsert", "upsert"]  # the calendar outbox fills as from the bot
@@ -258,7 +264,7 @@ async def test_detail_has_forecast_window_and_typical_chain(api, session_factory
     assert fp == {
         "milestone": "fingerprints",
         "own_days": None,
-        "agg": {"n": 8, "mean": 159, "min": 90, "max": 240},
+        "agg": {"n": 8, "mean": 159, "median": 160, "min": 90, "max": 240},
     }
 
 
