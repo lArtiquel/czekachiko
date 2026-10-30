@@ -122,9 +122,10 @@ describe('Stats by permit type', () => {
     await user.click(screen.getByLabelText('Mazowieckie'));
     await user.click(screen.getByRole('button', { name: 'Готово' }));
     await screen.findByRole('heading', { name: 'номер дела' });
+    // No cases yet: the post channel.
     expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toEqual([
-      { group: 'temporary' },
-      { group: 'temporary', voivodeship: 'mazowieckie' },
+      { group: 'temporary', channel: 'post' },
+      { group: 'temporary', voivodeship: 'mazowieckie', channel: 'post' },
     ]);
     const group = screen.getByRole('heading', { name: 'номер дела' }).closest('section')!;
     expect(within(group).getByText('Вся Польша')).toBeInTheDocument();
@@ -134,8 +135,8 @@ describe('Stats by permit type', () => {
     await user.click(screen.getByLabelText('Бизнес (JDG)'));
     await waitFor(() => expect(api.callsTo('GET', '/api/stats')).toHaveLength(6));
     expect(api.callsTo('GET', '/api/stats').slice(-2).map((c) => params(c.url))).toEqual([
-      { purpose: 'praca,jdg' },
-      { purpose: 'praca,jdg', voivodeship: 'mazowieckie' },
+      { purpose: 'praca,jdg', channel: 'post' },
+      { purpose: 'praca,jdg', voivodeship: 'mazowieckie', channel: 'post' },
     ]);
 
     await user.click(screen.getByRole('button', { name: 'Отправить в чат' }));
@@ -161,6 +162,7 @@ describe('Stats by permit type', () => {
       expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toContainEqual({
         group: 'permanent',
         voivodeship: 'mazowieckie',
+        channel: 'post',
       }),
     );
   });
@@ -179,16 +181,57 @@ describe('Stats by permit type', () => {
     expect(screen.queryByLabelText('Все основания')).not.toBeInTheDocument();
     await user.click(screen.getByLabelText('Вся Польша'));
     await waitFor(() =>
-      expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toContainEqual({ group: 'unknown' }),
+      expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toContainEqual({
+        group: 'unknown',
+        channel: 'post',
+      }),
     );
   });
 
-  it('opens on the first case’s basis', async () => {
+  it('opens on the first case’s basis and the latest case’s channel', async () => {
     const { api, user } = open('#/', { 'GET /api/stats': { body: stats } });
     await user.click(await screen.findByRole('button', { name: 'Сроки по воеводствам' }));
     await waitFor(() => expect(api.callsTo('GET', '/api/stats')).toHaveLength(1));
     expect(screen.getByLabelText('Работа')).toBeChecked();
-    expect(params(api.callsTo('GET', '/api/stats')[0]!.url)).toEqual({ purpose: 'praca', voivodeship: 'mazowieckie' });
+    expect(screen.getByRole('radio', { name: 'MOS' })).toBeChecked();
+    expect(params(api.callsTo('GET', '/api/stats')[0]!.url)).toEqual({
+      purpose: 'praca',
+      voivodeship: 'mazowieckie',
+      channel: 'mos',
+    });
+  });
+
+  it('a three-way switch picks the filing channel; each tab shows its own path', async () => {
+    const { api, user } = open('#/stats', {
+      'GET /api/cases': { body: [] },
+      'GET /api/stats': { body: stats },
+    });
+    const tabs = within(await screen.findByRole('radiogroup', { name: 'Как подавали' }));
+    expect(tabs.getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual([
+      'Лично',
+      'Почта/e-Doręczenia',
+      'MOS',
+    ]);
+    expect(tabs.getByRole('radio', { name: 'Почта/e-Doręczenia' })).toBeChecked();
+    await user.click(screen.getByLabelText('Mazowieckie'));
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+    await screen.findByRole('heading', { name: 'номер дела' });
+    const headings = () => [...document.querySelectorAll('.group-title .cap')].map((el) => el.textContent);
+    expect(headings()).toEqual(['номер дела', 'вызов на отпечатки пальцев', 'отпечатки сданы', 'decyzja', 'карта']);
+
+    await user.click(tabs.getByRole('radio', { name: 'Лично' }));
+    await waitFor(() =>
+      expect(params(api.callsTo('GET', '/api/stats').at(-1)!.url)).toEqual({
+        group: 'temporary',
+        voivodeship: 'mazowieckie',
+        channel: 'in_person',
+      }),
+    );
+    await waitFor(() =>
+      expect(headings()).toEqual(['отпечатки сданы', 'номер дела', 'вызов на отпечатки пальцев', 'decyzja', 'карта']),
+    );
+    expect(screen.getByRole('heading', { name: 'отпечатки сданы · обычно при подаче' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'вызов на отпечатки пальцев · если был' })).toBeInTheDocument();
   });
 
   it('with a server that has no permit types, keeps one purpose and voivodeships only', async () => {

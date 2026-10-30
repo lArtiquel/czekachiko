@@ -830,7 +830,8 @@ p {
 
 .segmented {
   display: grid;
-  grid-auto-columns: 1fr;
+  /* Equal columns that may shrink below a long label (Почта/e-Doręczenia) and wrap it. */
+  grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
   gap: 4px;
   padding: 4px;
@@ -856,6 +857,7 @@ p {
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
+  overflow-wrap: anywhere;
   transition: background-color 0.18s, color 0.18s;
 }
 

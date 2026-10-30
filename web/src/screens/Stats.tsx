@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ALL_POLAND, MILESTONES, type Agg, type StatsResponse, type StatsSelection } from '../api/types';
+import { ALL_POLAND, type Agg, type StatsResponse, type StatsSelection } from '../api/types';
 import { useApp } from '../app/context';
 import { FieldError, Loading, PageTitle } from '../components/common';
-import { Button, Chip, Group, Page, RowButton, SelectField } from '../components/ui';
+import { Button, Chip, Group, Page, RowButton, Segmented, SelectField } from '../components/ui';
+import { CHANNELS, channelShort, defaultChannel, hasChannels, pathOf, type Channel } from '../lib/channels';
 import { monthSpan } from '../lib/dates';
 import { errorMessage } from '../lib/errors';
 import { alertDialog, selectionHaptic, shareInline } from '../telegram/webapp';
-
-const STEPS = MILESTONES.filter((m) => m !== 'filed');
 
 export const MAX_COMPARE = 6;
 
@@ -36,7 +35,13 @@ export function Stats() {
       ? { purposes: bases }
       : { group: permitType }
     : { purposes: [purpose] };
-  const selKey = 'group' in selection ? `g:${selection.group}` : `p:${selection.purposes.join('+')}`;
+  // Filing channel: the latest case's, else post. Servers from before the split get none.
+  const byChannel = hasChannels(meta);
+  const [channel, setChannel] = useState<Channel>(() => defaultChannel(cache.list));
+  const steps = pathOf(channel).filter((s) => s.milestone !== 'filed');
+  const selKey =
+    ('group' in selection ? `g:${selection.group}` : `p:${selection.purposes.join('+')}`) +
+    (byChannel ? `|${channel}` : '');
   const [voivs, setVoivs] = useState<string[]>(first ? [first.voivodeship] : []);
   const [picking, setPicking] = useState(!first);
   const [results, setResults] = useState<Record<string, Result>>({});
@@ -60,12 +65,12 @@ export function Stats() {
         inFlight.current.delete(key);
         if (mounted.current) setResults((r) => ({ ...r, [key]: result }));
       };
-      api.stats(v === ALL_POLAND ? null : v, selection).then(
+      api.stats(v === ALL_POLAND ? null : v, selection, byChannel ? channel : undefined).then(
         (data) => settle({ data }),
         (error: unknown) => settle({ error }),
       );
     }
-    // `selection` is fully described by `selKey`, which is stable across renders.
+    // `selection` and `channel` are fully described by `selKey`, which is stable across renders.
   }, [api, selKey, voivs, results]);
 
   const retry = (key: string) =>
@@ -225,14 +230,37 @@ export function Stats() {
         </div>
       ))}
 
+      {byChannel ? (
+        <Group title={t('stats_channel')} plain>
+          <Segmented
+            name="stats-channel"
+            label={t('stats_channel')}
+            options={CHANNELS.map((c) => ({ value: c, label: channelShort(t, c, labels.channel(c)) }))}
+            value={channel}
+            onChange={(code) => {
+              selectionHaptic(tg);
+              setChannel(code as Channel);
+            }}
+          />
+        </Group>
+      ) : null}
+
       {ready.length ? <p className="note">{t('cmp_legend')}</p> : null}
 
       {ready.length
-        ? STEPS.map((m) => {
+        ? steps.map(({ milestone: m, optional, atFiling }) => {
             const rows = ready.map(({ voiv, data }) => ({ voiv, agg: data.chain.find((c) => c.milestone === m)?.agg ?? null }));
             const axis = Math.max(1, ...rows.map((r) => r.agg?.max ?? 0));
+            const title = (
+              <>
+                <span className="cap">{labels.milestone(m)}</span>
+                {atFiling || optional ? (
+                  <span className="tl-tag"> · {t(atFiling ? 'step_at_filing' : 'step_optional')}</span>
+                ) : null}
+              </>
+            );
             return (
-              <Group key={m} title={<span className="cap">{labels.milestone(m)}</span>}>
+              <Group key={m} title={title}>
                 {rows.map(({ voiv, agg }) => (
                   <CompareRow key={voiv} name={placeName(voiv)} agg={agg} axis={axis} />
                 ))}
