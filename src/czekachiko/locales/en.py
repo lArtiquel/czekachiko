@@ -1,8 +1,8 @@
 """English copy."""
 
-from czekachiko.domain import Channel, Milestone, Purpose
+from czekachiko.domain import Channel, Milestone, PermitType, Purpose
 
-P, M = Purpose, Milestone
+P, M, T = Purpose, Milestone, PermitType
 
 PURPOSE_LABELS = {
     P.praca: "work",
@@ -10,6 +10,9 @@ PURPOSE_LABELS = {
     P.studia: "study",
     P.rodzina: "family",
     P.inne: "other",
+    P.blue_card: "Blue Card",
+    P.staly: "permanent residence",
+    P.rezydent_ue: "EU long-term resident",
 }
 PURPOSE_BUTTONS = {
     P.praca: "Work (art. 114)",
@@ -17,6 +20,19 @@ PURPOSE_BUTTONS = {
     P.studia: "Study",
     P.rodzina: "Family",
     P.inne: "Other",
+    P.blue_card: "Blue Card (Niebieska Karta UE)",
+    P.staly: "Permanent residence (pobyt stały)",
+    P.rezydent_ue: "EU long-term resident (rezydent długoterminowy UE)",
+}
+PERMIT_TYPE_LABELS = {
+    T.temporary: "temporary residence",
+    T.permanent: "permanent residence",
+    T.eu_resident: "EU long-term resident",
+}
+PERMIT_TYPE_BUTTONS = {
+    T.temporary: "Temporary residence (pobyt czasowy)",
+    T.permanent: "Permanent residence (pobyt stały)",
+    T.eu_resident: "EU long-term resident (rezydent długoterminowy UE)",
 }
 MILESTONE_LABELS = {
     M.filed: "filed",
@@ -70,6 +86,8 @@ MESSAGES = {
     "fc_scope_voiv": "{voiv}, {purpose}",
     "fc_scope_voiv_filed": "{voiv}, {purpose}, from the filing date",
     "fc_scope_national": "all of Poland, {purpose}: too little data for your voivodeship yet",
+    "fc_scope_voiv_group": "{voiv}, {group}, all bases: too little data for {purpose} yet",
+    "fc_scope_national_group": "all of Poland, {group}, all bases: too little data for your voivodeship and basis yet",
     "fc_waited_longer": (
         "you've already waited longer than {x} of {y} completed cases in this group. "
         "There's nothing left to compute a window from. Hang in there 🐾"
@@ -88,4 +106,6 @@ MESSAGES = {
     "stale_button": "This button is outdated. Open the app 🚀",
     "unknown_message": "🐕 Everything is in the app now 👇 A question or an idea? Tap «✉️ Contact us».",
     "inline_open_app": "📱 Choose in the app",
+    "all_poland": "All of Poland",
+    "all_bases": "{group}, all bases",
 }

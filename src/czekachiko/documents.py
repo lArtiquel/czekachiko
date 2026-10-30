@@ -32,6 +32,10 @@ NAMES = {
     "akt_rodzina": "Akt małżeństwa / urodzenia",
     "rodzina_pl": "Dokumenty członka rodziny w Polsce",
     "cel": "Dokumenty potwierdzające cel pobytu",
+    "dyplom": "Dyplom ukończenia studiów wyższych",
+    "podstawa_staly": "Dokument podstawy (Karta Polaka / akt małżeństwa)",
+    "pobyt_5lat": "Dokumenty potwierdzające 5 lat legalnego pobytu",
+    "jezyk_polski": "Poświadczenie znajomości języka polskiego (B1)",
 }
 
 CORE = ("wniosek", "zdjecia", "paszport", "oplata", "ubezpieczenie", "lokal")
@@ -41,6 +45,10 @@ CHECKLISTS: dict[Purpose, tuple[str, ...]] = {
     P.studia: (*CORE, "uczelnia", "srodki"),
     P.rodzina: (*CORE, "akt_rodzina", "rodzina_pl", "dochod"),
     P.inne: (*CORE, "cel", "dochod"),
+    P.blue_card: (*CORE, "zalacznik1", "umowa_praca", "dyplom"),
+    P.staly: (*CORE, "podstawa_staly", "dochod"),
+    # Health insurance, also required here, is already in the core.
+    P.rezydent_ue: (*CORE, "pobyt_5lat", "dochod", "jezyk_polski"),
 }
 
 

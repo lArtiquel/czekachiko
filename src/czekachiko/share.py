@@ -32,6 +32,9 @@ PURPOSE_ALIASES: dict[Purpose, tuple[str, ...]] = {
     Purpose.jdg: ("142", "jdg", "biznes", "бизнес", "ип", "business", "działal", "dzialal"),
     Purpose.studia: ("studia", "stud", "учеб", "study"),
     Purpose.rodzina: ("rodzin", "семь", "family"),
+    Purpose.blue_card: ("blue", "блю", "niebiesk", "голуб"),
+    Purpose.staly: ("staly", "постоян", "permanent"),
+    Purpose.rezydent_ue: ("rezyden", "резидент", "resident"),
 }
 
 

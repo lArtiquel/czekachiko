@@ -55,7 +55,16 @@ def test_filed_missing():
 
 def test_enums_and_pairs():
     assert len(Voivodeship) == 16
-    assert [p.value for p in Purpose] == ["praca", "jdg", "studia", "rodzina", "inne"]
+    assert [p.value for p in Purpose] == [
+        "praca",
+        "jdg",
+        "studia",
+        "rodzina",
+        "inne",
+        "blue_card",
+        "staly",
+        "rezydent_ue",
+    ]
     assert (M.fingerprints, M.decision) in INTERVAL_PAIRS
     assert len(INTERVAL_PAIRS) == 7
     assert (M.filed, M.braki) in INTERVAL_PAIRS

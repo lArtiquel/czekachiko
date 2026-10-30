@@ -1,8 +1,8 @@
 """Russian copy. Labels here are also used for the public calendar."""
 
-from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import Channel, Milestone, PermitType, Purpose, Voivodeship
 
-V, P, M = Voivodeship, Purpose, Milestone
+V, P, M, T = Voivodeship, Purpose, Milestone, PermitType
 
 VOIV_LABELS = {
     V.dolnoslaskie: "Dolnośląskie",
@@ -29,6 +29,21 @@ PURPOSE_LABELS = {
     P.studia: "учёба",
     P.rodzina: "семья",
     P.inne: "другое",
+    P.blue_card: "Blue Card",
+    P.staly: "постоянный побыт",
+    P.rezydent_ue: "резидент ЕС",
+}
+
+PERMIT_TYPE_LABELS = {
+    T.temporary: "временный побыт",
+    T.permanent: "постоянный побыт",
+    T.eu_resident: "резидент ЕС",
+}
+
+PERMIT_TYPE_BUTTONS = {
+    T.temporary: "Временный побыт (pobyt czasowy)",
+    T.permanent: "Постоянный побыт (pobyt stały)",
+    T.eu_resident: "Резидент ЕС (rezydent długoterminowy UE)",
 }
 
 MILESTONE_LABELS = {
@@ -48,6 +63,9 @@ PURPOSE_BUTTONS = {
     P.studia: "Учёба",
     P.rodzina: "Семья",
     P.inne: "Другое",
+    P.blue_card: "Blue Card (Niebieska Karta UE)",
+    P.staly: "Постоянный побыт (pobyt stały)",
+    P.rezydent_ue: "Резидент ЕС (rezydent długoterminowy UE)",
 }
 
 MILESTONE_HINTS = {
@@ -94,6 +112,8 @@ MESSAGES = {
     "fc_scope_voiv": "{voiv}, {purpose}",
     "fc_scope_voiv_filed": "{voiv}, {purpose}, от даты подачи",
     "fc_scope_national": "вся Польша, {purpose} — по твоему воеводству пока мало данных",
+    "fc_scope_voiv_group": "{voiv}, {group}, все основания — по основанию «{purpose}» пока мало данных",
+    "fc_scope_national_group": "вся Польша, {group}, все основания — по твоему воеводству и основанию пока мало данных",
     "fc_waited_longer": (
         "ты уже ждёшь дольше, чем {x} из {y} завершённых дел в этой группе. "
         "Окно посчитать не из чего — держись 🐾"
@@ -111,4 +131,6 @@ MESSAGES = {
     "stale_button": "Эта кнопка устарела. Открой приложение 🚀",
     "unknown_message": "🐕 Всё теперь в приложении 👇 Вопрос или идея? Нажми «✉️ Написать нам».",
     "inline_open_app": "📱 Выбрать в приложении",
+    "all_poland": "Вся Польша",
+    "all_bases": "{group}, все основания",
 }
