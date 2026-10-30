@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import StrEnum
 
 
@@ -70,8 +71,19 @@ def group_of(purposes) -> PermitType | None:
 
 
 class Channel(StrEnum):
-    mos = "mos"
-    paper = "paper"
+    """How the application was filed. Stored as is: never rename a value."""
+
+    in_person = "in_person"  # at the office's counter
+    post = "post"  # by post or e-Doręczenia
+    mos = "mos"  # online, through MOS
+    unknown = "unknown"  # imported cases whose source does not say; never offered in the app
+    # The name of `post` before 0010 split the old "paper" value. An alias, not a member: it
+    # is not iterated, and "paper" is no longer a stored value.
+    paper = "post"
+
+
+# What people can pick, in picker order.
+USER_CHANNELS = (Channel.in_person, Channel.post, Channel.mos)
 
 
 class Milestone(StrEnum):
@@ -99,3 +111,34 @@ INTERVAL_PAIRS = [
 CHAIN = [(M.filed, m) for m in (M.case_number, M.braki, M.fingerprints, M.decision, M.card)]
 # Milestones that must not precede each other, in order, when both are set.
 ORDERED_CHAIN = (M.fingerprints, M.decision, M.card)
+
+
+@dataclass(frozen=True)
+class Step:
+    milestone: Milestone
+    optional: bool = False  # may never happen (a wezwanie in an in-person case)
+    at_filing: bool = False  # usually happens on the filing day itself
+
+
+# The order milestones happen in for each channel; the case timeline and the stats chain
+# follow it. In person, fingerprints are usually given at the counter and a wezwanie is the
+# exception. By post, e-Doręczenia or MOS, a call comes first and fingerprints follow it.
+_CALLED = tuple(Step(m) for m in Milestone)
+CHANNEL_PATHS: dict[Channel, tuple[Step, ...]] = {
+    Channel.in_person: (
+        Step(M.filed),
+        Step(M.fingerprints, at_filing=True),
+        Step(M.case_number),
+        Step(M.braki, optional=True),
+        Step(M.decision),
+        Step(M.card),
+    ),
+    Channel.post: _CALLED,
+    Channel.mos: _CALLED,
+    Channel.unknown: _CALLED,
+}
+
+
+def channel_path(channel: Channel | str) -> tuple[Step, ...]:
+    """The channel's path; anything unrecognised gets the post path (the milestone order)."""
+    return CHANNEL_PATHS.get(channel, _CALLED)

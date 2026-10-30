@@ -54,7 +54,20 @@ MILESTONE_HINTS = {
     M.decision: "when the decision was issued",
     M.card: "when you collected the card",
 }
-CHANNEL_LABELS = {Channel.mos: "MOS (online)", Channel.paper: "In person / by post"}
+CHANNEL_LABELS = {
+    Channel.in_person: "In person at the office",
+    Channel.post: "Post or e-Doręczenia",
+    Channel.mos: "MOS (online)",
+    Channel.unknown: "Method not given",
+}
+# Inline share cards keep the wording from before channels were split: their statistics
+# cover every channel, and their text is pinned (tests/golden).
+CARD_CHANNEL_LABELS = {
+    Channel.in_person: "In person / by post",
+    Channel.post: "In person / by post",
+    Channel.mos: "MOS (online)",
+    Channel.unknown: "Method not given",
+}
 
 MESSAGES = {
     "menu_title": "🐕 <b>Czekachiko</b> estimates when to expect fingerprints, the decision and your residence card, from people's anonymous cases in your voivodeship.",

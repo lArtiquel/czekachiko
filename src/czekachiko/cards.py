@@ -108,7 +108,7 @@ def forecast_text(lang: str, case: Case, f: Forecast | None) -> str:
 def case_card(lang: str, case: Case, f: Forecast | None, chain: Chain) -> str:
     """The owner's case: milestone chain with own dates, the forecast and the disclaimer."""
     dates = case.dates()
-    channel = label(lang, "CHANNEL_LABELS", Channel(case.channel))
+    channel = label(lang, "CARD_CHANNEL_LABELS", Channel(case.channel))
     lines = [
         t(lang, "case_card_title"),
         "",

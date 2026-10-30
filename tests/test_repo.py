@@ -12,7 +12,7 @@ M, V, P = Milestone, Voivodeship, Purpose
 
 async def make_case(s, tg_id, token, filed=date(2026, 3, 6), voiv=V.mazowieckie, purpose=P.jdg):
     await repo.ensure_user(s, tg_id)
-    return await repo.create_case(s, tg_id, voiv, purpose, Channel.paper, filed, token)
+    return await repo.create_case(s, tg_id, voiv, purpose, Channel.post, filed, token)
 
 
 async def test_create_case_idempotent(session):

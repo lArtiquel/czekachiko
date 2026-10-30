@@ -87,12 +87,19 @@ class AggregateRow(Base):
     __tablename__ = "aggregates"
     __table_args__ = (
         UniqueConstraint(
-            "voivodeship", "purpose", "from_m", "to_m", postgresql_nulls_not_distinct=True
+            "voivodeship",
+            "purpose",
+            "channel",
+            "from_m",
+            "to_m",
+            postgresql_nulls_not_distinct=True,
         ),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     voivodeship: Mapped[str | None] = mapped_column(String(32))  # NULL = national
     purpose: Mapped[str] = mapped_column(String(16))
+    # NULL = every channel, unknown included; unknown never has rows of its own.
+    channel: Mapped[str | None] = mapped_column(String(16))
     from_m: Mapped[str] = mapped_column(String(16))
     to_m: Mapped[str] = mapped_column(String(16))
     n: Mapped[int] = mapped_column(Integer)

@@ -156,7 +156,7 @@ async def seed_case(env):
     async with env[3]() as s:
         await repo.ensure_user(s, UID)
         c = await repo.create_case(
-            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "t"
+            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.post, date(2026, 3, 6), "t"
         )
         await s.commit()
         return c.id

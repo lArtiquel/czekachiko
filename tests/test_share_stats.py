@@ -29,7 +29,7 @@ async def env(session_factory):
     async with session_factory() as s:
         await repo.ensure_user(s, 1)
         c = await repo.create_case(
-            s, 1, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "seed"
+            s, 1, Voivodeship.mazowieckie, Purpose.jdg, Channel.post, date(2026, 3, 6), "seed"
         )
         await repo.set_milestone(s, c, Milestone.fingerprints, date(2026, 10, 29))
         await s.commit()
@@ -110,7 +110,7 @@ async def owner_case_id(env):
     async with env[3]() as s:
         await repo.ensure_user(s, UID)
         c = await repo.create_case(
-            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "mine"
+            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.post, date(2026, 3, 6), "mine"
         )
         await repo.set_milestone(s, c, Milestone.fingerprints, date(2026, 10, 29))
         await s.commit()

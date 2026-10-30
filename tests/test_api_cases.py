@@ -12,7 +12,7 @@ from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 NEW = {
     "voivodeship": "mazowieckie",
     "purpose": "jdg",
-    "channel": "paper",
+    "channel": "post",
     "filed": "2026-03-06",
     "client_token": "tok-00000001",
 }
@@ -42,7 +42,7 @@ async def test_case_crud_happy_path(api):
         "id": case["id"],
         "voivodeship": "mazowieckie",
         "purpose": "jdg",
-        "channel": "paper",
+        "channel": "post",
         "dates": {"filed": "2026-03-06"},
         "docs_done": 0,
         "docs_total": 9,

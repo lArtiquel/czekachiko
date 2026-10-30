@@ -21,7 +21,15 @@ from czekachiko.db.models import (
     OutboxRow,
     User,
 )
-from czekachiko.domain import CHAIN, INTERVAL_PAIRS, Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import (
+    CHAIN,
+    INTERVAL_PAIRS,
+    USER_CHANNELS,
+    Channel,
+    Milestone,
+    Purpose,
+    Voivodeship,
+)
 from czekachiko.locales.ru import MILESTONE_LABELS, PURPOSE_LABELS, VOIV_LABELS
 from czekachiko.stats import Aggregate, aggregate
 
@@ -119,6 +127,15 @@ async def delete_case(s: AsyncSession, case: Case, recompute: bool = True) -> No
     await s.flush()
     if recompute:
         await recompute_for(s, voiv, purpose)
+
+
+async def set_channel(s: AsyncSession, case: Case, channel: Channel) -> None:
+    """The owner corrects how the case was filed. Calendar events carry no channel."""
+    if channel == case.channel:
+        return
+    case.channel = channel
+    await s.flush()
+    await recompute_for(s, case.voivodeship, case.purpose)
 
 
 # --- milestones ----------------------------------------------------------
@@ -295,6 +312,9 @@ async def set_calendar(s: AsyncSession, scope: str, calendar_id: str) -> None:
 # --- statistics ----------------------------------------------------------
 
 PurposeSet = Purpose | str | Iterable[Purpose | str]
+# Every statistic takes an optional channel. None means every channel, `unknown` included:
+# that is the only place imported cases without a channel count.
+ChannelArg = Channel | str | None
 
 _INTERVALS_SQL = """
 SELECT (b.date - a.date) AS days
@@ -303,6 +323,7 @@ JOIN milestones b ON b.case_id = a.case_id AND b.milestone = :to_m
 JOIN cases c ON c.id = a.case_id
 WHERE a.milestone = :from_m AND c.purpose = ANY(CAST(:purposes AS text[]))
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+  AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
 """
 
 # Every chain step (filing to each later milestone) in one round trip.
@@ -313,7 +334,22 @@ JOIN milestones b ON b.case_id = a.case_id AND b.milestone = ANY(CAST(:to_ms AS 
 JOIN cases c ON c.id = a.case_id
 WHERE a.milestone = 'filed' AND c.purpose = ANY(CAST(:purposes AS text[]))
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+  AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
 """
+
+# One aggregate key's intervals with their channel, so all channels recompute from one read.
+_KEY_SQL = """
+SELECT c.channel, (b.date - a.date) AS days
+FROM milestones a
+JOIN milestones b ON b.case_id = a.case_id AND b.milestone = :to_m
+JOIN cases c ON c.id = a.case_id
+WHERE a.milestone = :from_m AND c.purpose = :purpose
+  AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+"""
+
+
+def _channel_param(channel: ChannelArg) -> str | None:
+    return str(channel) if channel is not None else None
 
 
 def _purpose_list(purpose: PurposeSet) -> list[str]:
@@ -330,6 +366,7 @@ async def interval_values(
     purpose: PurposeSet,
     from_m: Milestone,
     to_m: Milestone,
+    channel: ChannelArg = None,
 ) -> list[int]:
     """Day counts from `from_m` to `to_m` for one purpose or a set of them."""
     params = {
@@ -337,12 +374,16 @@ async def interval_values(
         "purposes": _purpose_list(purpose),
         "from_m": str(from_m),
         "to_m": str(to_m),
+        "channel": _channel_param(channel),
     }
     return list((await s.execute(text(_INTERVALS_SQL), params)).scalars().all())
 
 
 async def live_chain(
-    s: AsyncSession, voiv: Voivodeship | str | None, purposes: PurposeSet
+    s: AsyncSession,
+    voiv: Voivodeship | str | None,
+    purposes: PurposeSet,
+    channel: ChannelArg = None,
 ) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
     """The chain computed from intervals: for purpose sets the aggregates table has no row for.
 
@@ -352,6 +393,7 @@ async def live_chain(
         "voiv": str(voiv) if voiv is not None else None,
         "purposes": _purpose_list(purposes),
         "to_ms": [str(b) for _, b in CHAIN],
+        "channel": _channel_param(channel),
     }
     values: dict[str, list[int]] = {}
     for milestone, days in (await s.execute(text(_CHAIN_SQL), params)).all():
@@ -365,16 +407,13 @@ async def get_aggregate(
     purpose: Purpose | str,
     from_m: Milestone,
     to_m: Milestone,
+    channel: ChannelArg = None,
 ) -> Aggregate | None:
-    voiv_cond = (
-        AggregateRow.voivodeship.is_(None)
-        if voiv is None
-        else AggregateRow.voivodeship == str(voiv)
-    )
     row = await s.scalar(
         select(AggregateRow).where(
-            voiv_cond,
+            _is(AggregateRow.voivodeship, voiv),
             AggregateRow.purpose == str(purpose),
+            _is(AggregateRow.channel, channel),
             AggregateRow.from_m == str(from_m),
             AggregateRow.to_m == str(to_m),
         )
@@ -385,39 +424,53 @@ async def get_aggregate(
     return Aggregate(row.n, row.p10, row.median, row.p90, row.min, row.max, mean)
 
 
+def _is(column, value):
+    """Equality that treats None as SQL NULL (national rows, every-channel rows)."""
+    return column.is_(None) if value is None else column == str(value)
+
+
 async def _recompute_key(s: AsyncSession, voiv: str | None, purpose: str, a: str, b: str) -> None:
-    scope = "national" if voiv is None else "voiv"
-    agg = aggregate(await interval_values(s, scope, voiv, purpose, a, b))
-    if agg is None:
-        voiv_cond = (
-            AggregateRow.voivodeship.is_(None) if voiv is None else AggregateRow.voivodeship == voiv
+    """One key's rows: every channel together (channel NULL), then each channel people pick."""
+    params = {"voiv": voiv, "purpose": purpose, "from_m": a, "to_m": b}
+    rows = (await s.execute(text(_KEY_SQL), params)).all()
+    groups: dict[str | None, list[int]] = {None: [days for _, days in rows]}
+    for ch in USER_CHANNELS:
+        groups[str(ch)] = [days for channel, days in rows if channel == ch]
+    upserts, empty = [], []
+    for channel, values in groups.items():
+        agg = aggregate(values)
+        if agg is None:
+            empty.append(channel)
+            continue
+        upserts.append(
+            {
+                "voivodeship": voiv,
+                "purpose": purpose,
+                "channel": channel,
+                "from_m": a,
+                "to_m": b,
+                "n": agg.n,
+                "p10": agg.p10,
+                "median": agg.median,
+                "p90": agg.p90,
+                "min": agg.min,
+                "max": agg.max,
+                "mean": agg.mean,
+            }
         )
+    key = (_is(AggregateRow.voivodeship, voiv), AggregateRow.purpose == purpose)
+    pair = (AggregateRow.from_m == a, AggregateRow.to_m == b)
+    for channel in empty:
+        await s.execute(delete(AggregateRow).where(*key, _is(AggregateRow.channel, channel), *pair))
+    if upserts:
+        stmt = insert(AggregateRow).values(upserts)
+        updated = ("n", "p10", "median", "p90", "min", "max", "mean")
         await s.execute(
-            delete(AggregateRow).where(
-                voiv_cond,
-                AggregateRow.purpose == purpose,
-                AggregateRow.from_m == a,
-                AggregateRow.to_m == b,
+            stmt.on_conflict_do_update(
+                index_elements=["voivodeship", "purpose", "channel", "from_m", "to_m"],
+                set_={**{c: stmt.excluded[c] for c in updated}, "updated_at": func.now()},
             )
         )
-        return
-    values = {
-        "n": agg.n,
-        "p10": agg.p10,
-        "median": agg.median,
-        "p90": agg.p90,
-        "min": agg.min,
-        "max": agg.max,
-        "mean": agg.mean,
-    }
-    await s.execute(
-        insert(AggregateRow)
-        .values(voivodeship=voiv, purpose=purpose, from_m=a, to_m=b, **values)
-        .on_conflict_do_update(
-            index_elements=["voivodeship", "purpose", "from_m", "to_m"],
-            set_={**values, "updated_at": func.now()},
-        )
-    )
 
 
 async def recompute_for(s: AsyncSession, voiv: str, purpose: str) -> None:
@@ -448,21 +501,28 @@ async def recompute_many(s: AsyncSession, keys) -> None:
 
 
 async def chain_aggregates(
-    s: AsyncSession, voiv: Voivodeship | str | None, purpose: Purpose | str
+    s: AsyncSession,
+    voiv: Voivodeship | str | None,
+    purpose: Purpose | str,
+    channel: ChannelArg = None,
 ) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
     """One purpose from the aggregates table; `voiv=None` reads the national rows."""
-    return {(a, b): await get_aggregate(s, voiv, purpose, a, b) for a, b in CHAIN}
+    return {(a, b): await get_aggregate(s, voiv, purpose, a, b, channel) for a, b in CHAIN}
 
 
 async def chain_keys(s: AsyncSession) -> set[tuple[str, str]]:
-    """(voivodeship, purpose) pairs with at least one chain aggregate.
+    """(voivodeship, purpose) pairs with at least one chain aggregate over every channel.
 
     The same test as `any(chain_aggregates(...).values())`: the chain is every interval
     from filing, and those are exactly the aggregate rows with from_m = 'filed'.
     """
     rows = await s.execute(
         select(AggregateRow.voivodeship, AggregateRow.purpose)
-        .where(AggregateRow.voivodeship.is_not(None), AggregateRow.from_m == str(Milestone.filed))
+        .where(
+            AggregateRow.voivodeship.is_not(None),
+            AggregateRow.channel.is_(None),
+            AggregateRow.from_m == str(Milestone.filed),
+        )
         .distinct()
     )
     return {(v, p) for v, p in rows.all()}
@@ -481,6 +541,7 @@ async def recent_events(
     purpose: PurposeSet,
     milestone: Milestone,
     since: date,
+    channel: ChannelArg = None,
 ) -> list[tuple[date, date]]:
     """(milestone date, filing date) since `since`; `voiv=None` means all of Poland."""
     sql = text(
@@ -491,6 +552,7 @@ async def recent_events(
         WHERE m.milestone = :m AND m.date >= :since
           AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
           AND c.purpose = ANY(CAST(:purposes AS text[]))
+          AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
         ORDER BY m.date
         """
     )
@@ -499,6 +561,7 @@ async def recent_events(
         "since": since,
         "voiv": str(voiv) if voiv is not None else None,
         "purposes": _purpose_list(purpose),
+        "channel": _channel_param(channel),
     }
     rows = await s.execute(sql, params)
     return [(a, b) for a, b in rows.all()]

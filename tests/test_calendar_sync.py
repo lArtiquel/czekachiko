@@ -40,7 +40,7 @@ async def new_case(s, uid=1, token="t"):
     await repo.set_calendar(s, "mazowieckie", CAL)  # the case's voivodeship calendar
     await repo.ensure_user(s, uid)
     c = await repo.create_case(
-        s, uid, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), token
+        s, uid, Voivodeship.mazowieckie, Purpose.jdg, Channel.post, date(2026, 3, 6), token
     )
     await s.commit()
     return c
@@ -179,7 +179,7 @@ async def test_milestone_goes_only_to_its_voivodeship_calendar(session_factory):
     async with session_factory() as s:
         await repo.ensure_user(s, 1)
         c = await repo.create_case(
-            s, 1, Voivodeship.mazowieckie, Purpose.jdg, Channel.paper, date(2026, 3, 6), "t"
+            s, 1, Voivodeship.mazowieckie, Purpose.jdg, Channel.post, date(2026, 3, 6), "t"
         )
         await s.commit()
         voiv_cal = (await repo.calendar_links(s))["mazowieckie"]

@@ -58,7 +58,20 @@ MILESTONE_LABELS = {
     M.card: "карта",
 }
 
-CHANNEL_LABELS = {Channel.mos: "MOS (онлайн)", Channel.paper: "Лично / почтой"}
+CHANNEL_LABELS = {
+    Channel.in_person: "Лично в urzędzie",
+    Channel.post: "Почта или e-Doręczenia",
+    Channel.mos: "MOS (онлайн)",
+    Channel.unknown: "Способ не указан",
+}
+# Inline share cards keep the wording from before channels were split: their statistics
+# cover every channel, and their text is pinned (tests/golden).
+CARD_CHANNEL_LABELS = {
+    Channel.in_person: "Лично / почтой",
+    Channel.post: "Лично / почтой",
+    Channel.mos: "MOS (онлайн)",
+    Channel.unknown: "Способ не указан",
+}
 
 PURPOSE_BUTTONS = {
     P.praca: "Работа (art. 114)",

@@ -195,3 +195,142 @@ def test_0008_backfills_the_source_of_existing_cases():
         assert set(asyncio.run(_sources(url)).values()) == {"user", "pobytrack"}
     finally:
         asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))
+
+
+# Cases as 0009 stored them: (tg_id, client token, source, channel, filed, fingerprints).
+CASES_0009 = [
+    (31, "user-paper-1", "user", "paper", date(2026, 1, 5), date(2026, 4, 20)),
+    (31, "user-paper-2", "user", "paper", date(2026, 1, 12), date(2026, 5, 4)),
+    (32, "user-mos-1", "user", "mos", date(2026, 2, 2), date(2026, 6, 15)),
+    (-1, "pobytrack:501", "pobytrack", "paper", date(2026, 2, 16), date(2026, 7, 6)),
+    (-1, "pobytrack:502", "pobytrack", "mos", date(2026, 3, 2), date(2026, 7, 27)),
+]
+
+
+async def _seed_0009(url: str) -> None:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        await conn.execute("INSERT INTO users (tg_id) VALUES (31), (32), (-1)")
+        for tg, token, source, channel, filed, fp in CASES_0009:
+            case_id = await conn.fetchval(
+                "INSERT INTO cases (tg_id, voivodeship, purpose, channel, client_token, source) "
+                "VALUES ($1, 'mazowieckie', 'jdg', $2, $3, $4) RETURNING id",
+                tg,
+                channel,
+                token,
+                source,
+            )
+            await conn.execute(
+                "INSERT INTO milestones (case_id, milestone, date) "
+                "VALUES ($1, 'filed', $2), ($1, 'fingerprints', $3)",
+                case_id,
+                filed,
+                fp,
+            )
+        # A stale aggregate as 0009 left it: the upgrade recomputes every row.
+        await conn.execute(
+            "INSERT INTO aggregates (voivodeship, purpose, from_m, to_m, n, p10, median, p90, "
+            "min, max, mean) VALUES ('mazowieckie', 'jdg', 'filed', 'fingerprints', "
+            "1, 1, 1, 1, 1, 1, 1)"
+        )
+    finally:
+        await conn.close()
+
+
+async def _channels(url: str) -> dict[str, str]:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch("SELECT client_token, channel FROM cases")
+        return {r["client_token"]: r["channel"] for r in rows}
+    finally:
+        await conn.close()
+
+
+async def _fingerprint_aggregates(url: str) -> dict[tuple, tuple]:
+    """(voivodeship, channel) -> (n, min, max) of filed → fingerprints for jdg."""
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch(
+            "SELECT voivodeship, channel, n, min, max, median FROM aggregates "
+            "WHERE purpose = 'jdg' AND from_m = 'filed' AND to_m = 'fingerprints'"
+        )
+        return {(r["voivodeship"], r["channel"]): (r["n"], r["min"], r["max"]) for r in rows}
+    finally:
+        await conn.close()
+
+
+async def _all_aggregates(url: str) -> set[tuple]:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch(
+            "SELECT voivodeship, purpose, channel, from_m, to_m, n, p10, median, p90, min, max, "
+            "mean FROM aggregates"
+        )
+        return {tuple(round(v, 6) if isinstance(v, float) else v for v in r) for r in rows}
+    finally:
+        await conn.close()
+
+
+async def _recompute_all(url: str) -> None:
+    engine = create_async_engine(url)
+    try:
+        async with async_sessionmaker(engine)() as s:
+            await repo.recompute_all(s)
+            await s.commit()
+    finally:
+        await engine.dispose()
+
+
+async def _columns(url: str, table: str) -> set[str]:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = $1", table
+        )
+        return {r["column_name"] for r in rows}
+    finally:
+        await conn.close()
+
+
+def test_0010_splits_paper_and_aggregates_by_channel():
+    name = f"t_mig_{uuid.uuid4().hex[:10]}"
+    asyncio.run(_admin(f"CREATE DATABASE {name}"))
+    url = TEST_URL.rsplit("/", 1)[0] + "/" + name
+    cfg = Config()
+    cfg.set_main_option("script_location", str(MIGRATIONS))
+    cfg.set_main_option("sqlalchemy.url", url)
+    days = [(fp - filed).days for *_, filed, fp in CASES_0009]
+    try:
+        command.upgrade(cfg, "0009")
+        asyncio.run(_seed_0009(url))
+        command.upgrade(cfg, "head")
+        # People's "paper" is post; imported "paper" waits for the importer to reclassify it.
+        assert asyncio.run(_channels(url)) == {
+            "user-paper-1": "post",
+            "user-paper-2": "post",
+            "user-mos-1": "mos",
+            "pobytrack:501": "unknown",
+            "pobytrack:502": "mos",
+        }
+        post, mos = days[:2], [days[2], days[4]]
+        everything = (len(days), min(days), max(days))
+        assert asyncio.run(_fingerprint_aggregates(url)) == {
+            ("mazowieckie", None): everything,
+            (None, None): everything,
+            ("mazowieckie", "post"): (2, min(post), max(post)),
+            (None, "post"): (2, min(post), max(post)),
+            ("mazowieckie", "mos"): (2, min(mos), max(mos)),
+            (None, "mos"): (2, min(mos), max(mos)),
+        }
+        # The SQL backfill writes exactly what the app's recompute writes.
+        backfilled = asyncio.run(_all_aggregates(url))
+        asyncio.run(_recompute_all(url))
+        assert asyncio.run(_all_aggregates(url)) == backfilled
+
+        command.downgrade(cfg, "0009")
+        assert set(asyncio.run(_channels(url)).values()) == {"paper", "mos"}
+        assert "channel" not in asyncio.run(_columns(url, "aggregates"))
+        command.upgrade(cfg, "head")  # and back again
+        assert asyncio.run(_channels(url))["user-paper-1"] == "post"
+    finally:
+        asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))
