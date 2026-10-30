@@ -2,7 +2,7 @@
 
 import asyncio
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 import asyncpg
 from alembic import command
@@ -332,5 +332,106 @@ def test_0010_splits_paper_and_aggregates_by_channel():
         assert "channel" not in asyncio.run(_columns(url, "aggregates"))
         command.upgrade(cfg, "head")  # and back again
         assert asyncio.run(_channels(url))["user-paper-1"] == "post"
+    finally:
+        asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))
+
+
+# Cases as 0010 stored them: (tg_id, token, channel, filed, {milestone: days from filing}).
+CASES_0010 = [
+    (41, "post-typo", "post", date(2026, 1, 5), {"case_number": 0, "fingerprints": 0}),
+    (41, "post-real", "post", date(2026, 1, 12), {"case_number": 25, "fingerprints": 110}),
+    (42, "counter", "in_person", date(2026, 2, 2), {"fingerprints": 0, "braki": 0}),
+    (-1, "pobytrack:601", "unknown", date(2026, 2, 16), {"fingerprints": 0}),
+]
+
+
+async def _seed_0010(url: str) -> None:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        await conn.execute("INSERT INTO users (tg_id) VALUES (41), (42), (-1)")
+        for tg, token, channel, filed, days in CASES_0010:
+            source = "pobytrack" if tg == -1 else "user"
+            case_id = await conn.fetchval(
+                "INSERT INTO cases (tg_id, voivodeship, purpose, channel, client_token, source) "
+                "VALUES ($1, 'mazowieckie', 'jdg', $2, $3, $4) RETURNING id",
+                tg,
+                channel,
+                token,
+                source,
+            )
+            rows = [("filed", filed)] + [(m, filed + timedelta(days=d)) for m, d in days.items()]
+            for m, d in rows:
+                await conn.execute(
+                    "INSERT INTO milestones (case_id, milestone, date) VALUES ($1, $2, $3)",
+                    case_id,
+                    m,
+                    d,
+                )
+        # A row as 0010 computed it, zeros included: the upgrade recomputes every row.
+        await conn.execute(
+            "INSERT INTO aggregates (voivodeship, purpose, channel, from_m, to_m, n, p10, "
+            "median, p90, min, max, mean) VALUES ('mazowieckie', 'jdg', 'post', 'filed', "
+            "'fingerprints', 2, 11, 55, 99, 0, 110, 55)"
+        )
+    finally:
+        await conn.close()
+
+
+async def _filed_aggregates(url: str) -> dict[tuple, tuple]:
+    """(voivodeship, channel, to_m) -> (n, min, max) of jdg intervals from filing."""
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        rows = await conn.fetch(
+            "SELECT voivodeship, channel, to_m, n, min, max FROM aggregates "
+            "WHERE purpose = 'jdg' AND from_m = 'filed'"
+        )
+        return {
+            (r["voivodeship"], r["channel"], r["to_m"]): (r["n"], r["min"], r["max"]) for r in rows
+        }
+    finally:
+        await conn.close()
+
+
+async def _milestone_count(url: str) -> int:
+    conn = await asyncpg.connect(url.replace("+asyncpg", ""))
+    try:
+        return await conn.fetchval("SELECT count(*) FROM milestones")
+    finally:
+        await conn.close()
+
+
+def test_0011_drops_impossible_zero_days_from_aggregates():
+    name = f"t_mig_{uuid.uuid4().hex[:10]}"
+    asyncio.run(_admin(f"CREATE DATABASE {name}"))
+    url = TEST_URL.rsplit("/", 1)[0] + "/" + name
+    cfg = Config()
+    cfg.set_main_option("script_location", str(MIGRATIONS))
+    cfg.set_main_option("sqlalchemy.url", url)
+    try:
+        command.upgrade(cfg, "0010")
+        asyncio.run(_seed_0010(url))
+        stored = asyncio.run(_milestone_count(url))
+        command.upgrade(cfg, "head")
+        got = asyncio.run(_filed_aggregates(url))
+        assert got[("mazowieckie", "post", "fingerprints")] == (1, 110, 110)
+        assert got[("mazowieckie", "post", "case_number")] == (1, 25, 25)
+        assert got[("mazowieckie", "in_person", "fingerprints")] == (1, 0, 0)  # at the counter
+        assert ("mazowieckie", "in_person", "braki") not in got
+        assert got[("mazowieckie", None, "fingerprints")] == (2, 0, 110)  # unknown's 0 is out
+        assert got[(None, None, "fingerprints")] == (2, 0, 110)
+        assert asyncio.run(_milestone_count(url)) == stored  # no date is touched
+        # The SQL backfill writes exactly what the app's recompute writes.
+        backfilled = asyncio.run(_all_aggregates(url))
+        asyncio.run(_recompute_all(url))
+        assert asyncio.run(_all_aggregates(url)) == backfilled
+
+        command.downgrade(cfg, "0010")
+        assert asyncio.run(_filed_aggregates(url))[("mazowieckie", "post", "fingerprints")] == (
+            2,
+            0,
+            110,
+        )
+        command.upgrade(cfg, "head")  # and back again
+        assert asyncio.run(_all_aggregates(url)) == backfilled
     finally:
         asyncio.run(_admin(f"DROP DATABASE {name} WITH (FORCE)"))

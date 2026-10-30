@@ -142,3 +142,23 @@ CHANNEL_PATHS: dict[Channel, tuple[Step, ...]] = {
 def channel_path(channel: Channel | str) -> tuple[Step, ...]:
     """The channel's path; anything unrecognised gets the post path (the milestone order)."""
     return CHANNEL_PATHS.get(channel, _CALLED)
+
+
+# Milestones that cannot fall on the filing day itself, unless the channel's path takes them
+# at filing (fingerprints in person). A 0-day interval from filing to one of them is a typo:
+# statistics leave it out, the stored date stays.
+NEVER_SAME_DAY = (M.case_number, M.braki, M.fingerprints)
+# For each of them, the channels that do take it on the filing day.
+SAME_DAY_CHANNELS: dict[Milestone, tuple[Channel, ...]] = {
+    m: tuple(
+        ch for ch in Channel if any(st.at_filing and st.milestone == m for st in channel_path(ch))
+    )
+    for m in NEVER_SAME_DAY
+}
+
+
+def zero_day_possible(milestone: Milestone | str, channel: Channel | str | None) -> bool:
+    """Whether `milestone` can really come 0 days after filing in a case filed this way."""
+    if milestone not in NEVER_SAME_DAY:
+        return True
+    return channel in SAME_DAY_CHANNELS[Milestone(milestone)]

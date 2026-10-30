@@ -25,6 +25,8 @@ from czekachiko.db.models import (
 from czekachiko.domain import (
     CHAIN,
     INTERVAL_PAIRS,
+    NEVER_SAME_DAY,
+    SAME_DAY_CHANNELS,
     USER_CHANNELS,
     Channel,
     Milestone,
@@ -354,7 +356,22 @@ PurposeSet = Purpose | str | Iterable[Purpose | str]
 # that is the only place imported cases without a channel count.
 ChannelArg = Channel | str | None
 
-_INTERVALS_SQL = """
+
+def _possible_sql(frm: str = "a", to: str = "b", case: str = "c") -> str:
+    """SQL condition: the interval between milestone rows `frm` and `to` of case `case` is not
+    an impossible 0 days from filing (domain.zero_day_possible). Values come from enums."""
+    typos = []
+    for m in NEVER_SAME_DAY:
+        cond = f"{to}.milestone = '{m}'"
+        if channels := SAME_DAY_CHANNELS[m]:
+            cond += f" AND {case}.channel NOT IN ({', '.join(f"'{ch}'" for ch in channels)})"
+        typos.append(f"({cond})")
+    return f"NOT ({frm}.milestone = 'filed' AND {to}.date = {frm}.date AND ({' OR '.join(typos)}))"
+
+
+_POSSIBLE = _possible_sql()
+
+_INTERVALS_SQL = f"""
 SELECT (b.date - a.date) AS days
 FROM milestones a
 JOIN milestones b ON b.case_id = a.case_id AND b.milestone = :to_m
@@ -362,10 +379,11 @@ JOIN cases c ON c.id = a.case_id
 WHERE a.milestone = :from_m AND c.purpose = ANY(CAST(:purposes AS text[]))
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
   AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
+  AND {_POSSIBLE}
 """
 
 # Every chain step (filing to each later milestone) in one round trip.
-_CHAIN_SQL = """
+_CHAIN_SQL = f"""
 SELECT b.milestone, (b.date - a.date) AS days
 FROM milestones a
 JOIN milestones b ON b.case_id = a.case_id AND b.milestone = ANY(CAST(:to_ms AS text[]))
@@ -373,16 +391,18 @@ JOIN cases c ON c.id = a.case_id
 WHERE a.milestone = 'filed' AND c.purpose = ANY(CAST(:purposes AS text[]))
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
   AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
+  AND {_POSSIBLE}
 """
 
 # One aggregate key's intervals with their channel, so all channels recompute from one read.
-_KEY_SQL = """
+_KEY_SQL = f"""
 SELECT c.channel, (b.date - a.date) AS days
 FROM milestones a
 JOIN milestones b ON b.case_id = a.case_id AND b.milestone = :to_m
 JOIN cases c ON c.id = a.case_id
 WHERE a.milestone = :from_m AND c.purpose = :purpose
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+  AND {_POSSIBLE}
 """
 
 
@@ -583,7 +603,7 @@ async def recent_events(
 ) -> list[tuple[date, date]]:
     """(milestone date, filing date) since `since`; `voiv=None` means all of Poland."""
     sql = text(
-        """
+        f"""
         SELECT m.date, f.date FROM milestones m
         JOIN milestones f ON f.case_id = m.case_id AND f.milestone = 'filed'
         JOIN cases c ON c.id = m.case_id
@@ -591,6 +611,7 @@ async def recent_events(
           AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
           AND c.purpose = ANY(CAST(:purposes AS text[]))
           AND (CAST(:channel AS text) IS NULL OR c.channel = :channel)
+          AND {_possible_sql("f", "m")}
         ORDER BY m.date
         """
     )
