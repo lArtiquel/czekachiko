@@ -50,6 +50,10 @@ async def run(settings: Settings) -> None:
         task = start_worker(settings, factory)
         if task is not None:
             tasks.append(task)
+    if settings.pobytrack_import:
+        from czekachiko.importers.pobytrack import start_daily
+
+        tasks.append(start_daily(factory))
     try:
         await dp.start_polling(
             bot,

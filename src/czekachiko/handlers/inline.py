@@ -86,14 +86,13 @@ async def inline(iq: InlineQuery, session: AsyncSession, lang: str, webapp_url: 
     else:
         voivs = share.match_voivodeships(query) if query else []
         if not voivs:
-            voivs = [Voivodeship(v) for v, _ in await repo.admin_counts(session)] or list(
+            voivs = [Voivodeship(v) for v, _ in await repo.case_counts(session)] or list(
                 Voivodeship
             )
         purposes = share.match_purposes(query) or list(Purpose)
+        keys = await repo.chain_keys(session)  # one query, not one chain per pair
         for v in voivs:
-            with_data = [
-                p for p in purposes if any((await repo.chain_aggregates(session, v, p)).values())
-            ]
+            with_data = [p for p in purposes if (v.value, p.value) in keys]
             for p in with_data or purposes[:1]:
                 combos.append(((p,), [v]))
     results = []

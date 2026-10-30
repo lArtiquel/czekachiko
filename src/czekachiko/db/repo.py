@@ -26,6 +26,11 @@ from czekachiko.locales.ru import MILESTONE_LABELS, PURPOSE_LABELS, VOIV_LABELS
 from czekachiko.stats import Aggregate, aggregate
 
 MAX_CASES = 5
+# Owns cases imported from community datasets. Telegram user ids are positive and the API
+# rejects anything else, so no request can act as this user.
+SYSTEM_TG_ID = -1
+# Added to calendar descriptions of imported cases; set to None to drop it.
+IMPORT_SOURCE_LINE: str | None = "Источник: t.me/pobytrack"
 
 
 class TooManyCases(Exception):
@@ -50,7 +55,8 @@ async def set_lang(s: AsyncSession, tg_id: int, lang: str) -> None:
 
 
 async def delete_user(s: AsyncSession, tg_id: int) -> None:
-    for case in await list_cases(s, tg_id):
+    # By purpose, so aggregate locks are taken in the same order as the importer takes them.
+    for case in sorted(await list_cases(s, tg_id), key=lambda c: (c.purpose, c.id)):
         await delete_case(s, case)
     await s.execute(delete(User).where(User.tg_id == tg_id))
     await s.flush()
@@ -96,7 +102,8 @@ async def create_case(
     return case
 
 
-async def delete_case(s: AsyncSession, case: Case) -> None:
+async def delete_case(s: AsyncSession, case: Case, recompute: bool = True) -> None:
+    """`recompute=False` leaves aggregates to the caller (the importer batches them)."""
     voiv, purpose, case_id = case.voivodeship, case.purpose, case.id
     # Pending upserts would recreate events for a case that no longer exists.
     await s.execute(delete(OutboxRow).where(OutboxRow.case_id == case_id, OutboxRow.op == "upsert"))
@@ -110,32 +117,28 @@ async def delete_case(s: AsyncSession, case: Case) -> None:
         s.add(OutboxRow(op="delete", case_id=case_id, milestone=m))
     await s.delete(case)
     await s.flush()
-    await recompute_for(s, voiv, purpose)
+    if recompute:
+        await recompute_for(s, voiv, purpose)
 
 
 # --- milestones ----------------------------------------------------------
 
 
-async def set_milestone(
-    s: AsyncSession, case: Case, milestone: Milestone, d: date, confirmed_outlier: bool = False
+async def _upsert_milestone(
+    s: AsyncSession, case_id: int, milestone: str, d: date, confirmed_outlier: bool = False
 ) -> None:
     await s.execute(
         insert(MilestoneRow)
-        .values(case_id=case.id, milestone=milestone, date=d, confirmed_outlier=confirmed_outlier)
+        .values(case_id=case_id, milestone=milestone, date=d, confirmed_outlier=confirmed_outlier)
         .on_conflict_do_update(
             index_elements=["case_id", "milestone"],
             set_={"date": d, "confirmed_outlier": confirmed_outlier},
         )
     )
-    await s.flush()
-    await s.refresh(case, ["milestones"])
-    await _enqueue_case_upserts(s, case)
-    await recompute_for(s, case.voivodeship, case.purpose)
 
 
-async def clear_milestone(s: AsyncSession, case: Case, milestone: Milestone) -> None:
-    if milestone == Milestone.filed:
-        raise ValueError("filed cannot be cleared")
+async def _drop_milestone(s: AsyncSession, case: Case, milestone: str) -> None:
+    """Remove the date and queue the removal of its calendar event."""
     await s.execute(
         delete(MilestoneRow).where(
             MilestoneRow.case_id == case.id, MilestoneRow.milestone == milestone
@@ -149,9 +152,78 @@ async def clear_milestone(s: AsyncSession, case: Case, milestone: Milestone) -> 
         )
     )
     s.add(OutboxRow(op="delete", case_id=case.id, milestone=milestone))
+
+
+async def set_milestone(
+    s: AsyncSession, case: Case, milestone: Milestone, d: date, confirmed_outlier: bool = False
+) -> None:
+    await _upsert_milestone(s, case.id, milestone, d, confirmed_outlier)
+    await s.flush()
+    await s.refresh(case, ["milestones"])
+    await _enqueue_case_upserts(s, case)
+    await recompute_for(s, case.voivodeship, case.purpose)
+
+
+async def clear_milestone(s: AsyncSession, case: Case, milestone: Milestone) -> None:
+    if milestone == Milestone.filed:
+        raise ValueError("filed cannot be cleared")
+    await _drop_milestone(s, case, milestone)
     await s.flush()
     await s.refresh(case, ["milestones"])
     await recompute_for(s, case.voivodeship, case.purpose)
+
+
+# --- imported cases --------------------------------------------------------
+# Owned by SYSTEM_TG_ID. These write dates and queue calendar changes like the functions
+# above but leave aggregates to the caller, which recomputes each affected key once.
+
+
+async def import_case(
+    s: AsyncSession,
+    client_token: str,
+    voiv: Voivodeship,
+    purpose: Purpose,
+    channel: Channel,
+    dates: dict[Milestone, date],
+) -> Case:
+    if Milestone.filed not in dates:
+        raise ValueError("an imported case needs a filing date")
+    case = Case(
+        tg_id=SYSTEM_TG_ID,
+        voivodeship=voiv,
+        purpose=purpose,
+        channel=channel,
+        client_token=client_token,
+    )
+    s.add(case)
+    await s.flush()
+    await s.execute(
+        insert(MilestoneRow).values(
+            [{"case_id": case.id, "milestone": str(m), "date": d} for m, d in dates.items()]
+        )
+    )
+    await s.flush()
+    await s.refresh(case, ["milestones"])
+    await _enqueue_case_upserts(s, case)
+    return case
+
+
+async def write_dates(s: AsyncSession, case: Case, dates: dict[Milestone, date]) -> bool:
+    """Make the case's dates exactly `dates`; False when nothing changed."""
+    if Milestone.filed not in dates:
+        raise ValueError("an imported case needs a filing date")
+    current = case.dates()
+    if current == dates:
+        return False
+    for m in sorted(set(current) - set(dates)):
+        await _drop_milestone(s, case, m)
+    for m, d in dates.items():
+        if current.get(m) != d:
+            await _upsert_milestone(s, case.id, m, d)
+    await s.flush()
+    await s.refresh(case, ["milestones"])
+    await _enqueue_case_upserts(s, case)
+    return True
 
 
 def calendar_payload(case: Case, milestone: str, d: date) -> dict:
@@ -169,7 +241,10 @@ def calendar_payload(case: Case, milestone: str, d: date) -> dict:
         if m != Milestone.filed:
             line += f" (+{(dates[m] - filed).days} дн.)"
         lines.append(line)
-    lines += ["", "Анонимные данные из @czekachiko_bot"]
+    lines.append("")
+    if IMPORT_SOURCE_LINE and getattr(case, "tg_id", None) == SYSTEM_TG_ID:
+        lines.append(IMPORT_SOURCE_LINE)
+    lines.append("Анонимные данные из @czekachiko_bot")
     return {"title": title, "date": d.isoformat(), "description": "\n".join(lines)}
 
 
@@ -347,10 +422,24 @@ async def recompute_for(s: AsyncSession, voiv: str, purpose: str) -> None:
     Writers of the same purpose share the national key, so they are serialized with a
     transaction-scoped advisory lock; the next writer then reads the committed data.
     """
-    await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"agg:{purpose}"})
-    for a, b in INTERVAL_PAIRS:
-        await _recompute_key(s, str(voiv), str(purpose), str(a), str(b))
-        await _recompute_key(s, None, str(purpose), str(a), str(b))
+    await recompute_many(s, [(voiv, purpose)])
+
+
+async def recompute_many(s: AsyncSession, keys) -> None:
+    """recompute_for over several (voivodeship, purpose) keys, each national key once.
+
+    Locks are taken in purpose order, so two batch writers cannot deadlock each other.
+    """
+    keys = sorted({(str(v), str(p)) for v, p in keys})
+    purposes = sorted({p for _, p in keys})
+    for p in purposes:
+        await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"agg:{p}"})
+    for v, p in keys:
+        for a, b in INTERVAL_PAIRS:
+            await _recompute_key(s, v, p, str(a), str(b))
+    for p in purposes:
+        for a, b in INTERVAL_PAIRS:
+            await _recompute_key(s, None, p, str(a), str(b))
     await s.flush()
 
 
@@ -359,6 +448,20 @@ async def chain_aggregates(
 ) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
     """One purpose from the aggregates table; `voiv=None` reads the national rows."""
     return {(a, b): await get_aggregate(s, voiv, purpose, a, b) for a, b in CHAIN}
+
+
+async def chain_keys(s: AsyncSession) -> set[tuple[str, str]]:
+    """(voivodeship, purpose) pairs with at least one chain aggregate.
+
+    The same test as `any(chain_aggregates(...).values())`: the chain is every interval
+    from filing, and those are exactly the aggregate rows with from_m = 'filed'.
+    """
+    rows = await s.execute(
+        select(AggregateRow.voivodeship, AggregateRow.purpose)
+        .where(AggregateRow.voivodeship.is_not(None), AggregateRow.from_m == str(Milestone.filed))
+        .distinct()
+    )
+    return {(v, p) for v, p in rows.all()}
 
 
 async def recompute_all(s: AsyncSession) -> None:
@@ -397,17 +500,27 @@ async def recent_events(
     return [(a, b) for a, b in rows.all()]
 
 
-async def admin_counts(s: AsyncSession) -> list[tuple[str, int]]:
-    rows = await s.execute(
-        select(Case.voivodeship, func.count())
-        .group_by(Case.voivodeship)
-        .order_by(func.count().desc())
-    )
+async def case_counts(s: AsyncSession, users_only: bool = False) -> list[tuple[str, int]]:
+    """Cases per voivodeship, most first; `users_only` leaves imported cases out."""
+    query = select(Case.voivodeship, func.count())
+    if users_only:
+        query = query.where(Case.tg_id != SYSTEM_TG_ID)
+    rows = await s.execute(query.group_by(Case.voivodeship).order_by(func.count().desc()))
     return [(v, n) for v, n in rows.all()]
 
 
+async def admin_counts(s: AsyncSession) -> list[tuple[str, int]]:
+    """People's own cases per voivodeship; imported ones are counted apart."""
+    return await case_counts(s, users_only=True)
+
+
+async def count_imported(s: AsyncSession) -> int:
+    return await s.scalar(select(func.count()).select_from(Case).where(Case.tg_id == SYSTEM_TG_ID))
+
+
 async def admin_recent(s: AsyncSession, limit: int = 10) -> list[Case]:
-    return list((await s.scalars(select(Case).order_by(Case.id.desc()).limit(limit))).all())
+    query = select(Case).where(Case.tg_id != SYSTEM_TG_ID).order_by(Case.id.desc()).limit(limit)
+    return list((await s.scalars(query)).all())
 
 
 # --- feedback --------------------------------------------------------------
