@@ -1,5 +1,6 @@
 """Data access. Functions flush but never commit: the caller owns the transaction."""
 
+from collections.abc import Iterable
 from datetime import date
 from typing import Literal
 
@@ -214,31 +215,69 @@ async def set_calendar(s: AsyncSession, scope: str, calendar_id: str) -> None:
 
 # --- statistics ----------------------------------------------------------
 
+PurposeSet = Purpose | str | Iterable[Purpose | str]
+
 _INTERVALS_SQL = """
 SELECT (b.date - a.date) AS days
 FROM milestones a
 JOIN milestones b ON b.case_id = a.case_id AND b.milestone = :to_m
 JOIN cases c ON c.id = a.case_id
-WHERE a.milestone = :from_m AND c.purpose = :purpose
+WHERE a.milestone = :from_m AND c.purpose = ANY(CAST(:purposes AS text[]))
   AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
 """
+
+# Every chain step (filing to each later milestone) in one round trip.
+_CHAIN_SQL = """
+SELECT b.milestone, (b.date - a.date) AS days
+FROM milestones a
+JOIN milestones b ON b.case_id = a.case_id AND b.milestone = ANY(CAST(:to_ms AS text[]))
+JOIN cases c ON c.id = a.case_id
+WHERE a.milestone = 'filed' AND c.purpose = ANY(CAST(:purposes AS text[]))
+  AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+"""
+
+
+def _purpose_list(purpose: PurposeSet) -> list[str]:
+    """One purpose (a str or Purpose) or several, as plain strings."""
+    if isinstance(purpose, str):
+        return [str(purpose)]
+    return [str(p) for p in purpose]
 
 
 async def interval_values(
     s: AsyncSession,
     scope: Literal["voiv", "national"],
     voiv: Voivodeship | str | None,
-    purpose: Purpose | str,
+    purpose: PurposeSet,
     from_m: Milestone,
     to_m: Milestone,
 ) -> list[int]:
+    """Day counts from `from_m` to `to_m` for one purpose or a set of them."""
     params = {
         "voiv": str(voiv) if scope == "voiv" else None,
-        "purpose": str(purpose),
+        "purposes": _purpose_list(purpose),
         "from_m": str(from_m),
         "to_m": str(to_m),
     }
     return list((await s.execute(text(_INTERVALS_SQL), params)).scalars().all())
+
+
+async def live_chain(
+    s: AsyncSession, voiv: Voivodeship | str | None, purposes: PurposeSet
+) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
+    """The chain computed from intervals: for purpose sets the aggregates table has no row for.
+
+    `voiv=None` means all of Poland. One query whatever the number of purposes.
+    """
+    params = {
+        "voiv": str(voiv) if voiv is not None else None,
+        "purposes": _purpose_list(purposes),
+        "to_ms": [str(b) for _, b in CHAIN],
+    }
+    values: dict[str, list[int]] = {}
+    for milestone, days in (await s.execute(text(_CHAIN_SQL), params)).all():
+        values.setdefault(milestone, []).append(days)
+    return {(a, b): aggregate(values.get(str(b), [])) for a, b in CHAIN}
 
 
 async def get_aggregate(
@@ -316,8 +355,9 @@ async def recompute_for(s: AsyncSession, voiv: str, purpose: str) -> None:
 
 
 async def chain_aggregates(
-    s: AsyncSession, voiv: Voivodeship | str, purpose: Purpose | str
+    s: AsyncSession, voiv: Voivodeship | str | None, purpose: Purpose | str
 ) -> dict[tuple[Milestone, Milestone], Aggregate | None]:
+    """One purpose from the aggregates table; `voiv=None` reads the national rows."""
     return {(a, b): await get_aggregate(s, voiv, purpose, a, b) for a, b in CHAIN}
 
 
@@ -330,24 +370,30 @@ async def recompute_all(s: AsyncSession) -> None:
 
 async def recent_events(
     s: AsyncSession,
-    voiv: Voivodeship | str,
-    purpose: Purpose | str,
+    voiv: Voivodeship | str | None,
+    purpose: PurposeSet,
     milestone: Milestone,
     since: date,
 ) -> list[tuple[date, date]]:
+    """(milestone date, filing date) since `since`; `voiv=None` means all of Poland."""
     sql = text(
         """
         SELECT m.date, f.date FROM milestones m
         JOIN milestones f ON f.case_id = m.case_id AND f.milestone = 'filed'
         JOIN cases c ON c.id = m.case_id
-        WHERE m.milestone = :m AND m.date >= :since AND c.voivodeship = :voiv
-          AND c.purpose = :purpose
+        WHERE m.milestone = :m AND m.date >= :since
+          AND (CAST(:voiv AS text) IS NULL OR c.voivodeship = :voiv)
+          AND c.purpose = ANY(CAST(:purposes AS text[]))
         ORDER BY m.date
         """
     )
-    rows = await s.execute(
-        sql, {"m": str(milestone), "since": since, "voiv": str(voiv), "purpose": str(purpose)}
-    )
+    params = {
+        "m": str(milestone),
+        "since": since,
+        "voiv": str(voiv) if voiv is not None else None,
+        "purposes": _purpose_list(purpose),
+    }
+    rows = await s.execute(sql, params)
     return [(a, b) for a, b in rows.all()]
 
 

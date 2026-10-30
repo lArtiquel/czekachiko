@@ -12,8 +12,11 @@ MIN_OUTLIER_N = 8
 WHO_NOW_DAYS = 30
 WHO_NOW_MIN = 3
 
-Scope = Literal["voiv", "national"]
+# Where forecast values come from: the case's voivodeship or all of Poland, for its own purpose
+# or for every basis of its permit type (the group).
+Scope = Literal["voiv", "voiv_group", "national", "national_group"]
 Lookup = Callable[[Scope, Milestone, Milestone], Sequence[int]]
+ScopeLabel = Literal["voiv", "voiv_filed", "voiv_group", "national", "national_group"]
 
 
 def percentile(values: Sequence[int], q: float) -> float:
@@ -68,22 +71,49 @@ class Forecast:
     likely: date | None = None
     end: date | None = None
     n: int = 0
-    scope: Literal["voiv", "voiv_filed", "national"] | None = None
+    scope: ScopeLabel | None = None
     waited_longer_than: int | None = None
     total: int | None = None
     fastest: int | None = None
     slowest: int | None = None
 
 
-def forecast(case_dates: Mapping[Milestone, date], today: date, lookup: Lookup) -> Forecast | None:
+Attempt = tuple[Scope, ScopeLabel, Milestone]
+
+
+def plan(
+    case_dates: Mapping[Milestone, date], with_group: bool = True
+) -> tuple[Milestone, Milestone, list[Attempt]] | None:
+    """Target, anchor and the lookups a forecast tries, most specific first.
+
+    Same voivodeship and purpose (from the latest anchor, then from filing), then the same
+    voivodeship and every basis of the permit type, then all of Poland for the purpose, then
+    all of Poland for the permit type. `with_group=False` drops the group steps, for permit
+    types with a single basis where they would repeat the purpose.
+    """
     target = next((m for m in FORECAST_TARGETS if m not in case_dates), None)
     if target is None:
         return None
     before = ANCHORS[: ANCHORS.index(target)] if target in ANCHORS else ANCHORS
     anchor = next(m for m in reversed(before) if m in case_dates)
-    attempts = [("voiv", "voiv", anchor), ("national", "national", anchor)]
+    attempts: list[Attempt] = [("voiv", "voiv", anchor)]
     if anchor != Milestone.filed:
-        attempts.insert(1, ("voiv", "voiv_filed", Milestone.filed))
+        attempts.append(("voiv", "voiv_filed", Milestone.filed))
+    if with_group:
+        attempts.append(("voiv_group", "voiv_group", anchor))
+    attempts.append(("national", "national", anchor))
+    if with_group:
+        attempts.append(("national_group", "national_group", anchor))
+    return target, anchor, attempts
+
+
+def forecast(
+    case_dates: Mapping[Milestone, date], today: date, lookup: Lookup, with_group: bool = True
+) -> Forecast | None:
+    planned = plan(case_dates, with_group)
+    if planned is None:
+        return None
+    target, anchor, attempts = planned
     for scope, label, k in attempts:
         values = lookup(scope, k, target)
         if len(values) < MIN_WINDOW_N:
