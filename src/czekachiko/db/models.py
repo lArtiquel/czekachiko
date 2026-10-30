@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -31,6 +32,7 @@ class User(Base):
 
 class Case(Base):
     __tablename__ = "cases"
+    __table_args__ = (Index("ix_cases_purpose_voivodeship", "purpose", "voivodeship"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tg_id: Mapped[int] = mapped_column(ForeignKey("users.tg_id", ondelete="CASCADE"), index=True)
     voivodeship: Mapped[str] = mapped_column(String(32))
@@ -48,6 +50,7 @@ class Case(Base):
 
 class MilestoneRow(Base):
     __tablename__ = "milestones"
+    __table_args__ = (Index("ix_milestones_milestone_date", "milestone", "date"),)
     case_id: Mapped[int] = mapped_column(
         ForeignKey("cases.id", ondelete="CASCADE"), primary_key=True
     )
