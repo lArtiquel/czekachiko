@@ -54,8 +54,10 @@ async def case_article(s: AsyncSession, iq: InlineQuery, lang: str, today: date)
     case = await repo.get_case(s, iq.from_user.id, case_id)  # only the owner can share it
     if case is None:
         return []
+    # Share cards cover every filing channel, unknown included.
     chain = await repo.chain_aggregates(s, case.voivodeship, case.purpose)
-    text = cards.case_card(lang, case, await case_forecast(s, case, today), chain)
+    f = await case_forecast(s, case, today, by_channel=False)
+    text = cards.case_card(lang, case, f, chain)
     title = f"{t(lang, 'case_card_label')} · {voiv_label(case.voivodeship)} · " + label(
         lang, "PURPOSE_LABELS", Purpose(case.purpose)
     )

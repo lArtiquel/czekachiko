@@ -125,6 +125,30 @@ async def test_inline_case_card_for_owner(env):
     assert "Mazowieckie" in text and "29.10.2026" in text and str(UID) not in text
 
 
+async def test_inline_case_card_is_channel_agnostic(env):
+    # Five MOS cases and an in-person owner: the card pools every channel, chain included.
+    async with env[3]() as s:
+        for i in range(5):
+            await repo.ensure_user(s, 700 + i)
+            c = await repo.create_case(
+                s, 700 + i, Voivodeship.mazowieckie, Purpose.jdg, Channel.mos,
+                date(2026, 1, 5), f"mos-{i}",
+            )  # fmt: skip
+            await repo.set_milestone(s, c, Milestone.fingerprints, date(2026, 5, 1 + i))
+        await repo.ensure_user(s, UID)
+        mine = await repo.create_case(
+            s, UID, Voivodeship.mazowieckie, Purpose.jdg, Channel.in_person,
+            date(2026, 10, 1), "mine",
+        )  # fmt: skip
+        await s.commit()
+    await feed(env, inline_update(f"c:{mine.id}"))
+    (a,) = answers(env[2])
+    text = a.results[0].input_message_content.message_text
+    assert "Лично / почтой" in text
+    assert "по 6 завершённым делам (Mazowieckie, бизнес (JDG))" in text  # 5 MOS + the seed
+    assert "(дел: 6)" in text
+
+
 async def test_case_card_has_no_documents(env):
     cid = await owner_case_id(env)
     async with env[3]() as s:
