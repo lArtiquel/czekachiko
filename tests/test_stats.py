@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from czekachiko.domain import Milestone
-from czekachiko.stats import aggregate, forecast, is_suspicious, percentile, who_now
+from czekachiko.stats import aggregate, forecast, is_suspicious, percentile, plan, who_now
 
 M = Milestone
 TODAY = date(2026, 10, 29)
@@ -69,6 +69,74 @@ def test_forecast_falls_back_to_filed_anchor():
     table = {("voiv", M.filed, M.decision): list(range(250, 451, 25))}
     f = forecast(case, TODAY, lookup_from(table))
     assert (f.kind, f.scope, f.anchor) == ("window", "voiv_filed", M.filed)
+
+
+def test_plan_tries_the_channel_first_then_every_channel():
+    case = {M.filed: TODAY - timedelta(days=200), M.fingerprints: TODAY - timedelta(days=10)}
+    target, anchor, attempts = plan(case, by_channel=True)
+    assert (target, anchor) == (M.decision, M.fingerprints)
+    assert [label for _, label, _ in attempts] == [
+        "voiv",
+        "voiv_filed",
+        "voiv_group",
+        "national",
+        "national_group",
+        "voiv_any",
+        "voiv_filed_any",
+        "voiv_group_any",
+        "national_any",
+        "national_group_any",
+    ]
+    assert [scope for scope, _, _ in attempts][5:] == [
+        "voiv_any",
+        "voiv_any",
+        "voiv_group_any",
+        "national_any",
+        "national_group_any",
+    ]
+    # Without the channel (inline cards) the plan is the channel-less one, as before.
+    assert [label for _, label, _ in plan(case)[2]] == [
+        "voiv",
+        "voiv_filed",
+        "voiv_group",
+        "national",
+        "national_group",
+    ]
+    single = plan(case, with_group=False, by_channel=True)[2]
+    assert [label for _, label, _ in single] == [
+        "voiv",
+        "voiv_filed",
+        "national",
+        "voiv_any",
+        "voiv_filed_any",
+        "national_any",
+    ]
+
+
+def test_forecast_falls_back_to_every_channel():
+    case = {M.filed: TODAY - timedelta(days=30)}
+    table = {
+        ("national_group", M.filed, M.fingerprints): [100, 120, 140],  # too few
+        ("voiv_any", M.filed, M.fingerprints): [100, 120, 140, 160, 180, 200],
+    }
+    f = forecast(case, TODAY, lookup_from(table), by_channel=True)
+    assert (f.kind, f.scope) == ("window", "voiv_any")
+
+
+def test_forecast_by_channel_keeps_waited_longer():
+    # Enough values for the channel itself: waiting past them all says so, no fallback.
+    case = {M.filed: TODAY - timedelta(days=400), M.fingerprints: TODAY - timedelta(days=300)}
+    table = {
+        ("voiv", M.fingerprints, M.decision): FP_DEC,
+        ("voiv_any", M.fingerprints, M.decision): list(range(100, 1000, 50)),
+    }
+    f = forecast(case, TODAY, lookup_from(table), by_channel=True)
+    assert (f.kind, f.scope, f.waited_longer_than) == ("waited_longer", "voiv", 10)
+
+
+def test_forecast_by_channel_no_data():
+    f = forecast({M.filed: TODAY - timedelta(days=30)}, TODAY, lookup_from({}), by_channel=True)
+    assert (f.kind, f.scope) == ("no_data", None)
 
 
 def test_forecast_no_data():

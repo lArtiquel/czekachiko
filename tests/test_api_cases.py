@@ -23,13 +23,13 @@ async def create(api, status: int = 201, uid: int | None = None, **over):
     return await api.json("POST", "/api/cases", status=status, uid=uid, json={**NEW, **over})
 
 
-async def seed_typical(session_factory, filed=date(2025, 1, 1)):
+async def seed_typical(session_factory, filed=date(2025, 1, 1), channel=Channel.post):
     """Eight jdg cases in Mazowieckie: filing to fingerprints took 90..240 days."""
     async with session_factory() as s:
         for i, days in enumerate([90, 100, 120, 150, 170, 190, 210, 240]):
             await repo.ensure_user(s, 1000 + i)
             c = await repo.create_case(
-                s, 1000 + i, Voivodeship.mazowieckie, Purpose.jdg, Channel.mos, filed, f"seed{i}"
+                s, 1000 + i, Voivodeship.mazowieckie, Purpose.jdg, channel, filed, f"seed{i}"
             )
             await repo.set_milestone(s, c, Milestone.fingerprints, filed + timedelta(days=days))
         await s.commit()

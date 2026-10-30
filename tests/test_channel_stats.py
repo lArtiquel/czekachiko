@@ -7,9 +7,12 @@ from datetime import date, timedelta
 
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
+from czekachiko.forecasting import case_forecast, find_outlier, stats_chain, who_now_spans
 
 C, M, V, P = Channel, Milestone, Voivodeship, Purpose
 FILED = date(2026, 1, 5)
+TODAY = date(2026, 10, 29)
+TODAY_FILED = TODAY - timedelta(days=20)
 # (owner, channel, days from filing to fingerprints). Invented.
 CASES = [
     (1, C.in_person, 0),
@@ -99,6 +102,59 @@ async def test_chain_keys_count_every_channel(session):
     await repo.recompute_for(session, V.opolskie, P.praca)
     await session.commit()
     assert ("opolskie", "praca") in await repo.chain_keys(session)
+
+
+async def seed_fingerprints(s, channel, days_list, voiv=V.mazowieckie, start=0):
+    for i, days in enumerate(days_list, start):
+        await repo.ensure_user(s, 500 + i)
+        case = await repo.create_case(s, 500 + i, voiv, P.jdg, channel, FILED, f"fp-{i}")
+        await repo.set_milestone(s, case, M.fingerprints, FILED + timedelta(days=days))
+
+
+async def test_case_forecast_uses_the_case_channel_first(session):
+    await seed_fingerprints(session, C.mos, [60, 70, 80, 90, 100])
+    await seed_fingerprints(session, C.post, [150, 160], start=5)
+    await repo.ensure_user(session, 1)
+    mos = await repo.create_case(session, 1, V.mazowieckie, P.jdg, C.mos, TODAY_FILED, "mine")
+    post = await repo.create_case(session, 1, V.mazowieckie, P.jdg, C.post, TODAY_FILED, "m2")
+    await session.commit()
+
+    f = await case_forecast(session, mos, TODAY)
+    assert (f.kind, f.scope, f.fastest, f.slowest) == ("window", "voiv", 60, 100)
+    # Two post cases are too few: every channel in the voivodeship, said as such.
+    f = await case_forecast(session, post, TODAY)
+    assert (f.kind, f.scope, f.n, f.slowest) == ("window", "voiv_any", 7, 160)
+    # Inline cards stay channel-agnostic, under the plain names.
+    f = await case_forecast(session, post, TODAY, by_channel=False)
+    assert (f.scope, f.n) == ("voiv", 7)
+
+
+async def test_stats_chain_and_who_now_by_channel(session):
+    await seed(session)
+    chain = await stats_chain(session, V.mazowieckie, (P.jdg,), C.post)
+    assert chain[(M.filed, M.fingerprints)].n == 2
+    pooled = await stats_chain(session, None, (P.jdg, P.praca), C.in_person)
+    assert pooled[(M.filed, M.fingerprints)].n == 2
+    assert (await stats_chain(session, None, (P.jdg,)))[(M.filed, M.fingerprints)].n == 6
+
+    # Three in-person cases gave fingerprints on the filing day. Over every channel that is
+    # "who is being called now"; in person nobody is called, so there is no span.
+    await seed_fingerprints(session, C.in_person, [0, 0, 0], start=20)
+    day = FILED + timedelta(days=1)
+    assert (await who_now_spans(session, None, P.jdg, day))[0] is not None
+    assert (await who_now_spans(session, None, P.jdg, day, C.in_person))[0] is None
+
+
+async def test_outliers_are_judged_within_the_channel(session):
+    # In person, fingerprints on the filing day are the norm, not an outlier.
+    await seed_fingerprints(session, C.post, [100, 110, 120, 130, 140, 150, 160, 170])
+    await seed_fingerprints(session, C.in_person, [0, 0, 0, 0, 1, 2, 0, 0], start=8)
+    await repo.ensure_user(session, 1)
+    mine = await repo.create_case(session, 1, V.mazowieckie, P.jdg, C.in_person, FILED, "mine")
+    dates = {M.filed: FILED, M.fingerprints: FILED}
+    assert await find_outlier(session, mine, dates, M.fingerprints) is None
+    mine.channel = C.post
+    assert await find_outlier(session, mine, dates, M.fingerprints) is not None
 
 
 async def test_set_channel_moves_the_case_between_channels(session):
