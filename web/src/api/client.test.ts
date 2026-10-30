@@ -53,13 +53,19 @@ describe('ApiClient requests', () => {
   it('builds query strings for meta, stats and share', async () => {
     const { api, fetchImpl } = client(json(200, {}));
     await api.meta('en');
-    await api.stats('mazowieckie', 'praca');
-    await api.shareStats('jdg', ['slaskie', 'pomorskie']);
+    await api.stats('mazowieckie', { purposes: ['praca'] });
+    await api.stats(null, { group: 'temporary' });
+    await api.stats('slaskie', { purposes: ['praca', 'jdg'] });
+    await api.shareStats({ purposes: ['jdg'] }, ['slaskie', 'pomorskie']);
+    await api.shareStats({ group: 'temporary' }, ['all', 'slaskie']);
     const urls = fetchImpl.mock.calls.map((c) => String(c[0]));
     expect(urls).toEqual([
       'https://api.example/api/meta?lang=en',
-      'https://api.example/api/stats?voivodeship=mazowieckie&purpose=praca',
+      'https://api.example/api/stats?purpose=praca&voivodeship=mazowieckie',
+      'https://api.example/api/stats?group=temporary',
+      'https://api.example/api/stats?purpose=praca%2Cjdg&voivodeship=slaskie',
       'https://api.example/api/share/stats?purpose=jdg&voivodeships=slaskie%2Cpomorskie',
+      'https://api.example/api/share/stats?group=temporary&voivodeships=all%2Cslaskie',
     ]);
   });
 

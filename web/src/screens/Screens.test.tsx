@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { scrubLaunchHash } from '../router';
 import { mockApi } from '../test/api';
-import { meta, stats } from '../test/fixtures';
+import { legacyMeta, meta, stats } from '../test/fixtures';
 import { installTelegram } from '../test/telegram';
 
 function open(hash: string, overrides: Parameters<typeof mockApi>[0] = {}) {
@@ -105,6 +105,85 @@ describe('Stats', () => {
     for (const v of meta.voivodeships.slice(0, 5)) await user.click(screen.getByLabelText(v.label));
     expect(screen.getByText('Можно выбрать не больше 6')).toBeInTheDocument();
     expect(screen.getByLabelText('Zachodniopomorskie')).toBeDisabled();
+  });
+});
+
+describe('Stats by permit type', () => {
+  const params = (url: string) => Object.fromEntries(new URL(url).searchParams);
+
+  it('starts at all temporary bases, narrows to chosen bases, and covers all of Poland', async () => {
+    const { api, tg, user } = open('#/stats', {
+      'GET /api/cases': { body: [] },
+      'GET /api/stats': { body: stats },
+      'GET /api/share/stats': { body: { query: 's:praca+jdg:all,6' } },
+    });
+    expect(await screen.findByLabelText('Все основания')).toBeChecked();
+    await user.click(screen.getByLabelText('Вся Польша'));
+    await user.click(screen.getByLabelText('Mazowieckie'));
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+    await screen.findByRole('heading', { name: 'номер дела' });
+    expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toEqual([
+      { group: 'temporary' },
+      { group: 'temporary', voivodeship: 'mazowieckie' },
+    ]);
+    const group = screen.getByRole('heading', { name: 'номер дела' }).closest('section')!;
+    expect(within(group).getByText('Вся Польша')).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Работа'));
+    expect(screen.getByLabelText('Все основания')).not.toBeChecked();
+    await user.click(screen.getByLabelText('Бизнес (JDG)'));
+    await waitFor(() => expect(api.callsTo('GET', '/api/stats')).toHaveLength(6));
+    expect(api.callsTo('GET', '/api/stats').slice(-2).map((c) => params(c.url))).toEqual([
+      { purpose: 'praca,jdg' },
+      { purpose: 'praca,jdg', voivodeship: 'mazowieckie' },
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Отправить в чат' }));
+    await waitFor(() => expect(tg.webApp.switchInlineQuery).toHaveBeenCalled());
+    expect(params(api.callsTo('GET', '/api/share/stats')[0]!.url)).toEqual({
+      purpose: 'praca,jdg',
+      voivodeships: 'all,mazowieckie',
+    });
+
+    // Unticking the last basis, or ticking every one, means all bases again.
+    await user.click(screen.getByLabelText('Работа'));
+    await user.click(screen.getByLabelText('Бизнес (JDG)'));
+    expect(screen.getByLabelText('Все основания')).toBeChecked();
+  });
+
+  it('a permit type with one basis has no basis chips', async () => {
+    const { api, user } = open('#/stats', { 'GET /api/stats': { body: stats } });
+    await user.selectOptions(await screen.findByLabelText('Тип разрешения'), 'permanent');
+    expect(screen.queryByLabelText('Все основания')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Mazowieckie'));
+    await user.click(screen.getByRole('button', { name: 'Готово' }));
+    await waitFor(() =>
+      expect(api.callsTo('GET', '/api/stats').map((c) => params(c.url))).toContainEqual({
+        group: 'permanent',
+        voivodeship: 'mazowieckie',
+      }),
+    );
+  });
+
+  it('opens on the first case’s basis', async () => {
+    const { api, user } = open('#/', { 'GET /api/stats': { body: stats } });
+    await user.click(await screen.findByRole('button', { name: 'Сроки по воеводствам' }));
+    await waitFor(() => expect(api.callsTo('GET', '/api/stats')).toHaveLength(1));
+    expect(screen.getByLabelText('Работа')).toBeChecked();
+    expect(params(api.callsTo('GET', '/api/stats')[0]!.url)).toEqual({ purpose: 'praca', voivodeship: 'mazowieckie' });
+  });
+
+  it('with a server that has no permit types, keeps one purpose and voivodeships only', async () => {
+    const { api, user } = open('#/stats', {
+      'GET /api/meta': { body: legacyMeta },
+      'GET /api/stats': { body: stats },
+    });
+    await user.click(await screen.findByLabelText('Mazowieckie'));
+    expect(screen.queryByLabelText('Вся Польша')).not.toBeInTheDocument();
+    await waitFor(() => expect(api.callsTo('GET', '/api/stats')).toHaveLength(1));
+    expect(screen.queryByLabelText('Тип разрешения')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Цель пребывания')).toHaveValue('praca');
+    expect(params(api.callsTo('GET', '/api/stats')[0]!.url)).toEqual({ purpose: 'praca', voivodeship: 'mazowieckie' });
   });
 });
 

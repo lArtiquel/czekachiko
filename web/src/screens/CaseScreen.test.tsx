@@ -70,6 +70,16 @@ describe('Case screen', () => {
     if (!forecast) expect(screen.queryByText(/^Прогноз:/)).not.toBeInTheDocument();
   });
 
+  it('names a permit-type fallback in the forecast basis', async () => {
+    const grouped: CaseDetail = { ...caseDetail, forecast: { ...caseDetail.forecast!, scope: 'voiv_group' } };
+    await openCase({ [`GET /api/cases/${caseDetail.id}`]: { body: grouped } });
+    expect(
+      screen.getByText(
+        'по 11 завершённым делам (Mazowieckie, временный побыт, все основания — по основанию «работа» пока мало данных), которые ждали не меньше тебя',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('renders documents, with the owner’s names as plain text', async () => {
     await openCase();
     expect(screen.getByRole('heading', { name: 'Документы' })).toBeInTheDocument();

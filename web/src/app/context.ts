@@ -29,6 +29,10 @@ export interface Labels {
   channel(code: string): string;
   milestone(code: Milestone): string;
   hint(code: Milestone): string;
+  /** Plain label of a permit type, e.g. "временный побыт". */
+  permitType(code: string): string;
+  /** The permit type a purpose belongs to; null with servers older than permit types. */
+  permitTypeOf(purpose: string): string | null;
 }
 
 export function makeLabels(meta: Meta): Labels {
@@ -41,6 +45,8 @@ export function makeLabels(meta: Meta): Labels {
     channel: (c) => find(meta.channels, c),
     milestone: (c) => find(meta.milestones, c),
     hint: (c) => meta.milestones.find((m) => m.code === c)?.hint ?? '',
+    permitType: (c) => find(meta.permit_types ?? [], c),
+    permitTypeOf: (c) => meta.permit_types?.find((g) => g.purposes.includes(c))?.code ?? null,
   };
 }
 

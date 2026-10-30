@@ -11,6 +11,7 @@ import type {
   OutlierInfo,
   ShareQuery,
   StatsResponse,
+  StatsSelection,
 } from './types';
 
 export type ApiErrorKind =
@@ -139,6 +140,12 @@ export function errorFromResponse(status: number, body: unknown, retryAfter: str
 
 const seg = (v: string | number) => encodeURIComponent(String(v));
 
+function selectionParams(selection: StatsSelection): URLSearchParams {
+  return new URLSearchParams(
+    'group' in selection ? { group: selection.group } : { purpose: selection.purposes.join(',') },
+  );
+}
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly initData: string;
@@ -245,8 +252,10 @@ export class ApiClient {
   deleteDocument(id: number, docId: number) {
     return this.request<CaseDetail>('DELETE', `/api/cases/${seg(id)}/documents/${seg(docId)}`);
   }
-  stats(voivodeship: string, purpose: string) {
-    const q = new URLSearchParams({ voivodeship, purpose });
+  /** `voivodeship` null means all of Poland. */
+  stats(voivodeship: string | null, selection: StatsSelection) {
+    const q = selectionParams(selection);
+    if (voivodeship !== null) q.set('voivodeship', voivodeship);
     return this.request<StatsResponse>('GET', `/api/stats?${q}`);
   }
   calendars() {
@@ -255,8 +264,10 @@ export class ApiClient {
   shareCase(id: number) {
     return this.request<ShareQuery>('GET', `/api/share/case/${seg(id)}`);
   }
-  shareStats(purpose: string, voivodeships: string[]) {
-    const q = new URLSearchParams({ purpose, voivodeships: voivodeships.join(',') });
+  /** `places` are voivodeship codes and possibly ALL_POLAND. */
+  shareStats(selection: StatsSelection, places: string[]) {
+    const q = selectionParams(selection);
+    q.set('voivodeships', places.join(','));
     return this.request<ShareQuery>('GET', `/api/share/stats?${q}`);
   }
 }

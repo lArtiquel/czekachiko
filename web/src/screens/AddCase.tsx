@@ -20,7 +20,12 @@ export function AddCase() {
   const [voivodeship, setVoivodeship] = useState<string | null>(null);
   const [voivOpen, setVoivOpen] = useState(true);
   const [query, setQuery] = useState('');
+  // Permit type first, then its basis. Nearly every applicant files for a temporary permit, so
+  // it starts selected; a type with a single basis sets the purpose by itself.
+  const permitTypes = meta.permit_types;
+  const [permitType, setPermitType] = useState<string | null>(permitTypes?.[0]?.code ?? null);
   const [purpose, setPurpose] = useState<string | null>(null);
+  const bases = permitTypes?.find((g) => g.code === permitType)?.purposes ?? [];
   const [channel, setChannel] = useState<string | null>(null);
   const [filed, setFiled] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,6 +49,31 @@ export function AddCase() {
     setQuery('');
     clearError('voivodeship');
   };
+
+  const pickPermitType = (code: string) => {
+    selectionHaptic(tg);
+    setPermitType(code);
+    const next = permitTypes?.find((g) => g.code === code)?.purposes ?? [];
+    setPurpose(next.length === 1 ? next[0]! : null);
+    clearError('purpose');
+  };
+
+  const pickPurpose = (code: string) => {
+    setPurpose(code);
+    clearError('purpose');
+  };
+
+  const purposeRows = (codes: string[]) =>
+    codes.map((code) => (
+      <RadioRow
+        key={code}
+        name="purpose"
+        value={code}
+        checked={purpose === code}
+        onChange={() => pickPurpose(code)}
+        label={labels.purposeButton(code)}
+      />
+    ));
 
   const save = async () => {
     if (savingRef.current) return;
@@ -139,24 +169,41 @@ export function AddCase() {
         <FieldError message={errors.voivodeship} />
       </Group>
 
-      <Group title={t('field_purpose')} plain>
-        <div className="card" role="radiogroup" aria-label={t('field_purpose')}>
-          {meta.purposes.map((p) => (
-            <RadioRow
-              key={p.code}
-              name="purpose"
-              value={p.code}
-              checked={purpose === p.code}
-              onChange={() => {
-                setPurpose(p.code);
-                clearError('purpose');
-              }}
-              label={p.button}
-            />
-          ))}
-        </div>
-        <FieldError message={errors.purpose} />
-      </Group>
+      {permitTypes ? (
+        <>
+          <Group title={t('field_permit_type')} plain>
+            <div className="card" role="radiogroup" aria-label={t('field_permit_type')}>
+              {permitTypes.map((g) => (
+                <RadioRow
+                  key={g.code}
+                  name="permit_type"
+                  value={g.code}
+                  checked={permitType === g.code}
+                  onChange={() => pickPermitType(g.code)}
+                  label={g.button}
+                />
+              ))}
+            </div>
+            {bases.length > 1 ? null : <FieldError message={errors.purpose} />}
+          </Group>
+          {bases.length > 1 ? (
+            <Group title={t('field_basis')} plain>
+              <div className="card" role="radiogroup" aria-label={t('field_basis')}>
+                {purposeRows(bases)}
+              </div>
+              <FieldError message={errors.purpose} />
+            </Group>
+          ) : null}
+        </>
+      ) : (
+        // A server without permit types: the flat list as before.
+        <Group title={t('field_purpose')} plain>
+          <div className="card" role="radiogroup" aria-label={t('field_purpose')}>
+            {purposeRows(meta.purposes.map((p) => p.code))}
+          </div>
+          <FieldError message={errors.purpose} />
+        </Group>
+      )}
 
       <Group title={t('field_channel')} plain>
         <Segmented

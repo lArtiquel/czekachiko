@@ -29,7 +29,8 @@ const CORE = [
   { code: 'paszport', name: 'Kopia paszportu' },
 ];
 
-export const meta: Meta = {
+/** /api/meta as servers before permit types sent it: a flat purpose list, no permit_types. */
+export const legacyMeta: Meta = {
   voivodeships: VOIVS.map(([code, label]) => ({ code, label })),
   purposes: [
     { code: 'praca', label: 'работа', button: 'Работа (art. 114)' },
@@ -58,6 +59,34 @@ export const meta: Meta = {
     inne: CORE,
   },
   limits: { max_cases: 5, max_custom_docs: 15, max_doc_name: 60 },
+};
+
+const TEMPORARY = ['praca', 'jdg', 'blue_card', 'studia', 'rodzina', 'inne'];
+const typeOf = (code: string) =>
+  TEMPORARY.includes(code) ? 'temporary' : code === 'staly' ? 'permanent' : 'eu_resident';
+const purposeList = [
+  ...legacyMeta.purposes.slice(0, 2),
+  { code: 'blue_card', label: 'Blue Card', button: 'Blue Card (Niebieska Karta UE)' },
+  ...legacyMeta.purposes.slice(2),
+  { code: 'staly', label: 'постоянный побыт', button: 'Постоянный побыт (pobyt stały)' },
+  { code: 'rezydent_ue', label: 'резидент ЕС', button: 'Резидент ЕС (rezydent długoterminowy UE)' },
+];
+
+/** /api/meta with permit types (current servers). */
+export const meta: Meta = {
+  ...legacyMeta,
+  purposes: purposeList.map((p) => ({ ...p, permit_type: typeOf(p.code) })),
+  permit_types: [
+    { code: 'temporary', label: 'временный побыт', button: 'Временный побыт (pobyt czasowy)', purposes: TEMPORARY },
+    { code: 'permanent', label: 'постоянный побыт', button: 'Постоянный побыт (pobyt stały)', purposes: ['staly'] },
+    {
+      code: 'eu_resident',
+      label: 'резидент ЕС',
+      button: 'Резидент ЕС (rezydent długoterminowy UE)',
+      purposes: ['rezydent_ue'],
+    },
+  ],
+  checklists: { ...legacyMeta.checklists, blue_card: CORE, staly: CORE, rezydent_ue: CORE },
 };
 
 export const caseDetail: CaseDetail = {

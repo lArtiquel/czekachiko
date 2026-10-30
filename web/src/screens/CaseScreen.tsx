@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { isApiError } from '../api/client';
-import { MILESTONES, type CaseDetail, type CaseDocument, type IsoDate, type Milestone, type OutlierInfo } from '../api/types';
+import {
+  MILESTONES,
+  type CaseDetail,
+  type CaseDocument,
+  type Forecast,
+  type IsoDate,
+  type Milestone,
+  type OutlierInfo,
+} from '../api/types';
 import { useApp } from '../app/context';
 import { DateField } from '../components/DateField';
 import { FieldError, LoadError, Loading, PageTitle } from '../components/common';
@@ -460,6 +468,14 @@ function CaseView({ detail, onChange }: { detail: CaseDetail; onChange: (d: Case
   );
 }
 
+const SCOPE_KEYS = {
+  voiv: 'fc_scope_voiv',
+  voiv_filed: 'fc_scope_voiv_filed',
+  voiv_group: 'fc_scope_voiv_group',
+  national: 'fc_scope_national',
+  national_group: 'fc_scope_national_group',
+} as const satisfies Record<NonNullable<Forecast['scope']>, string>;
+
 function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate }) {
   const { t, labels } = useApp();
   const f = detail.forecast;
@@ -475,6 +491,8 @@ function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate })
   }
   const voiv = labels.voiv(detail.voivodeship);
   const purpose = labels.purpose(detail.purpose);
+  const permitType = labels.permitTypeOf(detail.purpose);
+  const group = permitType ? labels.permitType(permitType) : purpose;
   const extremes =
     f.kind !== 'no_data' && f.fastest !== null && f.slowest !== null
       ? t('fc_fastest_slowest', { fastest: f.fastest, slowest: f.slowest })
@@ -483,10 +501,7 @@ function ForecastCard({ detail, today }: { detail: CaseDetail; today: IsoDate })
 
   let body: ReactNode;
   if (win) {
-    const scope = t(
-      f.scope === 'national' ? 'fc_scope_national' : f.scope === 'voiv_filed' ? 'fc_scope_voiv_filed' : 'fc_scope_voiv',
-      { voiv, purpose },
-    );
+    const scope = t(SCOPE_KEYS[f.scope ?? 'voiv'] ?? 'fc_scope_voiv', { voiv, purpose, group });
     const inDays = daysBetween(today, win.likely);
     body = (
       <>

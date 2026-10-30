@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { todayIso } from '../lib/dates';
 import { mockApi, type Call } from '../test/api';
-import { cases } from '../test/fixtures';
+import { cases, legacyMeta } from '../test/fixtures';
 import { installTelegram } from '../test/telegram';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -144,5 +144,44 @@ describe('Add case', () => {
     await waitFor(() =>
       expect(tg.webApp.showAlert).toHaveBeenCalledWith(expect.stringContaining('не больше 5 дел'), expect.any(Function)),
     );
+  });
+
+  it('asks for the permit type first; temporary needs a basis, the others set it', async () => {
+    const { api, tg, user } = await openForm({ 'POST /api/cases': { status: 201, body: cases[0] } });
+    expect(screen.getByLabelText('Временный побыт (pobyt czasowy)')).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: 'Основание' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Blue Card (Niebieska Karta UE)')).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Постоянный побыт (pobyt stały)'));
+    expect(screen.queryByRole('radiogroup', { name: 'Основание' })).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Поиск воеводства'));
+    await user.click(screen.getByLabelText('Mazowieckie'));
+    await user.click(screen.getByLabelText('Лично / почтой'));
+    fireEvent.change(screen.getByLabelText('Дата подачи wniosku'), { target: { value: '2025-03-14' } });
+    await tg.clickMain();
+    await waitFor(() => expect(api.callsTo('POST', '/api/cases')).toHaveLength(1));
+    expect((api.callsTo('POST', '/api/cases')[0]!.body as { purpose: string }).purpose).toBe('staly');
+  });
+
+  it('switching back to temporary clears the basis', async () => {
+    const { api, tg, user } = await openForm();
+    await user.click(screen.getByLabelText('Резидент ЕС (rezydent długoterminowy UE)'));
+    await user.click(screen.getByLabelText('Временный побыт (pobyt czasowy)'));
+    await tg.clickMain();
+    expect(screen.getAllByText('Выбери вариант.')).toHaveLength(3);
+    expect(api.callsTo('POST', '/api/cases')).toHaveLength(0);
+  });
+
+  it('shows the flat purpose list when the server has no permit types', async () => {
+    const { api, tg, user } = await openForm({
+      'GET /api/meta': { body: legacyMeta },
+      'POST /api/cases': { status: 201, body: cases[0] },
+    });
+    expect(screen.queryByText('Тип разрешения')).not.toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Цель пребывания' })).toBeInTheDocument();
+    await fillValid(user);
+    await tg.clickMain();
+    await waitFor(() => expect(window.location.hash).toBe('#/case/7'));
+    expect((api.callsTo('POST', '/api/cases')[0]!.body as { purpose: string }).purpose).toBe('praca');
   });
 });

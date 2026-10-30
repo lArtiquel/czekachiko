@@ -30,6 +30,15 @@ export interface Option {
 export interface PurposeOption extends Option {
   /** Longer label for pickers, e.g. "Работа (art. 114)". */
   button: string;
+  /** `temporary`, `permanent` or `eu_resident`. Absent from servers older than permit types. */
+  permit_type?: string;
+}
+
+/** A permit type with its bases (purpose codes), in picker order. */
+export interface PermitTypeOption extends Option {
+  /** Picker heading, e.g. "Временный побыт (pobyt czasowy)". */
+  button: string;
+  purposes: string[];
 }
 
 export interface MilestoneOption {
@@ -51,7 +60,13 @@ export interface Limits {
 
 export interface Meta {
   voivodeships: Option[];
+  /** Flat, in picker order. */
   purposes: PurposeOption[];
+  /**
+   * The same purposes grouped by permit type. Its presence also tells the app that the server
+   * takes several bases, permit types and all of Poland in stats.
+   */
+  permit_types?: PermitTypeOption[];
   channels: Option[];
   milestones: MilestoneOption[];
   checklists: Record<string, ChecklistItem[]>;
@@ -88,7 +103,8 @@ export interface Forecast {
   likely: IsoDate | null;
   end: IsoDate | null;
   n: number;
-  scope: 'voiv' | 'voiv_filed' | 'national' | null;
+  /** Where the numbers come from; `_group` means every basis of the case's permit type. */
+  scope: 'voiv' | 'voiv_filed' | 'voiv_group' | 'national' | 'national_group' | null;
   waited_longer_than: number | null;
   total: number | null;
   fastest: number | null;
@@ -127,6 +143,12 @@ export interface StatsResponse {
     decision: [IsoDate, IsoDate] | null;
   };
 }
+
+/** Stats for one or more bases, or for every basis of a permit type. */
+export type StatsSelection = { purposes: string[] } | { group: string };
+
+/** All of Poland, as a place next to voivodeships (`voivodeships=all` when sharing). */
+export const ALL_POLAND = 'all';
 
 export interface CalendarLink {
   voivodeship: string;
