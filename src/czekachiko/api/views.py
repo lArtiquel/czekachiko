@@ -19,13 +19,22 @@ from czekachiko.api.payloads import (
     forecast_json,
     parse_day,
     parse_enum,
+    parse_purposes,
     span_json,
 )
 from czekachiko.dates import validate_milestones
 from czekachiko.db import repo
 from czekachiko.db.models import Case
-from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
-from czekachiko.forecasting import case_forecast, find_outlier, who_now_spans
+from czekachiko.domain import (
+    PERMIT_GROUPS,
+    PERMIT_TYPE,
+    PURPOSE_ORDER,
+    Channel,
+    Milestone,
+    Purpose,
+    Voivodeship,
+)
+from czekachiko.forecasting import case_forecast, find_outlier, stats_chain, who_now_spans
 from czekachiko.i18n import LOCALES, loc, voiv_label
 
 routes = web.RouteTableDef()
@@ -120,9 +129,24 @@ async def meta(request: web.Request) -> web.Response:
     return respond(
         {
             "voivodeships": [{"code": v.value, "label": voiv_label(v)} for v in Voivodeship],
+            # Flat, in picker order, as before; permit_types groups the same codes.
             "purposes": [
-                {"code": p.value, "label": L.PURPOSE_LABELS[p], "button": L.PURPOSE_BUTTONS[p]}
-                for p in Purpose
+                {
+                    "code": p.value,
+                    "label": L.PURPOSE_LABELS[p],
+                    "button": L.PURPOSE_BUTTONS[p],
+                    "permit_type": PERMIT_TYPE[p].value,
+                }
+                for p in PURPOSE_ORDER
+            ],
+            "permit_types": [
+                {
+                    "code": t.value,
+                    "label": L.PERMIT_TYPE_LABELS[t],
+                    "button": L.PERMIT_TYPE_BUTTONS[t],
+                    "purposes": [p.value for p in ps],
+                }
+                for t, ps in PERMIT_GROUPS.items()
             ],
             "channels": [{"code": c.value, "label": L.CHANNEL_LABELS[c]} for c in Channel],
             "milestones": [
@@ -333,14 +357,17 @@ async def delete_own_doc(request: web.Request) -> web.Response:
 
 @routes.get("/api/stats")
 async def stats(request: web.Request) -> web.Response:
-    voiv = parse_enum(Voivodeship, request.query.get("voivodeship"))
-    purpose = parse_enum(Purpose, request.query.get("purpose"))
-    errors = {k: "invalid" for k, v in (("voivodeship", voiv), ("purpose", purpose)) if v is None}
+    """One place (a voivodeship, or all of Poland without one) for one or more purposes."""
+    raw_voiv = request.query.get("voivodeship")
+    voiv = parse_enum(Voivodeship, raw_voiv) if raw_voiv is not None else None
+    purposes, errors = parse_purposes(request.query)
+    if raw_voiv is not None and voiv is None:
+        errors["voivodeship"] = "invalid"
     if errors:
         raise invalid(**errors)
     s = request[SESSION]
-    chain = await repo.chain_aggregates(s, voiv, purpose)
-    fp, dec = await who_now_spans(s, voiv, purpose, today(request))
+    chain = await stats_chain(s, voiv, purposes)
+    fp, dec = await who_now_spans(s, voiv, purposes, today(request))
     return respond(
         {
             "chain": chain_json(chain),
@@ -373,18 +400,26 @@ async def share_case(request: web.Request) -> web.Response:
     return respond({"query": f"c:{case.id}"})
 
 
+_BAD = object()
+
+
+def parse_place(name: str):
+    """A voivodeship code, `all` for all of Poland (None), or _BAD."""
+    if name == share.ALL:
+        return None
+    voiv = parse_enum(Voivodeship, name)
+    return _BAD if voiv is None else voiv
+
+
 @routes.get("/api/share/stats")
 async def share_stats(request: web.Request) -> web.Response:
-    purpose = parse_enum(Purpose, request.query.get("purpose"))
+    purposes, errors = parse_purposes(request.query)
     names = request.query.get("voivodeships", "").split(",")
-    voivs = list(dict.fromkeys(parse_enum(Voivodeship, n) for n in names))
-    errors = {}
-    if purpose is None:
-        errors["purpose"] = "invalid"
-    if None in voivs or not voivs:
+    places = list(dict.fromkeys(parse_place(n) for n in names))
+    if _BAD in places or not places:
         errors["voivodeships"] = "invalid"
-    elif len(voivs) > share.MAX_COMPARE:
+    elif len(places) > share.MAX_COMPARE:
         errors["voivodeships"] = "too_many"
     if errors:
         raise invalid(**errors)
-    return respond({"query": share.encode(purpose.value, voivs)})
+    return respond({"query": share.encode(purposes, places)})

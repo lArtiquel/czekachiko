@@ -1,12 +1,21 @@
 """JSON shapes of the API and parsing of its inputs. Pure."""
 
 import re
+from collections.abc import Mapping
 from datetime import date
 from enum import StrEnum
 
 from czekachiko import documents
 from czekachiko.dates import parse_date
-from czekachiko.domain import CHAIN, Milestone
+from czekachiko.domain import (
+    CHAIN,
+    PERMIT_GROUPS,
+    PERMIT_TYPE,
+    Milestone,
+    PermitType,
+    Purpose,
+    canonical,
+)
 from czekachiko.stats import Aggregate, Forecast
 
 M = Milestone
@@ -28,6 +37,25 @@ def parse_enum[E: StrEnum](enum: type[E], value) -> E | None:
         return enum(value)
     except ValueError:
         return None
+
+
+def parse_purposes(query: Mapping[str, str]) -> tuple[tuple[Purpose, ...] | None, dict[str, str]]:
+    """`purpose=a,b` (one or more bases of one permit type) or `group=<permit type>`.
+
+    Returns the purposes in picker order, or None and the field errors.
+    """
+    raw_purpose, raw_group = query.get("purpose"), query.get("group")
+    if raw_purpose is not None and raw_group is not None:
+        return None, {"group": "exclusive"}
+    if raw_group is not None:
+        group = parse_enum(PermitType, raw_group)
+        return (PERMIT_GROUPS[group], {}) if group else (None, {"group": "invalid"})
+    purposes = [parse_enum(Purpose, p) for p in (raw_purpose or "").split(",")]
+    if None in purposes:
+        return None, {"purpose": "invalid"}
+    if len({PERMIT_TYPE[p] for p in purposes}) > 1:
+        return None, {"purpose": "mixed"}
+    return canonical(purposes), {}
 
 
 def iso(d: date | None) -> str | None:

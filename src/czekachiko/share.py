@@ -1,11 +1,23 @@
 """Inline sharing: voivodeship and purpose name matching, compact card codes. Pure."""
 
 import unicodedata
+from collections.abc import Iterable
 
-from czekachiko.domain import Purpose, Voivodeship
+from czekachiko.domain import (
+    PERMIT_GROUPS,
+    PERMIT_TYPE,
+    PermitType,
+    Purpose,
+    Voivodeship,
+    canonical,
+    group_of,
+)
 
 MAX_COMPARE = 6
 V = Voivodeship
+# All of Poland, in share codes and in the API's voivodeship lists.
+ALL = "all"
+Place = Voivodeship | None
 
 # Prefixes people actually type: Polish (diacritics stripped), Russian, and the capital city.
 ALIASES: dict[Voivodeship, tuple[str, ...]] = {
@@ -65,21 +77,51 @@ def match_purposes(query: str) -> list[Purpose]:
     return [p for p in Purpose if any(_matches(tok, PURPOSE_ALIASES.get(p, ())) for tok in toks)]
 
 
-def encode(purpose: str, voivs: list[Voivodeship]) -> str:
+def selector(purposes: Iterable[Purpose | str]) -> str:
+    """Compact name of a purpose set: `jdg`, a permit type such as `temporary`, or `praca+jdg`.
+
+    A single purpose keeps its own code, so codes made before permit types existed stay valid.
+    """
+    chosen = canonical(purposes)
+    if len(chosen) == 1:
+        return chosen[0].value
+    group = group_of(chosen)
+    return group.value if group is not None else "+".join(p.value for p in chosen)
+
+
+def parse_selector(text: str) -> tuple[Purpose, ...] | None:
+    """Purposes of a selector; None unless they are distinct and share one permit type."""
+    if text in PermitType.__members__:
+        return PERMIT_GROUPS[PermitType(text)]
+    try:
+        purposes = [Purpose(p) for p in text.split("+")]
+    except ValueError:
+        return None
+    if len(set(purposes)) != len(purposes) or len({PERMIT_TYPE[p] for p in purposes}) != 1:
+        return None
+    return canonical(purposes)
+
+
+def encode(purpose: str | Iterable[Purpose | str], voivs: list[Place]) -> str:
+    """`s:<selector>:<places>`, places being voivodeship indexes or `all`, e.g. `s:jdg:6`."""
+    sel = selector([purpose] if isinstance(purpose, str) else purpose)
     order = list(Voivodeship)
-    return f"s:{purpose}:" + ",".join(str(order.index(v)) for v in voivs)
+    return f"s:{sel}:" + ",".join(ALL if v is None else str(order.index(v)) for v in voivs)
 
 
-def decode(code: str) -> tuple[str, list[Voivodeship]] | None:
+def decode(code: str) -> tuple[str, list[Place]] | None:
+    """(canonical selector, places) of a stats code; old `s:<purpose>:<indexes>` codes too."""
     parts = code.strip().split(":")
     if len(parts) != 3 or parts[0] != "s":
         return None
+    purposes = parse_selector(parts[1])
+    if purposes is None:
+        return None
     try:
-        purpose = Purpose(parts[1])
         order = list(Voivodeship)
-        voivs = [order[int(i)] for i in parts[2].split(",") if i]
+        voivs = [None if i == ALL else order[int(i)] for i in parts[2].split(",") if i]
     except (ValueError, IndexError):
         return None
     if not voivs or len(voivs) > MAX_COMPARE:
         return None
-    return purpose.value, voivs
+    return selector(purposes), voivs

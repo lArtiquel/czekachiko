@@ -4,10 +4,20 @@ Cards are parsed as HTML and posted to other chats, so they carry no free text: 
 document names, nothing from feedback.
 """
 
+from collections.abc import Iterable
 from datetime import date
 
 from czekachiko.db.models import Case
-from czekachiko.domain import CHAIN, Channel, Milestone, Purpose, Voivodeship
+from czekachiko.domain import (
+    CHAIN,
+    PERMIT_TYPE,
+    Channel,
+    Milestone,
+    Purpose,
+    Voivodeship,
+    canonical,
+    group_of,
+)
 from czekachiko.i18n import label, t, voiv_label
 from czekachiko.stats import Aggregate, Forecast
 
@@ -17,6 +27,21 @@ Chain = dict[tuple[Milestone, Milestone], Aggregate | None]
 
 def fmt(d: date) -> str:
     return d.strftime("%d.%m.%Y")
+
+
+def selection_label(lang: str, purposes: Iterable[Purpose | str]) -> str:
+    """One purpose by its label, a whole permit type as "<type>, all bases", else a list."""
+    chosen = canonical(purposes)
+    if len(chosen) == 1:
+        return label(lang, "PURPOSE_LABELS", chosen[0])
+    group = group_of(chosen)
+    if group is not None:
+        return t(lang, "all_bases", group=label(lang, "PERMIT_TYPE_LABELS", group))
+    return ", ".join(label(lang, "PURPOSE_LABELS", p) for p in chosen)
+
+
+def place_label(lang: str, voiv: Voivodeship | str | None) -> str:
+    return voiv_label(voiv) if voiv is not None else t(lang, "all_poland")
 
 
 def case_title(lang: str, case: Case) -> str:
@@ -59,7 +84,14 @@ def forecast_text(lang: str, case: Case, f: Forecast | None) -> str:
     if f.kind == "waited_longer":
         body = t(lang, "fc_waited_longer", x=f.waited_longer_than, y=f.total)
     else:
-        scope = t(lang, f"fc_scope_{f.scope}", voiv=voiv_label(case.voivodeship), purpose=purpose)
+        group = label(lang, "PERMIT_TYPE_LABELS", PERMIT_TYPE[Purpose(case.purpose)])
+        scope = t(
+            lang,
+            f"fc_scope_{f.scope}",
+            voiv=voiv_label(case.voivodeship),
+            purpose=purpose,
+            group=group,
+        )
         body = t(
             lang,
             "fc_window",
@@ -94,11 +126,17 @@ def case_card(lang: str, case: Case, f: Forecast | None, chain: Chain) -> str:
     return "\n".join(lines)
 
 
-def stats_card(lang: str, purpose: str, chains: dict[Voivodeship, Chain]) -> str:
-    """One voivodeship's chain, or several side by side for a comparison."""
-    title = t(lang, "card_title", purpose=label(lang, "PURPOSE_LABELS", Purpose(purpose)))
+def stats_card(
+    lang: str, purpose: str | Iterable[str], chains: dict[Voivodeship | None, Chain]
+) -> str:
+    """One place's chain, or several side by side for a comparison.
+
+    `purpose` is one purpose or several; a `None` place is all of Poland.
+    """
+    purposes = [purpose] if isinstance(purpose, str) else list(purpose)
+    title = t(lang, "card_title", purpose=selection_label(lang, purposes))
     parts = [title]
     for v, chain in chains.items():
-        parts.append(f"<b>{voiv_label(v)}</b>\n" + "\n".join(chain_lines(lang, chain)))
+        parts.append(f"<b>{place_label(lang, v)}</b>\n" + "\n".join(chain_lines(lang, chain)))
     parts.append(f"<i>{t(lang, 'card_footer')}</i>")
     return "\n\n".join(parts)

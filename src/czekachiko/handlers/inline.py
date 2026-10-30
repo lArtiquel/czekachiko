@@ -1,7 +1,7 @@
 """Inline mode: stats, comparison and case cards for any chat.
 
 The Mini App's «📤 Отправить в чат» opens Telegram's chat picker with one of these queries:
-`s:<purpose>:<voivodeship indexes>` (share.encode) or `c:<case id>` (owner only).
+`s:<purposes>:<places>` (share.encode) or `c:<case id>` (owner only).
 """
 
 from datetime import date
@@ -19,24 +19,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from czekachiko import cards, share
 from czekachiko.db import repo
 from czekachiko.domain import Purpose, Voivodeship
-from czekachiko.forecasting import case_forecast
+from czekachiko.forecasting import case_forecast, stats_chain
 from czekachiko.i18n import label, t, voiv_label
 from czekachiko.keyboards import open_bot
 
 router = Router(name="inline")
 MAX_RESULTS = 20
+Purposes = tuple[Purpose, ...]
 
 
-async def stats_card(s: AsyncSession, lang: str, purpose: str, voivs: list[Voivodeship]) -> str:
-    chains = {v: await repo.chain_aggregates(s, v, purpose) for v in voivs}
-    return cards.stats_card(lang, purpose, chains)
+async def stats_card(
+    s: AsyncSession, lang: str, purposes: Purposes, voivs: list[share.Place]
+) -> str:
+    chains = {v: await stats_chain(s, v, purposes) for v in voivs}
+    return cards.stats_card(lang, purposes, chains)
 
 
-def article(lang: str, purpose: str, voivs: list[Voivodeship], text: str):
-    names = ", ".join(voiv_label(v) for v in voivs)
+def article(lang: str, purposes: Purposes, voivs: list[share.Place], text: str):
+    names = ", ".join(cards.place_label(lang, v) for v in voivs)
     return InlineQueryResultArticle(
-        id=share.encode(purpose, voivs),
-        title=f"{names} · {label(lang, 'PURPOSE_LABELS', Purpose(purpose))}",
+        id=share.encode(purposes, voivs),
+        title=f"{names} · {cards.selection_label(lang, purposes)}",
         description=t(lang, "card_description"),
         input_message_content=InputTextMessageContent(message_text=text, parse_mode="HTML"),
         reply_markup=open_bot(lang),
@@ -76,9 +79,10 @@ async def inline_case(iq: InlineQuery, session: AsyncSession, lang: str, clock):
 @router.inline_query()
 async def inline(iq: InlineQuery, session: AsyncSession, lang: str, webapp_url: str):
     query = iq.query.strip()
-    combos: list[tuple[str, list[Voivodeship]]] = []
+    combos: list[tuple[Purposes, list[share.Place]]] = []
     if (decoded := share.decode(query)) is not None:
-        combos = [decoded]
+        selector, places = decoded
+        combos = [(share.parse_selector(selector), places)]
     else:
         voivs = share.match_voivodeships(query) if query else []
         if not voivs:
@@ -91,11 +95,11 @@ async def inline(iq: InlineQuery, session: AsyncSession, lang: str, webapp_url: 
                 p for p in purposes if any((await repo.chain_aggregates(session, v, p)).values())
             ]
             for p in with_data or purposes[:1]:
-                combos.append((p.value, [v]))
+                combos.append(((p,), [v]))
     results = []
-    for purpose, voivs in combos[:MAX_RESULTS]:
+    for purposes_, places in combos[:MAX_RESULTS]:
         results.append(
-            article(lang, purpose, voivs, await stats_card(session, lang, purpose, voivs))
+            article(lang, purposes_, places, await stats_card(session, lang, purposes_, places))
         )
     # Above the results: opens the app's stats, which can return here via switchInlineQuery.
     button = InlineQueryResultsButton(
