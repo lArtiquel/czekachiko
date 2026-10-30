@@ -11,7 +11,7 @@ def run(path: str) -> int:
 def test_guard_rejects_parent_directories():
     assert run("/opt") == 1
     assert run("/") == 1
-    assert run("/opt/vpnchic") == 1
+    assert run("/opt/another-app") == 1
 
 
 def test_guard_accepts_project_directory():
