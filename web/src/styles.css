@@ -683,8 +683,10 @@ p {
   cursor: pointer;
 }
 
-.date-box.is-empty .date-input,
-.date-box.is-empty .date-input::-webkit-datetime-edit {
+/* The native text is never shown: its format follows the device locale.
+   `.date-placeholder` draws the placeholder or the DD.MM.YYYY value instead. */
+.date-input,
+.date-input::-webkit-datetime-edit {
   color: transparent;
 }
 
@@ -697,6 +699,11 @@ p {
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
+}
+
+.date-placeholder.has-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- choices --------------------------------------------------------------- */

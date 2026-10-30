@@ -47,6 +47,12 @@ describe('DateField', () => {
     expect(input()).toHaveValue('2025-05-05');
   });
 
+  it('shows the date as DD.MM.YYYY whatever the device locale', () => {
+    render(<Harness initial="2026-03-06" />);
+    expect(screen.getByText('06.03.2026')).toBeInTheDocument();
+    expect(input()).toHaveValue('2026-03-06');
+  });
+
   it('shows a placeholder while empty', () => {
     render(<Harness />);
     expect(screen.getByText('Выбрать дату')).toBeInTheDocument();

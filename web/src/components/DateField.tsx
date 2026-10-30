@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { IsoDate } from '../api/types';
 import { useT } from '../i18n';
-import { clampDate, todayIso } from '../lib/dates';
+import { clampDate, formatDate, todayIso } from '../lib/dates';
 import { FieldError } from './common';
 import { Icon } from './icons';
 import { IconButton } from './ui';
@@ -80,11 +80,11 @@ export function DateField({
             onFocus={openEmpty}
             onChange={(e) => onChange(e.target.value)}
           />
-          {empty ? (
-            <span className="date-placeholder" aria-hidden="true">
-              {t('date_pick')}
-            </span>
-          ) : null}
+          {/* The native text follows the device locale (10/30/2026 on en-US), so it is
+              hidden and the app's own DD.MM.YYYY is drawn over it. */}
+          <span className={`date-placeholder${empty ? '' : ' has-value'}`} aria-hidden="true">
+            {empty ? t('date_pick') : formatDate(value)}
+          </span>
         </div>
         {clearable ? (
           <IconButton
