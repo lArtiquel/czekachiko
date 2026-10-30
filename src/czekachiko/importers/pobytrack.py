@@ -13,19 +13,23 @@ deletes posts that are gone upstream and recomputes each affected aggregate key 
 The source is pluggable: fetch_dataset() reads the site bundle today; pass a URL to read a
 JSON document of the same shape instead. Nothing below it depends on where the data came from.
 
-    python -m czekachiko.importers.pobytrack [--file PATH | --url URL] [--dry-run]
+Runs only by hand, from the bot container (the API container has no internet access):
+
+    docker compose -p czekachiko exec bot \
+        python -m czekachiko.importers.pobytrack [--file PATH | --url URL] [--dry-run]
+
+It prints new/updated/unchanged/deleted counts and skips by reason. A failed fetch, a broken
+dataset or a run that would delete many imported cases changes nothing.
 """
 
 import argparse
 import asyncio
 import json
-import logging
 import re
 import sys
 from collections import Counter
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -36,8 +40,6 @@ from czekachiko.dates import validate_milestones
 from czekachiko.db import repo
 from czekachiko.domain import Channel, Milestone, Purpose, Voivodeship
 from czekachiko.share import normalize
-
-log = logging.getLogger(__name__)
 
 SITE_URL = "https://pobyt-tracker.pages.dev/ru/"
 TOKEN_PREFIX = "pobytrack:"
@@ -50,7 +52,6 @@ MAX_DELETIONS = 10
 MAX_DELETE_SHARE = 0.1
 # Keeps `pobytrack:<post>/<n>` inside the 64-character client token.
 MAX_POST = 10**12
-DAILY_HOUR = 4  # Europe/Warsaw
 
 M = Milestone
 BASES: dict[str, Purpose] = {
@@ -458,74 +459,25 @@ async def import_dataset(
     return report
 
 
-Fetch = Callable[[], Awaitable[dict]]
-
-
-async def run_once(factory: async_sessionmaker, fetch: Fetch, today: date) -> Report | None:
-    """One import. On any failure: a warning, a rollback and no changes; never raises."""
-    try:
-        data = await fetch()
-    except Exception as e:  # noqa: BLE001 — network, HTTP status, parsing: all mean "skip today"
-        log.warning("pobytrack: fetch failed, nothing changed: %s: %s", type(e).__name__, e)
-        return None
-    try:
-        async with factory() as s:
-            report = await import_dataset(s, data, today)
-            await s.commit()
-    except DatasetError as e:
-        log.warning("pobytrack: dataset refused, nothing changed: %s", e)
-        return None
-    except Exception:  # noqa: BLE001 — the transaction rolled back with the session
-        log.exception("pobytrack: import failed, nothing changed")
-        return None
-    log.info("pobytrack: %s", ", ".join(line.strip() for line in report.lines()))
-    return report
-
-
-# --- schedule ----------------------------------------------------------------------------
-
-
-def _last_sunday(year: int, month: int) -> date:
-    d = date(year, month + 1, 1) - timedelta(days=1)
-    return d - timedelta(days=(d.weekday() + 1) % 7)
-
-
-def warsaw_offset(now: datetime) -> timedelta:
-    """CET/CEST under the EU rule: summer time from 01:00 UTC on the last Sunday of March to
-    01:00 UTC on the last Sunday of October. Avoids depending on the image's tz database."""
-    now = now.astimezone(UTC)
-    start = datetime.combine(_last_sunday(now.year, 3), datetime.min.time(), UTC)
-    end = datetime.combine(_last_sunday(now.year, 10), datetime.min.time(), UTC)
-    summer = start + timedelta(hours=1) <= now < end + timedelta(hours=1)
-    return timedelta(hours=2 if summer else 1)
-
-
-def next_run(now: datetime, hour: int = DAILY_HOUR) -> datetime:
-    """The next `hour`:00 in Warsaw after `now`, in UTC. 04:00 never falls in a DST gap."""
-    now = now.astimezone(UTC)
-    local = (now + warsaw_offset(now)).replace(tzinfo=None)
-    target = local.replace(hour=hour, minute=0, second=0, microsecond=0)
-    if target <= local:
-        target += timedelta(days=1)
-    winter = target.replace(tzinfo=UTC) - timedelta(hours=1)  # as if CET
-    return winter - (warsaw_offset(winter) - timedelta(hours=1))
-
-
-async def run_daily(
+async def sync(
     factory: async_sessionmaker,
-    fetch: Fetch = fetch_dataset,
-    now: Callable[[], datetime] = lambda: datetime.now(UTC),
-) -> None:
-    """Import every day at 04:00 Europe/Warsaw, inside the bot process."""
-    while True:
-        wait = (next_run(now()) - now()).total_seconds()
-        await asyncio.sleep(max(wait, 1))
-        today = (now() + warsaw_offset(now())).date()
-        await run_once(factory, fetch, today)
+    data: dict,
+    today: date,
+    *,
+    dry_run: bool = False,
+    allow_shrink: bool = False,
+) -> Report:
+    """One import in one transaction: committed, or rolled back for a dry run.
 
-
-def start_daily(factory: async_sessionmaker) -> asyncio.Task:
-    return asyncio.create_task(run_daily(factory), name="pobytrack-import")
+    Any exception (DatasetError included) leaves the database as it was.
+    """
+    async with factory() as s:
+        report = await import_dataset(s, data, today, allow_shrink=allow_shrink)
+        if dry_run:
+            await s.rollback()
+        else:
+            await s.commit()
+    return report
 
 
 # --- command line ------------------------------------------------------------------------
@@ -535,30 +487,22 @@ async def _main(args: argparse.Namespace) -> int:
     from czekachiko.config import Settings
     from czekachiko.db.session import make_session_factory
 
-    if args.file:
-        try:
-            data = load_file(Path(args.file))
-        except (OSError, DatasetError) as e:
-            print(f"cannot read {args.file}: {e}", file=sys.stderr)
-            return 1
-    else:
-        try:
-            data = await fetch_dataset(args.url)
-        except Exception as e:  # noqa: BLE001
-            print(f"fetch failed: {type(e).__name__}: {e}", file=sys.stderr)
-            return 1
+    try:
+        data = load_file(Path(args.file)) if args.file else await fetch_dataset(args.url)
+    except Exception as e:  # noqa: BLE001 — unreadable file, network, HTTP status, parsing
+        print(f"cannot read the dataset, nothing changed: {type(e).__name__}: {e}", file=sys.stderr)
+        return 1
     engine, factory = make_session_factory(Settings().database_url, pool_size=1, max_overflow=0)
     try:
-        async with factory() as s:
-            try:
-                report = await import_dataset(s, data, date.today(), allow_shrink=args.allow_shrink)
-            except DatasetError as e:
-                print(f"refused, nothing changed: {e}", file=sys.stderr)
-                return 1
-            if args.dry_run:
-                await s.rollback()
-            else:
-                await s.commit()
+        report = await sync(
+            factory, data, date.today(), dry_run=args.dry_run, allow_shrink=args.allow_shrink
+        )
+    except DatasetError as e:
+        print(f"refused, nothing changed: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:  # noqa: BLE001 — the transaction rolled back
+        print(f"import failed, nothing changed: {type(e).__name__}: {e}", file=sys.stderr)
+        return 1
     finally:
         await engine.dispose()
     print(f"generated: {data.get('generated')} · cases in dataset: {len(data['cases'])}")

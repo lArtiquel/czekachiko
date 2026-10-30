@@ -14,8 +14,6 @@ class Settings(BaseSettings):
     calendar_id: str | None = None
     calendar_public_url: str | None = None
     webapp_url: str = DEFAULT_WEBAPP_URL
-    # Daily import of the pobyt-tracker dataset at 04:00 Europe/Warsaw (bot process only).
-    pobytrack_import: bool = True
 
     @property
     def calendar_enabled(self) -> bool:

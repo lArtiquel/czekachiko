@@ -2,7 +2,7 @@
 
 import copy
 import json
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -400,24 +400,13 @@ async def test_shrinking_dataset_is_refused(session_factory):
 # --- failures --------------------------------------------------------------------------
 
 
-async def test_run_once_changes_nothing_on_failure(session_factory, monkeypatch, caplog):
-    async def ok():
-        return sample()
-
-    assert (await pt.run_once(session_factory, ok, TODAY)).new == 14
+async def test_a_failed_import_changes_nothing(session_factory, monkeypatch):
+    assert (await pt.sync(session_factory, sample(), TODAY)).new == 14
     snapshot = {k: (c.id, c.dates()) for k, c in (await imported(session_factory)).items()}
 
-    async def offline():
-        raise httpx.ConnectError("offline")
-
-    async def garbage():
-        return {"cases": "nope"}
-
-    async def empty():
-        return {"generated": "x", "cases": []}
-
-    for fetch in (offline, garbage, empty):
-        assert await pt.run_once(session_factory, fetch, TODAY) is None
+    for broken in ({"cases": "nope"}, {"generated": "x", "cases": []}):
+        with pytest.raises(pt.DatasetError):
+            await pt.sync(session_factory, broken, TODAY)
 
     # A failure halfway through the upsert rolls the whole import back.
     calls = {"n": 0}
@@ -431,14 +420,15 @@ async def test_run_once_changes_nothing_on_failure(session_factory, monkeypatch,
 
     monkeypatch.setattr(repo, "write_dates", flaky)
     changed = edited(lambda c: c.update(decision=None, card=None))
-    assert await pt.run_once(session_factory, lambda: _value(changed), TODAY) is None
+    with pytest.raises(RuntimeError):
+        await pt.sync(session_factory, changed, TODAY)
     after = {k: (c.id, c.dates()) for k, c in (await imported(session_factory)).items()}
     assert after == snapshot
-    assert "nothing changed" in caplog.text
 
 
-async def _value(v):
-    return v
+async def test_dry_run_saves_nothing(session_factory):
+    report = await pt.sync(session_factory, sample(), TODAY, dry_run=True)
+    assert report.new == 14 and await imported(session_factory) == {}
 
 
 # --- who may see and touch imported cases -----------------------------------------------
@@ -474,22 +464,7 @@ async def test_admin_lists_imported_apart(session_factory):
     assert "pobytrack: 14" in text and "#" not in text  # no imported case among recent ones
 
 
-# --- schedule and command line ----------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("now", "expected"),
-    [
-        ("2026-10-30T08:00", "2026-10-31T03:00"),  # winter: 04:00 CET = 03:00 UTC
-        ("2026-07-01T01:59", "2026-07-01T02:00"),  # summer: 04:00 CEST = 02:00 UTC
-        ("2026-07-01T02:00", "2026-07-02T02:00"),
-        ("2026-03-29T00:30", "2026-03-29T02:00"),  # the night clocks go forward
-        ("2026-10-25T00:30", "2026-10-25T03:00"),  # the night clocks go back
-    ],
-)
-def test_next_run_is_four_in_warsaw(now, expected):
-    utc = datetime.fromisoformat(now).replace(tzinfo=UTC)
-    assert pt.next_run(utc) == datetime.fromisoformat(expected).replace(tzinfo=UTC)
+# --- command line ----------------------------------------------------------------------
 
 
 def test_cli_dry_run_reads_a_file(db_url, monkeypatch, capsys):
@@ -499,6 +474,25 @@ def test_cli_dry_run_reads_a_file(db_url, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "new: 14" in out and "basis_other: 5" in out and "dry run" in out
     assert pt.main(["--file", str(FIXTURE.with_suffix(".missing"))]) == 1
+    assert "nothing changed" in capsys.readouterr().err
+
+
+def test_cli_reports_a_failed_fetch(db_url, monkeypatch, capsys):
+    async def offline(url=None, client=None):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setenv("DATABASE_URL", db_url)
+    monkeypatch.setenv("BOT_TOKEN", "42:TEST")
+    monkeypatch.setattr(pt, "fetch_dataset", offline)
+    assert pt.main(["--url", "https://data.example/pobyt.json"]) == 1
+    assert "ConnectError" in capsys.readouterr().err
+
+
+def test_no_scheduled_import():
+    from czekachiko.config import Settings
+
+    assert not hasattr(pt, "run_daily") and not hasattr(pt, "start_daily")
+    assert "pobytrack_import" not in Settings.model_fields
 
 
 def test_reports_render():
